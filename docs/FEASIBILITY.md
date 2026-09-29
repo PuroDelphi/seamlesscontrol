@@ -46,7 +46,7 @@ El 29 de septiembre se ejecutaron además dos probes del agente Rust:
 
 Con `capture-probe --listen` y movimiento generado por `virtual-input-probe --edge-test`, la barrera **se activó** y luego se liberó correctamente. El lector no recibió eventos EIS de entrada en los cinco segundos siguientes. Una explicación posible es que el portal no reenvíe eventos del dispositivo virtual que activó la barrera; esto no está demostrado. El puntero volvió a su posición original al terminar. Hace falta repetir la prueba con ratón/teclado físicos y registrar los eventos recibidos.
 
-El siguiente experimento debe recibir eventos reales, liberar la captura y repetir el flujo en dos equipos. Ningún dato de entrada fue capturado durante esta comprobación.
+El siguiente experimento debe recibir eventos reales, liberar la captura y repetir el flujo en dos equipos. Ningún dato de entrada fue capturado durante esta comprobación. El agente experimental `seamlesscontrold` ya enlaza portal/EIS, Noise XX y entrada virtual; está compilado y sometido a pruebas locales, pero su flujo de entrada físico y la ejecución entre dos máquinas siguen sin verificar. Véase [la guía de pruebas](./TESTING.md).
 
 ## Pendiente para cerrar la fase 0
 

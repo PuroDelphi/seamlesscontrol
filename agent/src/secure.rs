@@ -156,7 +156,7 @@ impl<S: Read + Write> SecureChannel<S> {
         match role {
             Role::Initiator => {
                 channel.send_record(&[u8::from(local_ok)])?;
-                let accepted = channel.read_record()? == [1];
+                let accepted = channel.read_record()?.as_deref() == Some(&[1][..]);
                 if !local_ok {
                     return Err(SecureError::PairingRejected);
                 }
@@ -165,7 +165,7 @@ impl<S: Read + Write> SecureChannel<S> {
                 }
             }
             Role::Responder => {
-                let accepted = channel.read_record()? == [1];
+                let accepted = channel.read_record()?.as_deref() == Some(&[1][..]);
                 channel.send_record(&[u8::from(local_ok)])?;
                 if !local_ok {
                     return Err(SecureError::PairingRejected);
@@ -191,9 +191,12 @@ impl<S: Read + Write> SecureChannel<S> {
         Ok(())
     }
 
-    fn read_record(&mut self) -> Result<Vec<u8>, SecureError> {
+    fn read_record(&mut self) -> Result<Option<Vec<u8>>, SecureError> {
         let mut length = [0; 2];
-        self.stream.read_exact(&mut length)?;
+        if self.stream.read(&mut length[..1])? == 0 {
+            return Ok(None);
+        }
+        self.stream.read_exact(&mut length[1..])?;
         let length = usize::from(u16::from_be_bytes(length));
         if !(16..=RECORD_CIPHERTEXT).contains(&length) {
             return Err(SecureError::InvalidRecord);
@@ -203,7 +206,11 @@ impl<S: Read + Write> SecureChannel<S> {
         let mut plain = vec![0; length];
         let size = self.cipher.read_message(&ciphertext, &mut plain)?;
         plain.truncate(size);
-        Ok(plain)
+        Ok(Some(plain))
+    }
+
+    pub fn stream_mut(&mut self) -> &mut S {
+        &mut self.stream
     }
 }
 
@@ -213,7 +220,12 @@ impl<S: Read + Write> Read for SecureChannel<S> {
             return Ok(0);
         }
         if self.read_at >= self.read_buf.len() {
-            self.read_buf = self.read_record().map_err(io::Error::other)?;
+            self.read_buf = match self.read_record() {
+                Ok(Some(record)) => record,
+                Ok(None) => return Ok(0),
+                Err(SecureError::Io(error)) => return Err(error),
+                Err(error) => return Err(io::Error::other(error)),
+            };
             self.read_at = 0;
             if self.read_buf.is_empty() {
                 return Err(io::Error::new(

@@ -4,7 +4,25 @@ Plugin nuevo para Omarchy que busca compartir un teclado y ratón entre equipos.
 
 ## Estado actual
 
-Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega una conexión EIS, y que Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. El núcleo Rust incluye encuadre de mensajes, topología, estado de teclas/botones, identidad persistente y un canal Noise XX con verificación de código corto. **Todavía no hay un agente o plugin listo para uso entre equipos.**
+Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega una conexión EIS, y que Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. El agente experimental ya une la captura, el canal Noise XX y la inyección, pero **el recorrido entre dos equipos todavía no se ha probado**. No hay una versión lista para uso cotidiano.
+
+## Probar el agente experimental entre dos Omarchy
+
+En ambos equipos, compile con `cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold`. En el equipo que recibirá el control, ejecute:
+
+```bash
+agent/target/release/seamlesscontrold serve 192.168.1.20:47832
+```
+
+Sustituya `192.168.1.20` por la IP LAN de ese equipo. En el equipo que tiene teclado y ratón físicos, ejecute:
+
+```bash
+agent/target/release/seamlesscontrold connect 192.168.1.20:47832 right
+```
+
+`right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. La primera conexión muestra un código de seis cifras en ambos terminales. **Compare los códigos y escriba `SI` en ambos sólo si coinciden.** Las claves quedan fijadas por IP en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, y **Ctrl+C** en el terminal de origen para cerrar. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
+
+Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El regreso por el borde del equipo remoto, la reconexión automática, la interfaz Omarchy, el portapapeles, los archivos y Windows siguen pendientes.
 
 ## Compilar y probar
 

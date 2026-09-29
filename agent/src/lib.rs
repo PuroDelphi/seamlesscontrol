@@ -2,6 +2,7 @@
 //! Platform capture, injection, network transport, and persistence are adapters.
 
 pub mod protocol;
+pub mod receiver;
 pub mod secure;
 pub mod state;
 pub mod storage;

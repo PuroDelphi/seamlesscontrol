@@ -1,6 +1,7 @@
 //! Omarchy/Hyprland virtual input adapter. The compositor remains the sole
 //! authority for accepting virtual devices. No root or uinput access is used.
 
+use crate::state::InputEvent;
 use std::error::Error;
 use std::os::fd::AsFd;
 use wayland_client::protocol::{wl_keyboard, wl_pointer, wl_registry, wl_seat};
@@ -154,6 +155,41 @@ impl VirtualInput {
     pub fn key(&mut self, key: u32, pressed: bool, time_ms: u32) -> Result<(), Box<dyn Error>> {
         self.keyboard.key(time_ms, key, if pressed { 1 } else { 0 });
         self.flush()
+    }
+
+    pub fn apply(&mut self, event: &InputEvent, time_ms: u32) -> Result<(), Box<dyn Error>> {
+        match event {
+            InputEvent::KeyDown(key) => self.key(*key, true, time_ms),
+            InputEvent::KeyUp(key) => self.key(*key, false, time_ms),
+            InputEvent::ButtonDown(button) => self.button(*button, true, time_ms),
+            InputEvent::ButtonUp(button) => self.button(*button, false, time_ms),
+            InputEvent::Motion { dx_milli, dy_milli } => self.motion(
+                f64::from(*dx_milli) / 1000.0,
+                f64::from(*dy_milli) / 1000.0,
+                time_ms,
+            ),
+            InputEvent::Scroll {
+                horizontal_milli,
+                vertical_milli,
+            } => {
+                if *horizontal_milli != 0 {
+                    self.pointer.axis(
+                        time_ms,
+                        wl_pointer::Axis::HorizontalScroll,
+                        f64::from(*horizontal_milli) / 1000.0,
+                    );
+                }
+                if *vertical_milli != 0 {
+                    self.pointer.axis(
+                        time_ms,
+                        wl_pointer::Axis::VerticalScroll,
+                        f64::from(*vertical_milli) / 1000.0,
+                    );
+                }
+                self.pointer.frame();
+                self.flush()
+            }
+        }
     }
 
     fn flush(&mut self) -> Result<(), Box<dyn Error>> {

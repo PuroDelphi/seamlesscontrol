@@ -2,6 +2,7 @@
 //! keys/buttons whenever a session changes or its authenticated peer drops.
 
 use std::collections::BTreeSet;
+use std::fmt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum InputEvent {
@@ -9,8 +10,87 @@ pub enum InputEvent {
     KeyUp(u32),
     ButtonDown(u32),
     ButtonUp(u32),
-    Motion { dx: i32, dy: i32 },
-    Scroll { horizontal: i32, vertical: i32 },
+    /// Relative distance in thousandths of a logical pixel.
+    Motion {
+        dx_milli: i32,
+        dy_milli: i32,
+    },
+    /// Scroll distance in thousandths of the input backend's scroll unit.
+    Scroll {
+        horizontal_milli: i32,
+        vertical_milli: i32,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EventError {
+    UnknownTag(u8),
+    InvalidLength(usize),
+}
+
+impl fmt::Display for EventError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnknownTag(tag) => write!(f, "unknown input event tag: {tag}"),
+            Self::InvalidLength(size) => write!(f, "invalid input event length: {size}"),
+        }
+    }
+}
+
+impl std::error::Error for EventError {}
+
+impl InputEvent {
+    pub fn encode(&self) -> Vec<u8> {
+        let (tag, first, second) = match self {
+            Self::KeyDown(value) => (1, *value, None),
+            Self::KeyUp(value) => (2, *value, None),
+            Self::ButtonDown(value) => (3, *value, None),
+            Self::ButtonUp(value) => (4, *value, None),
+            Self::Motion { dx_milli, dy_milli } => (5, *dx_milli as u32, Some(*dy_milli as u32)),
+            Self::Scroll {
+                horizontal_milli,
+                vertical_milli,
+            } => (6, *horizontal_milli as u32, Some(*vertical_milli as u32)),
+        };
+        let mut out = Vec::with_capacity(if second.is_some() { 9 } else { 5 });
+        out.push(tag);
+        out.extend_from_slice(&first.to_be_bytes());
+        if let Some(value) = second {
+            out.extend_from_slice(&value.to_be_bytes());
+        }
+        out
+    }
+
+    pub fn decode(payload: &[u8]) -> Result<Self, EventError> {
+        if payload.is_empty() {
+            return Err(EventError::InvalidLength(0));
+        }
+        let expected = if payload[0] <= 4 { 5 } else { 9 };
+        if payload.len() != expected {
+            return Err(EventError::InvalidLength(payload.len()));
+        }
+        let first = u32::from_be_bytes(payload[1..5].try_into().expect("checked length"));
+        let second = if expected == 9 {
+            u32::from_be_bytes(payload[5..9].try_into().expect("checked length"))
+        } else {
+            0
+        };
+        match payload[0] {
+            1 => Ok(Self::KeyDown(first)),
+            2 => Ok(Self::KeyUp(first)),
+            3 => Ok(Self::ButtonDown(first)),
+            4 => Ok(Self::ButtonUp(first)),
+            5 => Ok(Self::Motion {
+                dx_milli: first as i32,
+                dy_milli: second as i32,
+            }),
+            6 => Ok(Self::Scroll {
+                horizontal_milli: first as i32,
+                vertical_milli: second as i32,
+            }),
+            tag => Err(EventError::UnknownTag(tag)),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -124,5 +204,32 @@ mod tests {
         assert_eq!(r.begin(2), vec![InputEvent::KeyUp(30)]);
         assert_eq!(r.apply(1, 3, &InputEvent::KeyDown(30)), ApplyResult::Stale);
         assert!(r.disconnect().is_empty());
+    }
+
+    #[test]
+    fn input_events_have_stable_binary_encoding() {
+        let samples = [
+            InputEvent::KeyDown(42),
+            InputEvent::ButtonUp(272),
+            InputEvent::Motion {
+                dx_milli: -1250,
+                dy_milli: 500,
+            },
+            InputEvent::Scroll {
+                horizontal_milli: 0,
+                vertical_milli: -2000,
+            },
+        ];
+        for event in samples {
+            assert_eq!(InputEvent::decode(&event.encode()).unwrap(), event);
+        }
+        assert_eq!(
+            InputEvent::decode(&[5, 1]).unwrap_err(),
+            EventError::InvalidLength(2)
+        );
+        assert_eq!(
+            InputEvent::decode(&[9, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap_err(),
+            EventError::UnknownTag(9)
+        );
     }
 }
