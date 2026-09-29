@@ -161,4 +161,11 @@ impl VirtualInput {
         self.queue.dispatch_pending(&mut self.state)?;
         Ok(())
     }
+
+    /// Wait until the compositor has processed all preceding requests. Used
+    /// by probes; the live input path only flushes to avoid round-trip delay.
+    pub fn sync(&mut self) -> Result<(), Box<dyn Error>> {
+        self.queue.roundtrip(&mut self.state)?;
+        Ok(())
+    }
 }

@@ -5,7 +5,7 @@
 > Repositorio público del proyecto: **[PuroDelphi/seamlesscontrol](https://github.com/PuroDelphi/seamlesscontrol)**  
 > [Ver el plan visual](./index.html)
 
-**Avance de fase 0:** [inventario y probes en este equipo](./docs/FEASIBILITY.md). El portal aceptó una barrera y abrió EIS; Hyprland creó teclado y puntero virtuales. Falta demostrar el flujo real entre dos equipos.
+**Avance de fase 0:** [inventario y probes en este equipo](./docs/FEASIBILITY.md). El portal aceptó una barrera, abrió EIS y activó/liberó la captura al cruzar el borde con un puntero virtual; Hyprland creó teclado y puntero virtuales. Aún falta recibir eventos físicos y demostrar el flujo real entre dos equipos.
 
 ## 1. Objetivo
 

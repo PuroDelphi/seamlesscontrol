@@ -44,12 +44,14 @@ El 29 de septiembre se ejecutaron además dos probes del agente Rust:
 - `virtual-input-probe` creó dispositivos virtuales de teclado y puntero en Hyprland y salió sin enviar eventos.
 - `capture-probe` obtuvo permiso para teclado y puntero, instaló una barrera en el borde derecho del primer monitor y abrió una conexión EIS. Terminó sin activar ni registrar eventos de entrada.
 
+Con `capture-probe --listen` y movimiento generado por `virtual-input-probe --edge-test`, la barrera **se activó** y luego se liberó correctamente. El lector no recibió eventos EIS de entrada en los cinco segundos siguientes. Una explicación posible es que el portal no reenvíe eventos del dispositivo virtual que activó la barrera; esto no está demostrado. El puntero volvió a su posición original al terminar. Hace falta repetir la prueba con ratón/teclado físicos y registrar los eventos recibidos.
+
 El siguiente experimento debe recibir eventos reales, liberar la captura y repetir el flujo en dos equipos. Ningún dato de entrada fue capturado durante esta comprobación.
 
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
-2. Extender el cliente `InputCapture` para recibir eventos EIS y liberar la captura con un atajo local.
+2. Probar el cliente EIS con movimiento y teclado físicos; confirmar liberación mediante un atajo local.
 3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones.
 4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
 5. Integrar ambos adaptadores en el agente y medir la latencia real.

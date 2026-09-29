@@ -20,9 +20,10 @@ La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe 
 ```bash
 cargo run --manifest-path agent/Cargo.toml --bin virtual-input-probe
 cargo run --manifest-path agent/Cargo.toml --bin capture-probe
+cargo run --manifest-path agent/Cargo.toml --bin capture-probe -- --listen
 ```
 
-El primer probe crea y cierra dispositivos virtuales sin enviar eventos. El segundo solicita permiso al portal, instala temporalmente una barrera en el borde derecho del primer monitor y comprueba la conexión EIS. No registra ni transmite entrada. Consulte [los resultados locales](./docs/FEASIBILITY.md).
+El primer probe crea y cierra dispositivos virtuales sin enviar eventos. El segundo solicita permiso al portal, instala temporalmente una barrera en el borde derecho del primer monitor y comprueba la conexión EIS. Con `--listen`, espera hasta 20 segundos por una activación, lee un evento durante un máximo de cinco segundos y libera la captura. Sólo imprime si llegó un evento, sin registrar su contenido. Consulte [los resultados locales](./docs/FEASIBILITY.md).
 
 ## Licencia
 
