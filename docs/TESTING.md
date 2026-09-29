@@ -11,6 +11,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 3. Confirmar conectividad LAN y que el puerto elegido acepta TCP únicamente desde la LAN. No abrirlo hacia Internet.
 4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos paneles o terminales antes de aprobar en ambos. Por CLI: `seamlesscontrold status` y `seamlesscontrold approve <código>`.
 5. Ejecutar `seamlesscontrold diagnose` en ambos equipos y comparar sus rectángulos lógicos con `hyprctl -j monitors`; el comando debe mostrar también una posición de cursor dentro de un monitor.
+6. Iniciar `serve` y `connect` desde los botones del panel, repetir con terminal y servicio de usuario, y comprobar que el botón **Terminar sesión** sólo aparece para el proceso creado por el panel. Verificar que al terminar no quedan teclado ni botones pulsados ni procesos huérfanos.
 
 ## Circuito básico
 

@@ -31,6 +31,35 @@ Item {
   property var fileOffer: null
   property string fileResult: ""
   property bool stoppingFileReceiver: false
+  property bool managedAgentRunning: false
+  property bool stoppingManagedAgent: false
+  property string lastAgentError: ""
+
+  function startReceiver(address) {
+    if (agentProcess.running || available || pairingRunning || !address) return
+    error = ""
+    lastAgentError = ""
+    stoppingManagedAgent = false
+    agentProcess.command = ["seamlesscontrold", "serve", address]
+    agentProcess.running = true
+    managedAgentRunning = true
+  }
+
+  function startSender(address) {
+    if (agentProcess.running || available || pairingRunning || !address) return
+    error = ""
+    lastAgentError = ""
+    stoppingManagedAgent = false
+    agentProcess.command = ["seamlesscontrold", "connect", address]
+    agentProcess.running = true
+    managedAgentRunning = true
+  }
+
+  function stopManagedAgent() {
+    if (!agentProcess.running) return
+    stoppingManagedAgent = true
+    agentProcess.signal(2)
+  }
 
   function startFileReceiver(address, directory) {
     if (receiveFileProcess.running || !address || !directory) return
@@ -219,6 +248,29 @@ Item {
       root.pairingRunning = false
       if (code !== 0) root.error = "No se pudo emparejar. Revise IP, red y código."
       root.refresh()
+    }
+  }
+
+  Process {
+    id: agentProcess
+    stdout: SplitParser { onRead: function(line) {} }
+    stderr: SplitParser {
+      onRead: function(line) { root.lastAgentError = String(line).trim() }
+    }
+    onExited: function(code) {
+      root.managedAgentRunning = false
+      if (code !== 0 && !root.stoppingManagedAgent)
+        root.error = root.lastAgentError !== "" ? root.lastAgentError
+          : "El agente terminó con error. Revise la dirección y la topología."
+      root.stoppingManagedAgent = false
+      root.refresh()
+    }
+    onRunningChanged: {
+      if (!running && root.managedAgentRunning) {
+        root.managedAgentRunning = false
+        if (!root.stoppingManagedAgent)
+          root.error = "No se pudo mantener el agente en ejecución. Compruebe que está instalado y revise la dirección."
+      }
     }
   }
 

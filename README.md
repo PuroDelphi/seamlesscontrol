@@ -8,7 +8,7 @@ Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCaptu
 
 ## Probar el agente experimental entre dos Omarchy
 
-En ambos equipos, ejecute `bash packaging/install-agent.sh` para compilar e instalar el binario en `~/.local/bin` (o `XDG_BIN_HOME`). Este directorio debe estar en `PATH` de la sesión gráfica para que el widget pueda consultar el agente. En el equipo que recibirá el control, ejecute:
+En ambos equipos, ejecute `bash packaging/install-agent.sh` para compilar e instalar el binario en `~/.local/bin` (o `XDG_BIN_HOME`). Este directorio debe estar en `PATH` de la sesión gráfica para que el widget pueda consultar el agente. Desde el panel, indique la IP y puerto LAN del destino y pulse **Recibir control** allí. Tras emparejar y situar ambos equipos en casillas contiguas de la cuadrícula, indique esa dirección en el origen y pulse **Compartir entrada**. El panel puede terminar los procesos que haya iniciado. También puede usar terminales o servicios de usuario. En el equipo que recibirá el control, ejecute:
 
 ```bash
 seamlesscontrold serve 192.168.1.20:47832
@@ -61,7 +61,7 @@ Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo est�
 
 ## Widget de Omarchy
 
-El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, permite iniciar el emparejamiento, aprobarlo, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. **El inicio de la sesión de control todavía se hace en terminal o mediante servicio de usuario**; el borde se puede deducir de la cuadrícula. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
+El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, permite iniciar y terminar una sesión, emparejar, aprobar, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. El borde se deduce de la casilla vecina; una sesión iniciada por terminal o servicio de usuario se detiene desde ese mismo medio. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
 
 El contrato del socket local y los comandos del panel están descritos en [docs/IPC.md](./docs/IPC.md).
 

@@ -373,9 +373,76 @@ Panel {
           font.pixelSize: Style.font.body
         }
 
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: "INICIAR SESIÓN"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: listenAddress
+            Layout.fillWidth: true
+            placeholderText: "IP local:47832"
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+          }
+          Button {
+            text: "Recibir control"
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.pairingRunning && listenAddress.text.trim() !== ""
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.startReceiver(listenAddress.text.trim())
+          }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: connectAddress
+            Layout.fillWidth: true
+            placeholderText: "IP del vecino:47832"
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+          }
+          Button {
+            text: "Compartir entrada"
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.pairingRunning && connectAddress.text.trim() !== ""
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.startSender(connectAddress.text.trim())
+          }
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.managedAgentRunning
+          text: "Terminar sesión iniciada desde el panel"
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.stopManagedAgent()
+        }
+
         Text {
           Layout.fillWidth: true
-          text: "1  Compile el agente en ambos equipos.\n2  En el destino: seamlesscontrold serve <IP:PUERTO>\n3  Empareje y ubique el destino en la cuadrícula.\n4  En el origen: seamlesscontrold connect <IP:PUERTO>\n5  Compare el código de seis cifras en ambos paneles."
+          text: "1  Instale el agente en ambos equipos.\n2  En el destino, inicie «Recibir control».\n3  Empareje y ubique el destino junto al origen en la cuadrícula.\n4  En el origen, inicie «Compartir entrada».\n5  Compare el código de seis cifras en ambos paneles."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
