@@ -252,7 +252,7 @@ mod linux {
                         if frame.kind != Kind::Control || frame.payload != b"RETURN" {
                             return Err("unexpected feedback from remote peer".into());
                         }
-                        if active {
+                        if active && frame.epoch == epoch {
                             send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                             let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                             if let Some(position) = release_position { options = options.set_cursor_position(position); }
@@ -376,6 +376,10 @@ mod linux {
                 "connected"
             });
         }
+
+        fn active_epoch_changed(&mut self, epoch: Option<u64>) {
+            self.control.set_active_epoch(epoch);
+        }
     }
 
     fn local_address(ip: IpAddr) -> bool {
@@ -469,14 +473,14 @@ mod linux {
         let watcher = thread::spawn(move || {
             let mut sequence = 0_u64;
             while watcher_flag.load(Ordering::Relaxed) {
-                if watcher_control.take_return_request() {
+                if let Some(active_epoch) = watcher_control.take_return_request() {
                     let Some(next) = sequence.checked_add(1) else {
                         break;
                     };
                     sequence = next;
                     if (Frame {
                         kind: Kind::Control,
-                        epoch: 0,
+                        epoch: active_epoch,
                         sequence,
                         payload: b"RETURN".to_vec(),
                     })

@@ -23,7 +23,8 @@ pub struct ControlStatus {
     pub pair_sas: String,
     pub pair_key: String,
     revoked_active: bool,
-    return_requested: bool,
+    active_epoch: Option<u64>,
+    return_requested: Option<u64>,
     decision: Option<bool>,
 }
 
@@ -43,7 +44,8 @@ impl ControlHandle {
         let mut state = self.0.0.lock().expect("control state lock");
         state.peer = peer.to_owned();
         state.revoked_active = false;
-        state.return_requested = false;
+        state.active_epoch = None;
+        state.return_requested = None;
     }
 
     pub fn paused(&self) -> bool {
@@ -54,7 +56,15 @@ impl ControlHandle {
         self.0.0.lock().expect("control state lock").revoked_active
     }
 
-    pub fn take_return_request(&self) -> bool {
+    pub fn set_active_epoch(&self, epoch: Option<u64>) {
+        let mut state = self.0.0.lock().expect("control state lock");
+        state.active_epoch = epoch;
+        if epoch.is_none() {
+            state.return_requested = None;
+        }
+    }
+
+    pub fn take_return_request(&self) -> Option<u64> {
         let mut state = self.0.0.lock().expect("control state lock");
         std::mem::take(&mut state.return_requested)
     }
@@ -161,7 +171,8 @@ impl ControlServer {
                 pair_sas: String::new(),
                 pair_key: String::new(),
                 revoked_active: false,
-                return_requested: false,
+                active_epoch: None,
+                return_requested: None,
                 decision: None,
             }),
             Condvar::new(),
@@ -200,9 +211,10 @@ impl ControlServer {
                                 "return"
                                     if status.role == "serve"
                                         && status.phase == "controlling"
-                                        && !status.peer.is_empty() =>
+                                        && !status.peer.is_empty()
+                                        && status.active_epoch.is_some() =>
                                 {
-                                    status.return_requested = true;
+                                    status.return_requested = status.active_epoch;
                                     "OK\n".to_owned()
                                 }
                                 value
@@ -362,10 +374,15 @@ mod tests {
         assert!(request_at(&path, "return").unwrap().starts_with("ERR"));
         let handle = server.handle();
         handle.set_peer("192.168.1.2");
+        handle.set_active_epoch(Some(17));
         handle.set_phase("controlling");
         assert_eq!(request_at(&path, "return").unwrap(), "OK\n");
-        assert!(handle.take_return_request());
-        assert!(!handle.take_return_request());
+        assert_eq!(handle.take_return_request(), Some(17));
+        assert_eq!(handle.take_return_request(), None);
+        assert_eq!(request_at(&path, "return").unwrap(), "OK\n");
+        handle.set_active_epoch(None);
+        handle.set_active_epoch(Some(18));
+        assert_eq!(handle.take_return_request(), None);
         handle.set_peer("");
         assert!(request_at(&path, "return").unwrap().starts_with("ERR"));
         drop(server);

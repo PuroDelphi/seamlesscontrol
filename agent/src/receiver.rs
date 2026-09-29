@@ -10,6 +10,8 @@ pub trait Injector {
     fn inject(&mut self, event: &InputEvent) -> io::Result<()>;
 
     fn ownership_changed(&mut self, _controlling: bool) {}
+
+    fn active_epoch_changed(&mut self, _epoch: Option<u64>) {}
 }
 
 #[derive(Debug)]
@@ -68,6 +70,7 @@ impl<I: Injector> InputReceiver<I> {
                         .map_err(ReceiverError::Injection)?;
                 }
                 self.controlling = true;
+                self.injector.active_epoch_changed(Some(frame.epoch));
                 self.injector.ownership_changed(true);
                 Ok(())
             }
@@ -90,6 +93,7 @@ impl<I: Injector> InputReceiver<I> {
     /// Always call after EOF, error, timeout, pause, or lock.
     pub fn release(&mut self) -> Result<(), ReceiverError> {
         if std::mem::take(&mut self.controlling) {
+            self.injector.active_epoch_changed(None);
             self.injector.ownership_changed(false);
         }
         let mut first_error = None;
@@ -350,7 +354,7 @@ mod tests {
                 .unwrap();
             Frame {
                 kind: Kind::Control,
-                epoch: 0,
+                epoch: 17,
                 sequence: 1,
                 payload: b"RETURN".to_vec(),
             }
