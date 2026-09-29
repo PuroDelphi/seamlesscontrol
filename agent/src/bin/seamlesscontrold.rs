@@ -24,10 +24,13 @@ mod linux {
         Edge as LogicalEdge, Machine, Rect, Slot, external_barriers,
     };
     use std::error::Error;
-    use std::io;
+    use std::io::{self, Write};
     use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::thread;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
@@ -103,7 +106,7 @@ mod linux {
     }
 
     fn send_frame(
-        channel: &mut SecureChannel<TcpStream>,
+        channel: &mut impl Write,
         kind: Kind,
         epoch: u64,
         sequence: &mut u64,
@@ -196,6 +199,19 @@ mod linux {
             "Captura activa. Cruce el borde elegido; Escape recupera el control, Ctrl+C termina."
         );
 
+        channel.stream_mut().set_read_timeout(None)?;
+        let (mut reader, mut writer) = channel.into_tcp_halves()?;
+        let (feedback_tx, mut feedback_rx) = tokio::sync::mpsc::channel(8);
+        let feedback_reader = thread::spawn(move || {
+            loop {
+                let frame = Frame::read_from(&mut reader);
+                let done = frame.is_err();
+                if feedback_tx.blocking_send(frame).is_err() || done {
+                    break;
+                }
+            }
+        });
+
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
         pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
@@ -213,7 +229,7 @@ mod linux {
                         if control.revoked_active() { break; }
                         if control.paused() && capture_enabled {
                             if active {
-                                send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                                send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
@@ -229,7 +245,22 @@ mod linux {
                         }
                     }
                     _ = heartbeat.tick() => {
-                        send_frame(&mut channel, Kind::Heartbeat, epoch, &mut sequence, Vec::new())?;
+                        send_frame(&mut writer, Kind::Heartbeat, epoch, &mut sequence, Vec::new())?;
+                    }
+                    feedback = feedback_rx.recv() => {
+                        let frame = feedback.ok_or("feedback reader stopped")??;
+                        if frame.kind != Kind::Control || frame.payload != b"RETURN" {
+                            return Err("unexpected feedback from remote peer".into());
+                        }
+                        if active {
+                            send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                            let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                            if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                            portal.release(&session, options).await?;
+                            active = false;
+                            control.set_phase("ready");
+                            println!("El equipo remoto devolvió el control local.");
+                        }
                     }
                     signal = activated.next() => {
                         let signal = signal.ok_or("capture activation stream closed")?;
@@ -244,14 +275,14 @@ mod linux {
                         current_activation = signal.activation_id();
                         active = true;
                         release_position = signal.cursor_position().map(|p| edge.release_position(p));
-                        send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"BEGIN".to_vec())?;
+                        send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"BEGIN".to_vec())?;
                         control.set_phase("controlling");
                         println!("Control remoto activo. Escape devuelve el puntero.");
                     }
                     signal = deactivated.next() => {
                         if signal.is_none() { return Err("capture deactivation stream closed".into()); }
                         if active {
-                            send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                            send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                             active = false;
                             current_activation = None;
                             control.set_phase(if control.paused() { "paused" } else { "ready" });
@@ -261,7 +292,7 @@ mod linux {
                         let signal = signal.ok_or("capture zones stream closed")?;
                         if signal.zone_set().is_some_and(|id| id != current_zone_set) { continue; }
                         if active {
-                            send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                            send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                             active = false;
                             current_activation = None;
                         }
@@ -286,7 +317,7 @@ mod linux {
                         }
                         if active {
                             if matches!(&event, EiEvent::KeyboardKey(key) if key.key == 1 && key.state == ei::keyboard::KeyState::Press) {
-                                send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                                send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                                 active = false;
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
@@ -294,7 +325,7 @@ mod linux {
                                 control.set_phase("ready");
                                 println!("Control local restaurado.");
                             } else if let Some(event) = input_event(event) {
-                                send_frame(&mut channel, Kind::Input, epoch, &mut sequence, event.encode())?;
+                                send_frame(&mut writer, Kind::Input, epoch, &mut sequence, event.encode())?;
                             }
                         }
                     }
@@ -304,7 +335,7 @@ mod linux {
         }.await;
         if active {
             let _ = send_frame(
-                &mut channel,
+                &mut writer,
                 Kind::Control,
                 epoch,
                 &mut sequence,
@@ -317,6 +348,9 @@ mod linux {
             let _ = portal.release(&session, options).await;
         }
         let _ = portal.disable(&session, Default::default()).await;
+        drop(feedback_rx);
+        let _ = writer.stream_mut().shutdown(Shutdown::Both);
+        let _ = feedback_reader.join();
         control.set_phase("disconnected");
         result
     }
@@ -324,6 +358,7 @@ mod linux {
     struct OmarchyInjector {
         input: VirtualInput,
         started: Instant,
+        control: ControlHandle,
     }
 
     impl Injector for OmarchyInjector {
@@ -332,6 +367,14 @@ mod linux {
             self.input
                 .apply(event, time_ms)
                 .map_err(|error| io::Error::other(error.to_string()))
+        }
+
+        fn ownership_changed(&mut self, controlling: bool) {
+            self.control.set_phase(if controlling {
+                "controlling"
+            } else {
+                "connected"
+            });
         }
     }
 
@@ -417,10 +460,41 @@ mod linux {
         let injector = OmarchyInjector {
             input: VirtualInput::connect()?,
             started: Instant::now(),
+            control: control.clone(),
         };
-        let result = run_receiver_with_first_until(&mut channel, injector, Some(first), || {
+        let (mut reader, mut writer) = channel.into_tcp_halves()?;
+        let watcher_running = Arc::new(AtomicBool::new(true));
+        let watcher_flag = Arc::clone(&watcher_running);
+        let watcher_control = control.clone();
+        let watcher = thread::spawn(move || {
+            let mut sequence = 0_u64;
+            while watcher_flag.load(Ordering::Relaxed) {
+                if watcher_control.take_return_request() {
+                    let Some(next) = sequence.checked_add(1) else {
+                        break;
+                    };
+                    sequence = next;
+                    if (Frame {
+                        kind: Kind::Control,
+                        epoch: 0,
+                        sequence,
+                        payload: b"RETURN".to_vec(),
+                    })
+                    .write_to(&mut writer)
+                    .is_err()
+                    {
+                        let _ = writer.stream_mut().shutdown(Shutdown::Both);
+                        break;
+                    }
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
+        });
+        let result = run_receiver_with_first_until(&mut reader, injector, Some(first), || {
             control.revoked_active()
         });
+        watcher_running.store(false, Ordering::Relaxed);
+        let _ = watcher.join();
         control.set_phase("listening");
         control.set_peer("");
         result?;
@@ -587,7 +661,11 @@ mod linux {
             }
             return Ok(());
         }
-        if args.len() == 2 && matches!(args[1].as_str(), "status" | "pause" | "resume" | "reject")
+        if args.len() == 2
+            && matches!(
+                args[1].as_str(),
+                "status" | "pause" | "resume" | "reject" | "return"
+            )
             || args.len() == 3 && args[1] == "approve"
         {
             let command = if args[1] == "approve" {

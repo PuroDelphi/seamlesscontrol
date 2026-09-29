@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "author": "PuroDelphi",
   "license": "MIT",
   "description": "Experimental Omarchy input sharing between LAN computers",
@@ -12,7 +12,7 @@
   },
   "barWidget": {
     "displayName": "SeamlessControl",
-    "description": "Agent status, pairing and two by two machine layout for Omarchy",
+    "description": "Agent status, pairing, return control and machine layout for Omarchy",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

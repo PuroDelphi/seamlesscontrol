@@ -23,6 +23,7 @@ pub struct ControlStatus {
     pub pair_sas: String,
     pub pair_key: String,
     revoked_active: bool,
+    return_requested: bool,
     decision: Option<bool>,
 }
 
@@ -42,6 +43,7 @@ impl ControlHandle {
         let mut state = self.0.0.lock().expect("control state lock");
         state.peer = peer.to_owned();
         state.revoked_active = false;
+        state.return_requested = false;
     }
 
     pub fn paused(&self) -> bool {
@@ -50,6 +52,11 @@ impl ControlHandle {
 
     pub fn revoked_active(&self) -> bool {
         self.0.0.lock().expect("control state lock").revoked_active
+    }
+
+    pub fn take_return_request(&self) -> bool {
+        let mut state = self.0.0.lock().expect("control state lock");
+        std::mem::take(&mut state.return_requested)
     }
 
     pub fn cancel_pair(&self) {
@@ -154,6 +161,7 @@ impl ControlServer {
                 pair_sas: String::new(),
                 pair_key: String::new(),
                 revoked_active: false,
+                return_requested: false,
                 decision: None,
             }),
             Condvar::new(),
@@ -187,6 +195,14 @@ impl ControlServer {
                                 }
                                 "resume" if status.role == "connect" => {
                                     status.paused = false;
+                                    "OK\n".to_owned()
+                                }
+                                "return"
+                                    if status.role == "serve"
+                                        && status.phase == "controlling"
+                                        && !status.peer.is_empty() =>
+                                {
+                                    status.return_requested = true;
                                     "OK\n".to_owned()
                                 }
                                 value
@@ -330,6 +346,28 @@ mod tests {
         assert_eq!(request_at(&path, "approve 007321").unwrap(), "OK\n");
         assert!(pairing.join().unwrap());
         assert!(!request_at(&path, "status").unwrap().contains("\t007321\t"));
+        drop(server);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn receiver_can_request_one_remote_return() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-return-control-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let path = dir.join("control.sock");
+        let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
+        assert!(request_at(&path, "return").unwrap().starts_with("ERR"));
+        let handle = server.handle();
+        handle.set_peer("192.168.1.2");
+        handle.set_phase("controlling");
+        assert_eq!(request_at(&path, "return").unwrap(), "OK\n");
+        assert!(handle.take_return_request());
+        assert!(!handle.take_return_request());
+        handle.set_peer("");
+        assert!(request_at(&path, "return").unwrap().starts_with("ERR"));
         drop(server);
         fs::remove_dir_all(dir).unwrap();
     }

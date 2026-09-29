@@ -2,9 +2,11 @@
 //! must compare the same six-digit SAS before the channel is usable. Later
 //! sessions require the previously pinned static public key.
 
-use snow::{Builder, HandshakeState, TransportState};
+use snow::{Builder, HandshakeState, StatelessTransportState};
 use std::fmt;
 use std::io::{self, Read, Write};
+use std::net::TcpStream;
+use std::sync::Arc;
 
 const PATTERN: &str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 const RECORD_PLAINTEXT: usize = 16 * 1024;
@@ -93,9 +95,107 @@ impl Identity {
 
 pub struct SecureChannel<S> {
     stream: S,
-    cipher: TransportState,
+    cipher: Arc<StatelessTransportState>,
+    send_nonce: u64,
+    receive_nonce: u64,
     read_buf: Vec<u8>,
     read_at: usize,
+}
+
+pub struct SecureReader<S> {
+    stream: S,
+    cipher: Arc<StatelessTransportState>,
+    receive_nonce: u64,
+    read_buf: Vec<u8>,
+    read_at: usize,
+}
+
+pub struct SecureWriter<S> {
+    stream: S,
+    cipher: Arc<StatelessTransportState>,
+    send_nonce: u64,
+}
+
+impl<S> SecureWriter<S> {
+    pub fn stream_mut(&mut self) -> &mut S {
+        &mut self.stream
+    }
+}
+
+fn send_record(
+    stream: &mut impl Write,
+    cipher: &StatelessTransportState,
+    nonce: &mut u64,
+    plain: &[u8],
+) -> Result<(), SecureError> {
+    if plain.is_empty() || plain.len() > RECORD_PLAINTEXT {
+        return Err(SecureError::InvalidRecord);
+    }
+    let next = nonce.checked_add(1).ok_or(SecureError::InvalidRecord)?;
+    let mut ciphertext = vec![0; plain.len() + 16];
+    let size = cipher.write_message(*nonce, plain, &mut ciphertext)?;
+    let size: u16 = size.try_into().map_err(|_| SecureError::InvalidRecord)?;
+    stream.write_all(&size.to_be_bytes())?;
+    stream.write_all(&ciphertext[..usize::from(size)])?;
+    stream.flush()?;
+    *nonce = next;
+    Ok(())
+}
+
+fn read_record(
+    stream: &mut impl Read,
+    cipher: &StatelessTransportState,
+    nonce: &mut u64,
+) -> Result<Option<Vec<u8>>, SecureError> {
+    let mut length = [0; 2];
+    if stream.read(&mut length[..1])? == 0 {
+        return Ok(None);
+    }
+    stream.read_exact(&mut length[1..])?;
+    let length = usize::from(u16::from_be_bytes(length));
+    if !(16..=RECORD_CIPHERTEXT).contains(&length) {
+        return Err(SecureError::InvalidRecord);
+    }
+    let next = nonce.checked_add(1).ok_or(SecureError::InvalidRecord)?;
+    let mut ciphertext = vec![0; length];
+    stream.read_exact(&mut ciphertext)?;
+    let mut plain = vec![0; length];
+    let size = cipher.read_message(*nonce, &ciphertext, &mut plain)?;
+    plain.truncate(size);
+    *nonce = next;
+    Ok(Some(plain))
+}
+
+fn read_buffered(
+    stream: &mut impl Read,
+    cipher: &StatelessTransportState,
+    nonce: &mut u64,
+    read_buf: &mut Vec<u8>,
+    read_at: &mut usize,
+    buf: &mut [u8],
+) -> io::Result<usize> {
+    if buf.is_empty() {
+        return Ok(0);
+    }
+    if *read_at >= read_buf.len() {
+        *read_buf = match read_record(stream, cipher, nonce) {
+            Ok(Some(record)) => record,
+            Ok(None) => return Ok(0),
+            Err(SecureError::Io(error)) => return Err(error),
+            Err(error) => return Err(io::Error::other(error)),
+        };
+        *read_at = 0;
+        if read_buf.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "empty encrypted record",
+            ));
+        }
+    }
+    let count = buf.len().min(read_buf.len() - *read_at);
+    buf[..count].copy_from_slice(&read_buf[*read_at..*read_at + count]);
+    *read_at += count;
+    Ok(count)
 }
 
 impl<S: Read + Write> SecureChannel<S> {
@@ -146,7 +246,9 @@ impl<S: Read + Write> SecureChannel<S> {
         };
         let mut channel = Self {
             stream,
-            cipher: state.into_transport_mode()?,
+            cipher: Arc::new(state.into_stateless_transport_mode()?),
+            send_nonce: 0,
+            receive_nonce: 0,
             read_buf: Vec::new(),
             read_at: 0,
         };
@@ -179,34 +281,11 @@ impl<S: Read + Write> SecureChannel<S> {
     }
 
     fn send_record(&mut self, plain: &[u8]) -> Result<(), SecureError> {
-        if plain.is_empty() || plain.len() > RECORD_PLAINTEXT {
-            return Err(SecureError::InvalidRecord);
-        }
-        let mut ciphertext = vec![0; plain.len() + 16];
-        let size = self.cipher.write_message(plain, &mut ciphertext)?;
-        let size: u16 = size.try_into().map_err(|_| SecureError::InvalidRecord)?;
-        self.stream.write_all(&size.to_be_bytes())?;
-        self.stream.write_all(&ciphertext[..usize::from(size)])?;
-        self.stream.flush()?;
-        Ok(())
+        send_record(&mut self.stream, &self.cipher, &mut self.send_nonce, plain)
     }
 
     fn read_record(&mut self) -> Result<Option<Vec<u8>>, SecureError> {
-        let mut length = [0; 2];
-        if self.stream.read(&mut length[..1])? == 0 {
-            return Ok(None);
-        }
-        self.stream.read_exact(&mut length[1..])?;
-        let length = usize::from(u16::from_be_bytes(length));
-        if !(16..=RECORD_CIPHERTEXT).contains(&length) {
-            return Err(SecureError::InvalidRecord);
-        }
-        let mut ciphertext = vec![0; length];
-        self.stream.read_exact(&mut ciphertext)?;
-        let mut plain = vec![0; length];
-        let size = self.cipher.read_message(&ciphertext, &mut plain)?;
-        plain.truncate(size);
-        Ok(Some(plain))
+        read_record(&mut self.stream, &self.cipher, &mut self.receive_nonce)
     }
 
     pub fn stream_mut(&mut self) -> &mut S {
@@ -214,30 +293,72 @@ impl<S: Read + Write> SecureChannel<S> {
     }
 }
 
+impl SecureChannel<TcpStream> {
+    /// Split only after the authenticated handshake. Each half owns its TCP
+    /// handle and its Noise nonce for one direction.
+    pub fn into_tcp_halves(self) -> io::Result<(SecureReader<TcpStream>, SecureWriter<TcpStream>)> {
+        let writer_stream = self.stream.try_clone()?;
+        Ok((
+            SecureReader {
+                stream: self.stream,
+                cipher: Arc::clone(&self.cipher),
+                receive_nonce: self.receive_nonce,
+                read_buf: self.read_buf,
+                read_at: self.read_at,
+            },
+            SecureWriter {
+                stream: writer_stream,
+                cipher: self.cipher,
+                send_nonce: self.send_nonce,
+            },
+        ))
+    }
+}
+
 impl<S: Read + Write> Read for SecureChannel<S> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        read_buffered(
+            &mut self.stream,
+            &self.cipher,
+            &mut self.receive_nonce,
+            &mut self.read_buf,
+            &mut self.read_at,
+            buf,
+        )
+    }
+}
+
+impl<S: Read> Read for SecureReader<S> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        read_buffered(
+            &mut self.stream,
+            &self.cipher,
+            &mut self.receive_nonce,
+            &mut self.read_buf,
+            &mut self.read_at,
+            buf,
+        )
+    }
+}
+
+impl<S: Write> Write for SecureWriter<S> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
-        if self.read_at >= self.read_buf.len() {
-            self.read_buf = match self.read_record() {
-                Ok(Some(record)) => record,
-                Ok(None) => return Ok(0),
-                Err(SecureError::Io(error)) => return Err(error),
-                Err(error) => return Err(io::Error::other(error)),
-            };
-            self.read_at = 0;
-            if self.read_buf.is_empty() {
-                return Err(io::Error::new(
-                    io::ErrorKind::InvalidData,
-                    "empty encrypted record",
-                ));
-            }
-        }
-        let count = buf.len().min(self.read_buf.len() - self.read_at);
-        buf[..count].copy_from_slice(&self.read_buf[self.read_at..self.read_at + count]);
-        self.read_at += count;
+        let count = buf.len().min(RECORD_PLAINTEXT);
+        send_record(
+            &mut self.stream,
+            &self.cipher,
+            &mut self.send_nonce,
+            &buf[..count],
+        )
+        .map_err(io::Error::other)?;
         Ok(count)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.stream.flush()
     }
 }
 
@@ -335,5 +456,37 @@ mod tests {
             Err(SecureError::PeerKeyChanged)
         ));
         handle.join().unwrap();
+    }
+
+    #[test]
+    fn split_transport_reads_and_writes_concurrently() {
+        let a = Identity::generate().unwrap();
+        let b = Identity::generate().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let (channel, _) =
+                SecureChannel::connect(stream, Role::Responder, &b, None, |_| true).unwrap();
+            let (mut reader, mut writer) = channel.into_tcp_halves().unwrap();
+            writer.write_all(b"remote").unwrap();
+            let mut local = [0; 5];
+            reader.read_exact(&mut local).unwrap();
+            assert_eq!(&local, b"local");
+            writer.write_all(b"again").unwrap();
+        });
+        let stream = TcpStream::connect(address).unwrap();
+        let (channel, _) =
+            SecureChannel::connect(stream, Role::Initiator, &a, None, |_| true).unwrap();
+        let (mut reader, mut writer) = channel.into_tcp_halves().unwrap();
+        let sender = thread::spawn(move || writer.write_all(b"local").unwrap());
+        let mut remote = [0; 6];
+        reader.read_exact(&mut remote).unwrap();
+        assert_eq!(&remote, b"remote");
+        let mut again = [0; 5];
+        reader.read_exact(&mut again).unwrap();
+        assert_eq!(&again, b"again");
+        sender.join().unwrap();
+        server.join().unwrap();
     }
 }

@@ -421,9 +421,21 @@ Panel {
           onClicked: if (root.backend) root.backend.togglePause()
         }
 
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "serve" && root.backend.phase === "controlling"
+          text: "Devolver control al origen"
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.requestReturn()
+        }
+
         Text {
           Layout.fillWidth: true
-          text: "Escape devuelve el control local. La prueba física entre dos Omarchy sigue pendiente. La cuadrícula aún no enruta entre varios pares conectados."
+          text: "Escape devuelve el control local desde el origen; el destino también puede solicitar el retorno desde este panel. La prueba física entre dos Omarchy sigue pendiente."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent

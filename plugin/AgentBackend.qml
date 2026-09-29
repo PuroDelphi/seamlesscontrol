@@ -56,6 +56,13 @@ Item {
     actionProcess.running = true
   }
 
+  function requestReturn() {
+    if (actionProcess.running || role !== "serve" || phase !== "controlling") return
+    actionName = "devolver el control"
+    actionProcess.command = ["seamlesscontrold", "return"]
+    actionProcess.running = true
+  }
+
   function decidePair(accept) {
     if (actionProcess.running || phase !== "pairing") return
     actionName = accept ? "aprobar" : "rechazar"

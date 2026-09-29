@@ -8,6 +8,8 @@ use std::io::{self, Read};
 
 pub trait Injector {
     fn inject(&mut self, event: &InputEvent) -> io::Result<()>;
+
+    fn ownership_changed(&mut self, _controlling: bool) {}
 }
 
 #[derive(Debug)]
@@ -66,6 +68,7 @@ impl<I: Injector> InputReceiver<I> {
                         .map_err(ReceiverError::Injection)?;
                 }
                 self.controlling = true;
+                self.injector.ownership_changed(true);
                 Ok(())
             }
             Kind::Control if frame.payload == b"END" => self.release(),
@@ -86,7 +89,9 @@ impl<I: Injector> InputReceiver<I> {
 
     /// Always call after EOF, error, timeout, pause, or lock.
     pub fn release(&mut self) -> Result<(), ReceiverError> {
-        self.controlling = false;
+        if std::mem::take(&mut self.controlling) {
+            self.injector.ownership_changed(false);
+        }
         let mut first_error = None;
         for event in self.ledger.disconnect() {
             if let Err(error) = self.injector.inject(&event)
@@ -165,6 +170,41 @@ mod tests {
             self.0.push(event.clone());
             Ok(())
         }
+    }
+
+    #[derive(Default)]
+    struct OwnershipInjector(Vec<bool>);
+    impl Injector for OwnershipInjector {
+        fn inject(&mut self, _event: &InputEvent) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn ownership_changed(&mut self, controlling: bool) {
+            self.0.push(controlling);
+        }
+    }
+
+    #[test]
+    fn receiver_reports_remote_ownership_until_end() {
+        let mut receiver = InputReceiver::new(OwnershipInjector::default());
+        receiver
+            .handle(&Frame {
+                kind: Kind::Control,
+                epoch: 9,
+                sequence: 1,
+                payload: b"BEGIN".to_vec(),
+            })
+            .unwrap();
+        receiver
+            .handle(&Frame {
+                kind: Kind::Control,
+                epoch: 9,
+                sequence: 2,
+                payload: b"END".to_vec(),
+            })
+            .unwrap();
+        receiver.release().unwrap();
+        assert_eq!(receiver.into_injector().0, vec![true, false]);
     }
 
     #[test]
@@ -285,6 +325,74 @@ mod tests {
         drop(channel);
         assert_eq!(
             handle.join().unwrap(),
+            vec![InputEvent::KeyDown(42), InputEvent::KeyUp(42)]
+        );
+    }
+
+    #[test]
+    fn encrypted_return_feedback_ends_remote_input_epoch() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let initiator = Identity::generate().unwrap();
+        let responder = Identity::generate().unwrap();
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let (channel, _) =
+                SecureChannel::connect(stream, Role::Responder, &responder, None, |_| true)
+                    .unwrap();
+            let (mut reader, mut writer) = channel.into_tcp_halves().unwrap();
+            let mut receiver = InputReceiver::new(RecordingInjector::default());
+            receiver
+                .handle(&Frame::read_from(&mut reader).unwrap())
+                .unwrap();
+            receiver
+                .handle(&Frame::read_from(&mut reader).unwrap())
+                .unwrap();
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 1,
+                payload: b"RETURN".to_vec(),
+            }
+            .write_to(&mut writer)
+            .unwrap();
+            receiver
+                .handle(&Frame::read_from(&mut reader).unwrap())
+                .unwrap();
+            receiver.into_injector().0
+        });
+        let stream = TcpStream::connect(address).unwrap();
+        let (channel, _) =
+            SecureChannel::connect(stream, Role::Initiator, &initiator, None, |_| true).unwrap();
+        let (mut reader, mut writer) = channel.into_tcp_halves().unwrap();
+        for (sequence, kind, payload) in [
+            (1, Kind::Control, b"BEGIN".to_vec()),
+            (2, Kind::Input, InputEvent::KeyDown(42).encode()),
+        ] {
+            Frame {
+                kind,
+                epoch: 17,
+                sequence,
+                payload,
+            }
+            .write_to(&mut writer)
+            .unwrap();
+        }
+        let feedback = Frame::read_from(&mut reader).unwrap();
+        assert_eq!(
+            (feedback.kind, feedback.payload.as_slice()),
+            (Kind::Control, &b"RETURN"[..])
+        );
+        Frame {
+            kind: Kind::Control,
+            epoch: 17,
+            sequence: 3,
+            payload: b"END".to_vec(),
+        }
+        .write_to(&mut writer)
+        .unwrap();
+        assert_eq!(
+            server.join().unwrap(),
             vec![InputEvent::KeyDown(42), InputEvent::KeyUp(42)]
         );
     }

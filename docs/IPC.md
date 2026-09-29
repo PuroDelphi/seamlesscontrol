@@ -9,6 +9,7 @@
 | `seamlesscontrold reject` | Rechaza el par pendiente |
 | `seamlesscontrold pause` | Desactiva la captura en el emisor y libera el control remoto |
 | `seamlesscontrold resume` | Reactiva la barrera de captura |
+| `seamlesscontrold return` | En el receptor, solicita al origen que termine la captura activa y recupere el puntero |
 | `seamlesscontrold peers` | Enumera pares guardados con IP y clave pública |
 | `seamlesscontrold revoke <IP>` | Revoca la clave fijada y corta la sesión activa con esa IP |
 | `seamlesscontrold topology` | Enumera las casillas guardadas como líneas `SLOT` |
@@ -18,6 +19,8 @@
 La respuesta `STATUS` contiene, en orden, rol, fase, IP remota, pausa, código pendiente y clave pública remota en hexadecimal. Los campos finales están vacíos fuera de un emparejamiento. El código se muestra durante cinco minutos como máximo; se debe comparar en **ambos equipos** antes de aprobar. La conexión Noise XX no queda disponible para entrada hasta recibir aceptación autenticada de los dos lados.
 
 La fase `reconnecting` indica que el emisor sigue ejecutándose y espera para volver a conectar. El retardo se duplica desde un segundo hasta un máximo de treinta; un error de clave cambiada, revocación o protocolo incompatible termina el intento en vez de repetirlo.
+
+La fase `controlling` ahora aparece en ambos extremos durante una captura. El receptor sólo acepta `return` en esa fase y envía una trama de control autenticada `RETURN` por la dirección de vuelta del mismo canal Noise. El origen responde con `END`, libera la sesión del portal y conserva la conexión para un siguiente cruce. Esta ruta tiene prueba de loopback del protocolo; todavía falta verificar el retorno físico entre dos equipos.
 
 `revoke` guarda un marcador de la clave pública antes de eliminar el par por IP y quita su posición guardada. Aunque el equipo vuelva a presentarse o cambie de IP, esa clave no puede ser aceptada de nuevo. Para volver a confiar en ese equipo será necesaria una nueva identidad, cuyo código debe confirmarse en ambos extremos. Si el agente está activo, la revocación se procesa por IPC y libera la entrada remota; sin agente, el comando actualiza el almacén privado directamente.
 
