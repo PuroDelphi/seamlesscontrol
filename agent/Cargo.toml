@@ -1,0 +1,20 @@
+[package]
+name = "seamlesscontrol-core"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Protocol and input ownership core for SeamlessControl"
+
+[lib]
+name = "seamlesscontrol_core"
+path = "src/lib.rs"
+
+[dependencies]
+snow = "0.10"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+wayland-client = "0.31.15"
+wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
+wayland-protocols-misc = { version = "0.3.12", features = ["client"] }
+ashpd = { version = "0.13.13", features = ["input_capture"] }
+tokio = { version = "1.52", features = ["rt-multi-thread", "macros", "time"] }
