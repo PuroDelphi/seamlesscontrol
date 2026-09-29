@@ -705,6 +705,7 @@ dependencies = [
  "futures-util",
  "reis",
  "serde_json",
+ "sha2",
  "snow",
  "tokio",
  "wayland-client",

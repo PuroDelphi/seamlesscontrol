@@ -13,6 +13,7 @@ mod linux {
     use seamlesscontrol_core::clipboard::{ClipboardPacket, ClipboardSync};
     use seamlesscontrol_core::clipboard_omarchy::{self, ClipboardWatch, spawn_apply_worker};
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
+    use seamlesscontrol_core::file_session;
     use seamlesscontrol_core::hypr_ipc::HyprIpc;
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{Frame, FrameError, Kind};
@@ -787,6 +788,41 @@ mod linux {
             }
             return Ok(());
         }
+        if args.len() == 4 && matches!(args[1].as_str(), "send-file" | "receive-file") {
+            let address: SocketAddr = args[2].parse()?;
+            if !local_address(address.ip()) {
+                return Err(
+                    "file transfer address must be loopback, link-local or private LAN".into(),
+                );
+            }
+            let config = config_dir()?;
+            let identity = load_or_create_identity(&config.join("identity"))?;
+            let limit = file_session::configured_limit()?;
+            if args[1] == "send-file" {
+                file_session::send_once(
+                    address,
+                    std::path::Path::new(&args[3]),
+                    &identity,
+                    &config.join("peers"),
+                    limit,
+                )?;
+                println!("Archivo entregado y verificado por el destino.");
+            } else {
+                let result = file_session::receive_once(
+                    address,
+                    std::path::Path::new(&args[3]),
+                    &identity,
+                    &config.join("peers"),
+                    limit,
+                    file_session::terminal_approval,
+                )?;
+                match result {
+                    Some(path) => println!("Archivo guardado en {}", path.display()),
+                    None => println!("Archivo rechazado o cancelado."),
+                }
+            }
+            return Ok(());
+        }
         if args.len() >= 2 && args[1] == "topology" {
             let config = config_dir()?;
             let path = config.join("topology");
@@ -892,7 +928,7 @@ mod linux {
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>"
             );
             return Err("invalid arguments".into());
         }

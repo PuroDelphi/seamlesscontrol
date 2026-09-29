@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "author": "PuroDelphi",
   "license": "MIT",
   "description": "Experimental Omarchy input sharing between LAN computers",
