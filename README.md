@@ -28,7 +28,7 @@ Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo est�
 
 ## Widget de Omarchy
 
-El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, permite iniciar el emparejamiento, aprobarlo y pausar la captura. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. **El inicio de la sesión de control y la elección del borde todavía se hacen en terminal o mediante servicio de usuario**; la topología visual sigue pendiente. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
+El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, permite iniciar el emparejamiento, aprobarlo, pausar la captura y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. **El inicio de la sesión de control y la elección del borde todavía se hacen en terminal o mediante servicio de usuario**; la topología visual sigue pendiente. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
 
 El contrato del socket local y los comandos del panel están descritos en [docs/IPC.md](./docs/IPC.md).
 

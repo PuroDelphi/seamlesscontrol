@@ -2,9 +2,10 @@
 //! can reach it: the runtime directory is private and the socket is 0600.
 
 use crate::secure::PeerInfo;
-use crate::storage::key_fingerprint;
+use crate::storage::{key_fingerprint, revoke_peer_key};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::net::IpAddr;
 use std::os::unix::fs::{FileTypeExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::{Path, PathBuf};
@@ -21,6 +22,7 @@ pub struct ControlStatus {
     pub paused: bool,
     pub pair_sas: String,
     pub pair_key: String,
+    revoked_active: bool,
     decision: Option<bool>,
 }
 
@@ -33,11 +35,17 @@ impl ControlHandle {
     }
 
     pub fn set_peer(&self, peer: &str) {
-        self.0.0.lock().expect("control state lock").peer = peer.to_owned();
+        let mut state = self.0.0.lock().expect("control state lock");
+        state.peer = peer.to_owned();
+        state.revoked_active = false;
     }
 
     pub fn paused(&self) -> bool {
         self.0.0.lock().expect("control state lock").paused
+    }
+
+    pub fn revoked_active(&self) -> bool {
+        self.0.0.lock().expect("control state lock").revoked_active
     }
 
     pub fn cancel_pair(&self) {
@@ -92,11 +100,11 @@ pub fn socket_path() -> io::Result<PathBuf> {
 }
 
 impl ControlServer {
-    pub fn start(role: &'static str) -> io::Result<Self> {
-        Self::start_at(socket_path()?, role)
+    pub fn start(role: &'static str, config: &Path) -> io::Result<Self> {
+        Self::start_at(socket_path()?, role, config)
     }
 
-    pub fn start_at(path: PathBuf, role: &'static str) -> io::Result<Self> {
+    pub fn start_at(path: PathBuf, role: &'static str, config: &Path) -> io::Result<Self> {
         let dir = path
             .parent()
             .ok_or_else(|| io::Error::other("socket needs a parent"))?;
@@ -141,12 +149,14 @@ impl ControlServer {
                 paused: false,
                 pair_sas: String::new(),
                 pair_key: String::new(),
+                revoked_active: false,
                 decision: None,
             }),
             Condvar::new(),
         )));
         let worker_running = Arc::clone(&running);
         let worker_handle = handle.clone();
+        let peers_dir = config.join("peers");
         let worker = thread::spawn(move || {
             while worker_running.load(Ordering::Relaxed) {
                 match listener.accept() {
@@ -193,6 +203,20 @@ impl ControlServer {
                                     status.decision = Some(false);
                                     wake.notify_all();
                                     "OK\n".to_owned()
+                                }
+                                value if value.starts_with("revoke ") => {
+                                    match value.strip_prefix("revoke ").unwrap().parse::<IpAddr>() {
+                                        Ok(address) => match revoke_peer_key(&peers_dir, address) {
+                                            Ok(_) => {
+                                                if status.peer == address.to_string() {
+                                                    status.revoked_active = true;
+                                                }
+                                                "OK\n".to_owned()
+                                            }
+                                            Err(error) => format!("ERR\t{error}\n"),
+                                        },
+                                        Err(_) => "ERR\tinvalid IP address\n".to_owned(),
+                                    }
                                 }
                                 _ => "ERR\tunsupported command\n".to_owned(),
                             }
@@ -256,7 +280,7 @@ mod tests {
             std::env::temp_dir().join(format!("seamlesscontrol-control-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let path = dir.join("control.sock");
-        let server = ControlServer::start_at(path.clone(), "connect").unwrap();
+        let server = ControlServer::start_at(path.clone(), "connect", &dir).unwrap();
         assert!(
             request_at(&path, "status")
                 .unwrap()
@@ -279,7 +303,7 @@ mod tests {
         ));
         let _ = fs::remove_dir_all(&dir);
         let path = dir.join("control.sock");
-        let server = ControlServer::start_at(path.clone(), "serve").unwrap();
+        let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
         let handle = server.handle();
         let pairing = thread::spawn(move || {
             handle.confirm_pair(&PeerInfo {

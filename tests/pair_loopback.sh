@@ -54,8 +54,20 @@ client_pid=
 [[ -f "$scratch/server/config/seamlesscontrol/peers/127.0.0.1" ]]
 [[ -f "$scratch/client/config/seamlesscontrol/peers/127.0.0.1" ]]
 
+XDG_RUNTIME_DIR="$scratch/server/run" "$agent" revoke 127.0.0.1 >/dev/null
+[[ ! -e "$scratch/server/config/seamlesscontrol/peers/127.0.0.1" ]]
+compgen -G "$scratch/server/config/seamlesscontrol/revoked/*" >/dev/null
+[[ -z "$(XDG_CONFIG_HOME="$scratch/server/config" "$agent" peers)" ]]
+if XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+  "$agent" pair "$address" >"$scratch/revoked.log" 2>&1; then
+  printf 'Un par revocado pudo reconectar\n' >&2
+  exit 1
+fi
+revoked_message=$(<"$scratch/revoked.log")
+[[ "$revoked_message" == *'PeerRejected'* ]]
+
 kill -INT "$server_pid"
 wait "$server_pid"
 server_pid=
 [[ ! -e "$scratch/server/run/seamlesscontrol/control.sock" ]]
-printf 'Emparejamiento cifrado y limpieza del servicio: correcto\n'
+printf 'Emparejamiento, revocación y limpieza del servicio: correcto\n'

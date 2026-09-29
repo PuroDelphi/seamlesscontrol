@@ -116,9 +116,22 @@ pub fn run_receiver_with_first<R: Read, I: Injector>(
     injector: I,
     first: Option<Frame>,
 ) -> Result<I, ReceiverError> {
+    run_receiver_with_first_until(reader, injector, first, || false)
+}
+
+pub fn run_receiver_with_first_until<R: Read, I: Injector>(
+    reader: &mut R,
+    injector: I,
+    first: Option<Frame>,
+    mut should_stop: impl FnMut() -> bool,
+) -> Result<I, ReceiverError> {
     let mut receiver = InputReceiver::new(injector);
     let mut first = first;
     loop {
+        if should_stop() {
+            receiver.release()?;
+            return Ok(receiver.into_injector());
+        }
         match first.take().map_or_else(|| Frame::read_from(reader), Ok) {
             Ok(frame) => {
                 if let Err(error) = receiver.handle(&frame) {
@@ -273,6 +286,53 @@ mod tests {
         assert_eq!(
             handle.join().unwrap(),
             vec![InputEvent::KeyDown(42), InputEvent::KeyUp(42)]
+        );
+    }
+
+    #[test]
+    fn local_revocation_releases_held_input_before_next_frame() {
+        let mut bytes = Vec::new();
+        for frame in [
+            Frame {
+                kind: Kind::Control,
+                epoch: 11,
+                sequence: 0,
+                payload: b"BEGIN".to_vec(),
+            },
+            Frame {
+                kind: Kind::Input,
+                epoch: 11,
+                sequence: 1,
+                payload: InputEvent::KeyDown(42).encode(),
+            },
+            Frame {
+                kind: Kind::Input,
+                epoch: 11,
+                sequence: 2,
+                payload: InputEvent::ButtonDown(272).encode(),
+            },
+        ] {
+            frame.write_to(&mut bytes).unwrap();
+        }
+        let mut checks = 0;
+        let output = run_receiver_with_first_until(
+            &mut bytes.as_slice(),
+            RecordingInjector::default(),
+            None,
+            || {
+                checks += 1;
+                checks > 3
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            output.0,
+            vec![
+                InputEvent::KeyDown(42),
+                InputEvent::ButtonDown(272),
+                InputEvent::KeyUp(42),
+                InputEvent::ButtonUp(272),
+            ]
         );
     }
 }

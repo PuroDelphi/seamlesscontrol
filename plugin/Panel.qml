@@ -13,6 +13,7 @@ Panel {
   property var anchorItem: null
   property var hostWidget: null
   property var backend: null
+  property string revokeCandidate: ""
   readonly property var ownerItem: hostWidget || root
   readonly property color ink: bar ? bar.foreground : Color.foreground
   readonly property color muted: Qt.darker(ink, 1.5)
@@ -37,10 +38,19 @@ Panel {
       anchors.fill: parent
       onCloseRequested: root.close()
 
-      ColumnLayout {
-        id: content
+      Flickable {
+        id: scroller
         anchors.fill: parent
-        spacing: Style.space(12)
+        contentWidth: width
+        contentHeight: content.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
+
+        ColumnLayout {
+          id: content
+          width: scroller.width
+          spacing: Style.space(12)
 
         PanelHero {
           Layout.fillWidth: true
@@ -98,6 +108,79 @@ Panel {
             accent: Color.accent
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.pair(pairAddress.text.trim())
+          }
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.peers.length > 0
+          text: "EQUIPOS EMPAREJADOS"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Repeater {
+          model: root.backend ? root.backend.peers.length : 0
+          delegate: RowLayout {
+            id: peerRow
+            required property int index
+            Layout.fillWidth: true
+            spacing: Style.space(8)
+            readonly property var peer: root.backend.peers[peerRow.index]
+            Text {
+              Layout.fillWidth: true
+              text: peerRow.peer.ip + " · " + peerRow.peer.key.slice(0, 12) + "…"
+              textFormat: Text.PlainText
+              color: root.ink
+              elide: Text.ElideRight
+              font.family: root.face
+              font.pixelSize: Style.font.caption
+            }
+            Button {
+              text: "Revocar"
+              bordered: true
+              focusable: true
+              foreground: root.ink
+              accent: Color.accent
+              fontFamily: root.face
+              onClicked: root.revokeCandidate = peerRow.peer.ip
+            }
+          }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.revokeCandidate !== ""
+          spacing: Style.space(8)
+          Text {
+            Layout.fillWidth: true
+            text: "¿Revocar " + root.revokeCandidate + "? Esa clave no podrá volver a conectarse."
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            color: Color.urgent
+            font.family: root.face
+            font.pixelSize: Style.font.caption
+          }
+          Button {
+            text: "Confirmar"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: {
+              if (root.backend) root.backend.revoke(root.revokeCandidate)
+              root.revokeCandidate = ""
+            }
+          }
+          Button {
+            text: "Cancelar"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.revokeCandidate = ""
           }
         }
 
@@ -215,6 +298,7 @@ Panel {
             Quickshell.execDetached(["xdg-open", "https://github.com/PuroDelphi/seamlesscontrol#readme"])
             root.close()
           }
+        }
         }
       }
     }

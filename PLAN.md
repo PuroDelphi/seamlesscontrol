@@ -126,7 +126,7 @@ seamlesscontrol/
 └── tests/                     # integración y escenarios entre equipos
 ```
 
-La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento y pausa mediante socket Unix local. La UI de topología aún no está implementada. `packaging/` contiene el instalador y dos unidades de usuario para receptor/emisor; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
+La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento, pausa y revocación mediante socket Unix local. La UI de topología aún no está implementada. `packaging/` contiene el instalador y dos unidades de usuario para receptor/emisor; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
 
 ## Fuentes consultadas
 

@@ -12,11 +12,12 @@ mod linux {
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{Frame, Kind};
-    use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first};
+    use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
     use seamlesscontrol_core::secure::{Identity, Role, SecureChannel};
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
-        key_fingerprint, load_or_create_identity, load_peer_key, remember_peer_key,
+        is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
+        remember_peer_key, revoke_peer_key,
     };
     use std::error::Error;
     use std::io;
@@ -172,6 +173,7 @@ mod linux {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => break,
                     _ = pause_tick.tick() => {
+                        if control.revoked_active() { break; }
                         if control.paused() && capture_enabled {
                             if active {
                                 send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
@@ -310,8 +312,11 @@ mod linux {
         stream.set_write_timeout(Some(Duration::from_secs(120)))?;
         let (mut channel, peer) =
             SecureChannel::connect(stream, Role::Responder, identity, pinned.as_ref(), |peer| {
-                control.confirm_pair(peer)
+                !is_revoked(&peers, &peer.public_key).unwrap_or(true) && control.confirm_pair(peer)
             })?;
+        if is_revoked(&peers, &peer.public_key)? {
+            return Err("peer identity has been revoked".into());
+        }
         control.set_peer(&peer_ip.to_string());
         let greeting = Frame::read_from(&mut channel)?;
         if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
@@ -349,7 +354,9 @@ mod linux {
             input: VirtualInput::connect()?,
             started: Instant::now(),
         };
-        let result = run_receiver_with_first(&mut channel, injector, Some(first));
+        let result = run_receiver_with_first_until(&mut channel, injector, Some(first), || {
+            control.revoked_active()
+        });
         control.set_phase("listening");
         control.set_peer("");
         result?;
@@ -359,6 +366,13 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
+        if args.len() == 2 && args[1] == "peers" {
+            let config = config_dir()?;
+            for (address, key) in list_peer_keys(&config.join("peers"))? {
+                println!("PEER\t{address}\t{}", key_fingerprint(&key));
+            }
+            return Ok(());
+        }
         if args.len() == 2 && matches!(args[1].as_str(), "status" | "pause" | "resume" | "reject")
             || args.len() == 3 && args[1] == "approve"
         {
@@ -374,6 +388,30 @@ mod linux {
             print!("{response}");
             if response.starts_with("ERR") {
                 return Err("local control command failed".into());
+            }
+            return Ok(());
+        }
+        if args.len() == 3 && args[1] == "revoke" {
+            let address: IpAddr = args[2].parse()?;
+            let command = format!("revoke {address}");
+            match control::request(&command) {
+                Ok(response) => {
+                    print!("{response}");
+                    if response.starts_with("ERR") {
+                        return Err("revocation failed".into());
+                    }
+                }
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused
+                    ) =>
+                {
+                    let config = config_dir()?;
+                    revoke_peer_key(&config.join("peers"), address)?;
+                    println!("Par {address} revocado.");
+                }
+                Err(error) => return Err(error.into()),
             }
             return Ok(());
         }
@@ -393,7 +431,7 @@ mod linux {
         let identity = load_or_create_identity(&config.join("identity"))?;
         println!("Identidad local: {}", key_fingerprint(&identity.public));
         if args[1] == "connect" || args[1] == "pair" {
-            let _local_control = ControlServer::start("connect")?;
+            let _local_control = ControlServer::start("connect", &config)?;
             let control = _local_control.handle();
             let edge = if args[1] == "connect" {
                 Some(Edge::parse(&args[3])?)
@@ -411,8 +449,14 @@ mod linux {
                 Role::Initiator,
                 &identity,
                 pinned.as_ref(),
-                |peer| control.confirm_pair(peer),
+                |peer| {
+                    !is_revoked(&peers, &peer.public_key).unwrap_or(true)
+                        && control.confirm_pair(peer)
+                },
             )?;
+            if is_revoked(&peers, &peer.public_key)? {
+                return Err("peer identity has been revoked".into());
+            }
             control.set_peer(&address.ip().to_string());
             Frame {
                 kind: Kind::Hello,
@@ -447,7 +491,7 @@ mod linux {
             println!("Conexión autenticada con {address}.");
             return capture_loop(channel, edge.expect("validated edge"), control).await;
         }
-        let _local_control = ControlServer::start("serve")?;
+        let _local_control = ControlServer::start("serve", &config)?;
         let control = _local_control.handle();
         let listener = TcpListener::bind(address)?;
         listener.set_nonblocking(true)?;

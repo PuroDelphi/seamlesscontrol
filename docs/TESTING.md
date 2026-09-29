@@ -2,7 +2,7 @@
 
 El agente experimental compila y supera las pruebas locales, pero **aún no se ha validado entre dos Omarchy** porque sólo hay uno disponible. Esta guía define la primera prueba reproducible y evita confundir simulaciones de loopback con una prueba de entrada física.
 
-La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, claves fijadas y cierre del receptor. No abre el portal ni inyecta entrada.
+La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, claves fijadas, revocación y rechazo de la reconexión, además del cierre del receptor. No abre el portal ni inyecta entrada.
 
 ## Preparación
 

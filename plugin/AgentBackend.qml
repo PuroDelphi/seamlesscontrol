@@ -13,10 +13,16 @@ Item {
   property string error: ""
   property bool pairingRunning: false
   property string actionName: ""
+  property var peers: []
 
   function refresh() {
     if (statusProcess.running) return
     statusProcess.running = true
+  }
+
+  function refreshPeers() {
+    if (peersProcess.running) return
+    peersProcess.running = true
   }
 
   function togglePause() {
@@ -41,6 +47,13 @@ Item {
     pairingRunning = true
     pairProcess.command = ["seamlesscontrold", "pair", address]
     pairProcess.running = true
+  }
+
+  function revoke(address) {
+    if (actionProcess.running || !address) return
+    actionName = "revocar"
+    actionProcess.command = ["seamlesscontrold", "revoke", address]
+    actionProcess.running = true
   }
 
   Process {
@@ -83,6 +96,24 @@ Item {
     onExited: function(code) {
       root.error = code !== 0 ? "No se pudo " + root.actionName : ""
       root.refresh()
+      root.refreshPeers()
+    }
+  }
+
+  Process {
+    id: peersProcess
+    command: ["seamlesscontrold", "peers"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = []
+        String(text || "").split("\n").forEach(function(line) {
+          var fields = line.split("\t")
+          if (fields.length === 3 && fields[0] === "PEER")
+            next.push({ ip: fields[1], key: fields[2] })
+        })
+        root.peers = next
+      }
     }
   }
 
@@ -101,5 +132,13 @@ Item {
     running: true
     triggeredOnStart: true
     onTriggered: root.refresh()
+  }
+
+  Timer {
+    interval: 5000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: root.refreshPeers()
   }
 }

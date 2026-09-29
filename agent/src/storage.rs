@@ -5,7 +5,7 @@ use crate::secure::Identity;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::net::IpAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const IDENTITY_MAGIC: &[u8; 8] = b"SCID0001";
 const IDENTITY_SIZE: usize = 8 + 32 + 32;
@@ -91,6 +91,57 @@ fn peer_path(dir: &Path, address: IpAddr) -> std::path::PathBuf {
     dir.join(address.to_string().replace(':', "_"))
 }
 
+fn revoked_path(peers_dir: &Path, key: &[u8; 32]) -> io::Result<PathBuf> {
+    let parent = peers_dir
+        .parent()
+        .ok_or_else(|| io::Error::other("peers directory has no parent"))?;
+    Ok(parent.join("revoked").join(key_fingerprint(key)))
+}
+
+pub fn is_revoked(peers_dir: &Path, key: &[u8; 32]) -> io::Result<bool> {
+    match fs::symlink_metadata(revoked_path(peers_dir, key)?) {
+        Ok(metadata) => {
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "revocation marker is not a regular file",
+                ));
+            }
+            #[cfg(unix)]
+            if metadata.permissions().mode() & 0o077 != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "revocation marker is accessible by others",
+                ));
+            }
+            Ok(true)
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
+/// Revoke an IP's pinned identity. The key marker is durable before the pin
+/// is removed, so interrupted revocation still blocks that key.
+pub fn revoke_peer_key(peers_dir: &Path, address: IpAddr) -> io::Result<[u8; 32]> {
+    let key = load_peer_key(peers_dir, address)?
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "peer is not paired"))?;
+    let marker = revoked_path(peers_dir, &key)?;
+    let dir = marker.parent().expect("revoked marker parent");
+    ensure_private_directory(dir)?;
+    if !is_revoked(peers_dir, &key)? {
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        options.mode(0o600);
+        let mut file = options.open(&marker)?;
+        file.write_all(b"revoked\n")?;
+        file.sync_all()?;
+    }
+    fs::remove_file(peer_path(peers_dir, address))?;
+    Ok(key)
+}
+
 pub fn load_peer_key(dir: &Path, address: IpAddr) -> io::Result<Option<[u8; 32]>> {
     let path = peer_path(dir, address);
     match fs::symlink_metadata(&path) {
@@ -138,7 +189,53 @@ pub fn load_peer_key(dir: &Path, address: IpAddr) -> io::Result<Option<[u8; 32]>
     }
 }
 
+pub fn list_peer_keys(dir: &Path) -> io::Result<Vec<(IpAddr, [u8; 32])>> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(error),
+    };
+    let metadata = fs::symlink_metadata(dir)?;
+    if !metadata.is_dir() || metadata.file_type().is_symlink() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "peers path is not a regular directory",
+        ));
+    }
+    let mut peers = Vec::new();
+    for entry in entries {
+        let entry = entry?;
+        let raw = entry.file_name().into_string().map_err(|_| {
+            io::Error::new(io::ErrorKind::InvalidData, "peer filename is not UTF-8")
+        })?;
+        let address: IpAddr = raw.replace('_', ":").parse().map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "peer filename is not an IP address",
+            )
+        })?;
+        if peer_path(dir, address) != entry.path() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "peer filename is not canonical",
+            ));
+        }
+        let key = load_peer_key(dir, address)?.ok_or_else(|| {
+            io::Error::new(io::ErrorKind::NotFound, "peer disappeared during listing")
+        })?;
+        peers.push((address, key));
+    }
+    peers.sort_by_key(|entry| entry.0.to_string());
+    Ok(peers)
+}
+
 pub fn remember_peer_key(dir: &Path, address: IpAddr, key: &[u8; 32]) -> io::Result<()> {
+    if is_revoked(dir, key)? {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "peer identity has been revoked",
+        ));
+    }
     if let Some(existing) = load_peer_key(dir, address)? {
         return if existing == *key {
             Ok(())
@@ -210,5 +307,47 @@ mod tests {
             io::ErrorKind::PermissionDenied
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn revoked_identity_cannot_be_pinned_again() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "seamlesscontrol-revoke-{}-{unique}",
+            std::process::id()
+        ));
+        let peers = root.join("peers");
+        let address: IpAddr = "127.0.0.1".parse().unwrap();
+        let key = [9; 32];
+        remember_peer_key(&peers, address, &key).unwrap();
+        assert_eq!(revoke_peer_key(&peers, address).unwrap(), key);
+        assert!(is_revoked(&peers, &key).unwrap());
+        assert_eq!(load_peer_key(&peers, address).unwrap(), None);
+        assert_eq!(
+            remember_peer_key(&peers, address, &key).unwrap_err().kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn peer_listing_returns_pinned_ip_and_key() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "seamlesscontrol-list-{}-{unique}",
+            std::process::id()
+        ));
+        let peers = root.join("peers");
+        assert!(list_peer_keys(&peers).unwrap().is_empty());
+        let address: IpAddr = "192.168.1.4".parse().unwrap();
+        remember_peer_key(&peers, address, &[4; 32]).unwrap();
+        assert_eq!(list_peer_keys(&peers).unwrap(), vec![(address, [4; 32])]);
+        fs::remove_dir_all(root).unwrap();
     }
 }
