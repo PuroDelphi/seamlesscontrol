@@ -1,0 +1,14 @@
+[Unit]
+Description=SeamlessControl Omarchy receiver
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+EnvironmentFile=%h/.config/seamlesscontrol/receiver.env
+ExecStart=%h/.local/bin/seamlesscontrold serve ${SEAMLESSCONTROL_LISTEN}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical-session.target

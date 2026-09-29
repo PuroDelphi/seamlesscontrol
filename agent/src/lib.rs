@@ -9,4 +9,6 @@ pub mod storage;
 pub mod topology;
 
 #[cfg(target_os = "linux")]
+pub mod control;
+#[cfg(target_os = "linux")]
 pub mod omarchy;

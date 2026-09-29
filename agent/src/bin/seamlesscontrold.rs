@@ -9,17 +9,18 @@ mod linux {
         ei,
         event::{DeviceCapability, EiEvent},
     };
+    use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{Frame, Kind};
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first};
-    use seamlesscontrol_core::secure::{Identity, PeerInfo, Role, SecureChannel};
+    use seamlesscontrol_core::secure::{Identity, Role, SecureChannel};
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         key_fingerprint, load_or_create_identity, load_peer_key, remember_peer_key,
     };
     use std::error::Error;
-    use std::io::{self, Write};
-    use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
+    use std::io;
+    use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -106,6 +107,7 @@ mod linux {
     async fn capture_loop(
         mut channel: SecureChannel<TcpStream>,
         edge: Edge,
+        control: ControlHandle,
     ) -> Result<(), Box<dyn Error>> {
         let portal = InputCapture::new().await?;
         let (session, _) = portal
@@ -151,11 +153,15 @@ mod linux {
         let mut activated = portal.receive_activated().await?;
         let mut deactivated = portal.receive_deactivated().await?;
         portal.enable(&session, Default::default()).await?;
+        control.set_phase("ready");
         println!(
             "Captura activa. Cruce el borde elegido; Escape recupera el control, Ctrl+C termina."
         );
 
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
+        let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
+        pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut capture_enabled = true;
         let mut epoch = 0;
         let mut sequence = 0;
         let mut current_activation = None;
@@ -165,17 +171,42 @@ mod linux {
             loop {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => break,
+                    _ = pause_tick.tick() => {
+                        if control.paused() && capture_enabled {
+                            if active {
+                                send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                                let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                                portal.release(&session, options).await?;
+                                active = false;
+                            }
+                            portal.disable(&session, Default::default()).await?;
+                            capture_enabled = false;
+                            control.set_phase("paused");
+                        } else if !control.paused() && !capture_enabled {
+                            portal.enable(&session, Default::default()).await?;
+                            capture_enabled = true;
+                            control.set_phase("ready");
+                        }
+                    }
                     _ = heartbeat.tick() => {
                         send_frame(&mut channel, Kind::Heartbeat, epoch, &mut sequence, Vec::new())?;
                     }
                     signal = activated.next() => {
                         let signal = signal.ok_or("capture activation stream closed")?;
+                        if control.paused() {
+                            let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
+                            if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
+                            portal.release(&session, options).await?;
+                            continue;
+                        }
                         epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64;
                         sequence = 0;
                         current_activation = signal.activation_id();
                         active = true;
                         release_position = signal.cursor_position().map(|p| edge.release_position(p));
                         send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"BEGIN".to_vec())?;
+                        control.set_phase("controlling");
                         println!("Control remoto activo. Escape devuelve el puntero.");
                     }
                     signal = deactivated.next() => {
@@ -184,6 +215,7 @@ mod linux {
                             send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                             active = false;
                             current_activation = None;
+                            control.set_phase(if control.paused() { "paused" } else { "ready" });
                         }
                     }
                     event = events.next() => {
@@ -199,6 +231,7 @@ mod linux {
                                 active = false;
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
+                                control.set_phase("ready");
                                 println!("Control local restaurado.");
                             } else if let Some(event) = input_event(event) {
                                 send_frame(&mut channel, Kind::Input, epoch, &mut sequence, event.encode())?;
@@ -224,6 +257,7 @@ mod linux {
             let _ = portal.release(&session, options).await;
         }
         let _ = portal.disable(&session, Default::default()).await;
+        control.set_phase("disconnected");
         result
     }
 
@@ -262,40 +296,23 @@ mod linux {
         )
     }
 
-    fn approve_first_pair(peer: &PeerInfo) -> bool {
-        println!(
-            "Nuevo equipo. Compare en ambos terminales el código {:6}.",
-            peer.sas
-        );
-        println!(
-            "Clave pública remota: {}",
-            key_fingerprint(&peer.public_key)
-        );
-        print!("Escriba SI en ambos equipos para aceptar: ");
-        let _ = io::stdout().flush();
-        let mut answer = String::new();
-        io::stdin().read_line(&mut answer).is_ok() && answer.trim() == "SI"
-    }
-
     fn serve_connection(
         stream: TcpStream,
         peer_ip: IpAddr,
         identity: &Identity,
         config: &std::path::Path,
+        control: &ControlHandle,
     ) -> Result<(), Box<dyn Error>> {
         let peers = config.join("peers");
         let pinned = load_peer_key(&peers, peer_ip)?;
         stream.set_nodelay(true)?;
         stream.set_read_timeout(Some(Duration::from_secs(120)))?;
         stream.set_write_timeout(Some(Duration::from_secs(120)))?;
-        let (mut channel, peer) = SecureChannel::connect(
-            stream,
-            Role::Responder,
-            identity,
-            pinned.as_ref(),
-            approve_first_pair,
-        )?;
-        remember_peer_key(&peers, peer_ip, &peer.public_key)?;
+        let (mut channel, peer) =
+            SecureChannel::connect(stream, Role::Responder, identity, pinned.as_ref(), |peer| {
+                control.confirm_pair(peer)
+            })?;
+        control.set_peer(&peer_ip.to_string());
         let greeting = Frame::read_from(&mut channel)?;
         if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
             return Err("incompatible peer protocol".into());
@@ -307,7 +324,19 @@ mod linux {
             payload: b"seamlesscontrol/1".to_vec(),
         }
         .write_to(&mut channel)?;
+        remember_peer_key(&peers, peer_ip, &peer.public_key)?;
         let first = Frame::read_from(&mut channel)?;
+        if first.kind == Kind::Control && first.payload == b"PAIR" {
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 0,
+                payload: b"PAIRED".to_vec(),
+            }
+            .write_to(&mut channel)?;
+            println!("Par {peer_ip} emparejado; todavía no se inició la captura.");
+            return Ok(());
+        }
         channel
             .stream_mut()
             .set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -315,20 +344,44 @@ mod linux {
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(5)))?;
         println!("Conexión autenticada con {peer_ip}. Esperando control...");
+        control.set_phase("connected");
         let injector = OmarchyInjector {
             input: VirtualInput::connect()?,
             started: Instant::now(),
         };
-        run_receiver_with_first(&mut channel, injector, Some(first))?;
+        let result = run_receiver_with_first(&mut channel, injector, Some(first));
+        control.set_phase("listening");
+        control.set_peer("");
+        result?;
         println!("Control terminado; teclado y botones liberados.");
         Ok(())
     }
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
-        if !(args.len() == 3 && args[1] == "serve" || args.len() == 4 && args[1] == "connect") {
+        if args.len() == 2 && matches!(args[1].as_str(), "status" | "pause" | "resume" | "reject")
+            || args.len() == 3 && args[1] == "approve"
+        {
+            let command = if args[1] == "approve" {
+                if args[2].len() != 6 || !args[2].bytes().all(|byte| byte.is_ascii_digit()) {
+                    return Err("approval code must be six digits".into());
+                }
+                format!("approve {}", args[2])
+            } else {
+                args[1].clone()
+            };
+            let response = control::request(&command)?;
+            print!("{response}");
+            if response.starts_with("ERR") {
+                return Err("local control command failed".into());
+            }
+            return Ok(());
+        }
+        if !(args.len() == 3 && matches!(args[1].as_str(), "serve" | "pair")
+            || args.len() == 4 && args[1] == "connect")
+        {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> <left|right|top|bottom>"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> <left|right|top|bottom>"
             );
             return Err("invalid arguments".into());
         }
@@ -339,8 +392,14 @@ mod linux {
         let config = config_dir()?;
         let identity = load_or_create_identity(&config.join("identity"))?;
         println!("Identidad local: {}", key_fingerprint(&identity.public));
-        if args[1] == "connect" {
-            let edge = Edge::parse(&args[3])?;
+        if args[1] == "connect" || args[1] == "pair" {
+            let _local_control = ControlServer::start("connect")?;
+            let control = _local_control.handle();
+            let edge = if args[1] == "connect" {
+                Some(Edge::parse(&args[3])?)
+            } else {
+                None
+            };
             let peers = config.join("peers");
             let pinned = load_peer_key(&peers, address.ip())?;
             let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))?;
@@ -352,9 +411,9 @@ mod linux {
                 Role::Initiator,
                 &identity,
                 pinned.as_ref(),
-                approve_first_pair,
+                |peer| control.confirm_pair(peer),
             )?;
-            remember_peer_key(&peers, address.ip(), &peer.public_key)?;
+            control.set_peer(&address.ip().to_string());
             Frame {
                 kind: Kind::Hello,
                 epoch: 0,
@@ -366,28 +425,77 @@ mod linux {
             if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
                 return Err("incompatible peer protocol".into());
             }
+            remember_peer_key(&peers, address.ip(), &peer.public_key)?;
             channel
                 .stream_mut()
                 .set_write_timeout(Some(Duration::from_secs(5)))?;
-            println!("Conexión autenticada con {address}.");
-            return capture_loop(channel, edge).await;
-        }
-        let listener = TcpListener::bind(address)?;
-        println!("SeamlessControl escucha en {address}");
-        for incoming in listener.incoming() {
-            match incoming {
-                Ok(stream) => {
-                    let ip = stream.peer_addr()?.ip();
-                    if !local_address(ip) {
-                        eprintln!("Se rechazó una conexión fuera de la red local: {ip}");
-                        continue;
-                    }
-                    if let Err(error) = serve_connection(stream, ip, &identity, &config) {
-                        eprintln!("Conexión con {ip} terminada: {error}");
-                    }
+            if edge.is_none() {
+                Frame {
+                    kind: Kind::Control,
+                    epoch: 0,
+                    sequence: 0,
+                    payload: b"PAIR".to_vec(),
                 }
-                Err(error) => eprintln!("Error al aceptar conexión: {error}"),
+                .write_to(&mut channel)?;
+                let reply = Frame::read_from(&mut channel)?;
+                if reply.kind != Kind::Control || reply.payload != b"PAIRED" {
+                    return Err("the peer did not acknowledge pairing".into());
+                }
+                println!("Par {address} emparejado sin iniciar la captura.");
+                return Ok(());
             }
+            println!("Conexión autenticada con {address}.");
+            return capture_loop(channel, edge.expect("validated edge"), control).await;
+        }
+        let _local_control = ControlServer::start("serve")?;
+        let control = _local_control.handle();
+        let listener = TcpListener::bind(address)?;
+        listener.set_nonblocking(true)?;
+        let listener = tokio::net::TcpListener::from_std(listener)?;
+        println!("SeamlessControl escucha en {address}");
+        let stop = tokio::signal::ctrl_c();
+        tokio::pin!(stop);
+        loop {
+            let incoming = tokio::select! {
+                _ = &mut stop => break,
+                incoming = listener.accept() => incoming,
+            };
+            let (stream, address) = match incoming {
+                Ok(value) => value,
+                Err(error) => {
+                    eprintln!("Error al aceptar conexión: {error}");
+                    continue;
+                }
+            };
+            let ip = address.ip();
+            if !local_address(ip) {
+                eprintln!("Se rechazó una conexión fuera de la red local: {ip}");
+                continue;
+            }
+            let stream = stream.into_std()?;
+            stream.set_nonblocking(false)?;
+            let shutdown = stream.try_clone()?;
+            let identity = identity.clone();
+            let config = config.clone();
+            let connection_control = control.clone();
+            let mut worker = tokio::task::spawn_blocking(move || {
+                serve_connection(stream, ip, &identity, &config, &connection_control)
+                    .map_err(|error| error.to_string())
+            });
+            let result = tokio::select! {
+                _ = &mut stop => {
+                    control.cancel_pair();
+                    let _ = shutdown.shutdown(Shutdown::Both);
+                    let _ = worker.await;
+                    break;
+                }
+                result = &mut worker => result,
+            };
+            if let Err(error) = result? {
+                eprintln!("Conexión con {ip} terminada: {error}");
+            }
+            control.set_phase("listening");
+            control.set_peer("");
         }
         Ok(())
     }

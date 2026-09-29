@@ -2,12 +2,14 @@
 
 El agente experimental compila y supera las pruebas locales, pero **aún no se ha validado entre dos Omarchy** porque sólo hay uno disponible. Esta guía define la primera prueba reproducible y evita confundir simulaciones de loopback con una prueba de entrada física.
 
+La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, claves fijadas y cierre del receptor. No abre el portal ni inyecta entrada.
+
 ## Preparación
 
 1. Instalar la misma revisión del repositorio en ambos equipos Omarchy y compilar el binario de release indicado en el README.
 2. Registrar `omarchy --version`, `hyprctl version`, `quickshell --version`, versión del portal, monitores (`hyprctl monitors`) y distribución de teclado en ambos.
 3. Confirmar conectividad LAN y que el puerto elegido acepta TCP únicamente desde la LAN. No abrirlo hacia Internet.
-4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos terminales antes de escribir `SI`.
+4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos paneles o terminales antes de aprobar en ambos. Por CLI: `seamlesscontrold status` y `seamlesscontrold approve <código>`.
 
 ## Circuito básico
 

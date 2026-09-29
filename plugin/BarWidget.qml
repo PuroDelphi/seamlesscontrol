@@ -8,6 +8,12 @@ BarWidget {
 
   implicitWidth: label.implicitWidth + Style.space(12)
   implicitHeight: barSize
+  readonly property string stateLabel: !backend.available ? "sin agente"
+    : backend.paused ? "pausa"
+    : backend.phase === "controlling" ? "remoto"
+    : backend.phase === "connected" ? "conectado"
+    : backend.phase === "ready" ? "listo"
+    : backend.phase === "listening" ? "disponible" : backend.phase
 
   function open() { if (panelLoader.item) panelLoader.item.open() }
   function close() { if (panelLoader.item) panelLoader.item.close() }
@@ -18,6 +24,7 @@ BarWidget {
     panelLoader.item.bar = root.bar
     panelLoader.item.anchorItem = root
     panelLoader.item.hostWidget = root
+    panelLoader.item.backend = backend
   }
 
   onBarChanged: attachPanel()
@@ -25,9 +32,10 @@ BarWidget {
   Text {
     id: label
     anchors.centerIn: parent
-    text: "󰌘 SC"
+    text: "󰌘 " + root.stateLabel
     textFormat: Text.PlainText
-    color: root.bar ? root.bar.barForeground : Color.foreground
+    color: backend.available && !backend.paused ? Color.accent
+      : root.bar ? root.bar.barForeground : Color.foreground
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
   }
@@ -36,9 +44,11 @@ BarWidget {
     anchors.fill: parent
     cursorShape: Qt.PointingHandCursor
     onClicked: root.toggle()
-    onEntered: if (root.bar) root.bar.showTooltip(root, "SeamlessControl · prototipo")
+    onEntered: if (root.bar) root.bar.showTooltip(root, "SeamlessControl · " + root.stateLabel)
     onExited: if (root.bar) root.bar.hideTooltip(root)
   }
+
+  AgentBackend { id: backend }
 
   Loader {
     id: panelLoader

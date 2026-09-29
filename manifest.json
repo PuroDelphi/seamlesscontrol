@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "PuroDelphi",
   "license": "MIT",
   "description": "Experimental Omarchy input sharing between LAN computers",
@@ -12,7 +12,7 @@
   },
   "barWidget": {
     "displayName": "SeamlessControl",
-    "description": "Development status and setup guide for the experimental Omarchy agent",
+    "description": "Agent status, capture pause and setup guide for Omarchy",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

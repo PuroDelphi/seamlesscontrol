@@ -8,25 +8,33 @@ Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCaptu
 
 ## Probar el agente experimental entre dos Omarchy
 
-En ambos equipos, compile con `cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold`. En el equipo que recibirá el control, ejecute:
+En ambos equipos, ejecute `bash packaging/install-agent.sh` para compilar e instalar el binario en `~/.local/bin` (o `XDG_BIN_HOME`). Este directorio debe estar en `PATH` de la sesión gráfica para que el widget pueda consultar el agente. En el equipo que recibirá el control, ejecute:
 
 ```bash
-agent/target/release/seamlesscontrold serve 192.168.1.20:47832
+seamlesscontrold serve 192.168.1.20:47832
 ```
 
 Sustituya `192.168.1.20` por la IP LAN de ese equipo. En el equipo que tiene teclado y ratón físicos, ejecute:
 
 ```bash
-agent/target/release/seamlesscontrold connect 192.168.1.20:47832 right
+seamlesscontrold connect 192.168.1.20:47832 right
 ```
 
-`right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. La primera conexión muestra un código de seis cifras en ambos terminales. **Compare los códigos y escriba `SI` en ambos sólo si coinciden.** Las claves quedan fijadas por IP en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, y **Ctrl+C** en el terminal de origen para cerrar. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
+También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 192.168.1.20:47832`, o introducir esa dirección en el panel del widget del equipo de origen.
+
+`right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. La primera conexión muestra un código de seis cifras en ambos paneles Omarchy y en ambos terminales. **Compare los códigos en los dos equipos y apruebe en ambos paneles sólo si coinciden.** Como alternativa por terminal, consulte `seamlesscontrold status` y ejecute `seamlesscontrold approve 123456` con el código mostrado; `seamlesscontrold reject` deniega el par. Las claves quedan fijadas por IP en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, y **Ctrl+C** en el terminal de origen para cerrar. `seamlesscontrold pause` y `resume`, o el botón del panel, desactivan y reactivan la captura. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
 
 Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El regreso por el borde del equipo remoto, la reconexión automática, la configuración visual de pares, el portapapeles, los archivos y Windows siguen pendientes.
 
 ## Widget de Omarchy
 
-El repositorio incluye un `manifest.json` válido y un widget que muestra el estado del prototipo y abre esta guía. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. **El widget todavía no controla el agente**: el emparejamiento y las pruebas se hacen en los terminales como se indica arriba. Esta limitación queda visible dentro del panel.
+El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, permite iniciar el emparejamiento, aprobarlo y pausar la captura. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. **El inicio de la sesión de control y la elección del borde todavía se hacen en terminal o mediante servicio de usuario**; la topología visual sigue pendiente. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
+
+El contrato del socket local y los comandos del panel están descritos en [docs/IPC.md](./docs/IPC.md).
+
+## Servicios de usuario
+
+El instalador copia dos unidades de `systemd --user` y las deja deshabilitadas. En el equipo receptor, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.1.20:47832`. En el emisor, cree `~/.config/seamlesscontrol/sender.env` con `SEAMLESSCONTROL_PEER=192.168.1.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Tras comprobar los valores, active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver.service` o `systemctl --user enable --now seamlesscontrol-sender.service`. El emisor se reinicia tras una caída de red y reutiliza la clave fijada. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
 
 ## Compilar y probar
 
@@ -35,6 +43,7 @@ Con Rust estable y Cargo instalados:
 ```bash
 cargo test --manifest-path agent/Cargo.toml
 cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
+CARGO=cargo bash tests/pair_loopback.sh
 ```
 
 La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe permitirlo. En un Omarchy con sesión gráfica se pueden ejecutar los probes:

@@ -120,12 +120,13 @@ seamlesscontrol/
 ├── probe/                     # comprobación de capacidades Wayland
 ├── docs/                      # viabilidad, instalación y diagnóstico
 ├── agent/                     # daemon, protocolo, adaptadores Omarchy
-├── plugin/                    # manifest.json y QML para Omarchy
+├── manifest.json              # manifiesto instalable de Omarchy
+├── plugin/                    # QML para Omarchy
 ├── packaging/                 # unidad systemd de usuario e instalador
 └── tests/                     # integración y escenarios entre equipos
 ```
 
-La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable que muestra el estado experimental. La UI de configuración y el IPC aún no están implementados. `packaging/` y las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
+La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento y pausa mediante socket Unix local. La UI de topología aún no está implementada. `packaging/` contiene el instalador y dos unidades de usuario para receptor/emisor; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
 
 ## Fuentes consultadas
 

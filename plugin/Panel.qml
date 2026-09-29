@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as Controls
 import Quickshell
 import qs.Commons
 import qs.Ui
@@ -11,6 +12,7 @@ Panel {
 
   property var anchorItem: null
   property var hostWidget: null
+  property var backend: null
   readonly property var ownerItem: hostWidget || root
   readonly property color ink: bar ? bar.foreground : Color.foreground
   readonly property color muted: Qt.darker(ink, 1.5)
@@ -43,7 +45,8 @@ Panel {
         PanelHero {
           Layout.fillWidth: true
           title: "SeamlessControl"
-          meta: "OMARCHY  ·  PROTOTIPO"
+          meta: "OMARCHY  ·  " + (root.backend && root.backend.available
+            ? root.backend.phase.toUpperCase() : "SIN AGENTE")
           foreground: root.ink
           fontFamily: root.face
           iconComponent: Component {
@@ -69,9 +72,53 @@ Panel {
           fontFamily: root.face
         }
 
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.available
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: pairAddress
+            Layout.fillWidth: true
+            placeholderText: "IP:puerto del destino"
+            color: root.ink
+            font.family: root.face
+            background: Rectangle {
+              color: "transparent"
+              border.color: Color.accent
+              border.width: 1
+              radius: 8
+            }
+          }
+          Button {
+            text: root.backend && root.backend.pairingRunning ? "Conectando…" : "Emparejar"
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.pairingRunning && pairAddress.text !== ""
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.pair(pairAddress.text.trim())
+          }
+        }
+
         Text {
           Layout.fillWidth: true
-          text: "El agente experimental ya transmite teclado y ratón por un canal cifrado. La prueba física entre dos Omarchy sigue pendiente."
+          visible: root.backend && root.backend.error !== ""
+          text: root.backend ? root.backend.error : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.available
+            ? "Agente " + (root.backend.role === "serve" ? "receptor" : "emisor")
+              + (root.backend.peer !== "" ? " · " + root.backend.peer : "")
+              + (root.backend.paused ? " · en pausa" : "")
+            : "El agente no está ejecutándose. Compile e inícielo en un terminal para comenzar."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.ink
@@ -81,7 +128,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "1  Compile el agente en ambos equipos.\n2  En el destino: seamlesscontrold serve <IP:PUERTO>\n3  En el origen: seamlesscontrold connect <IP:PUERTO> right\n4  Compare el código de seis cifras en ambos terminales."
+          text: "1  Compile el agente en ambos equipos.\n2  En el destino: seamlesscontrold serve <IP:PUERTO>\n3  En el origen: seamlesscontrold connect <IP:PUERTO> right\n4  Compare el código de seis cifras en ambos paneles."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -89,9 +136,66 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairSas !== ""
+          text: "CONFIRMAR EMPAREJAMIENTO"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
         Text {
           Layout.fillWidth: true
-          text: "Escape devuelve el control local. La configuración visual de pares y topología se añadirá después de validar el circuito físico."
+          visible: root.backend && root.backend.pairSas !== ""
+          text: root.backend ? "Código: " + root.backend.pairSas + "\nClave remota: " + root.backend.pairKey : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.body
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairSas !== ""
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: "Coincide · aceptar"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decidePair(true)
+          }
+          Button {
+            Layout.fillWidth: true
+            text: "Rechazar"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decidePair(false)
+          }
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "connect"
+          text: root.backend && root.backend.paused ? "Reanudar captura" : "Pausar captura"
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.togglePause()
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: "Escape devuelve el control local. La prueba física entre dos Omarchy y la configuración visual de pares siguen pendientes."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
