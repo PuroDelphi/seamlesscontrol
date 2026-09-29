@@ -1,5 +1,6 @@
 #[cfg(target_os = "linux")]
 mod linux {
+    use ashpd::desktop::Session;
     use ashpd::desktop::input_capture::{
         Barrier, BarrierID, BarrierPosition, Capabilities, CreateSessionOptions, InputCapture,
         ReleaseOptions,
@@ -119,21 +120,13 @@ mod linux {
         Ok(())
     }
 
-    async fn capture_loop(
-        mut channel: SecureChannel<TcpStream>,
+    async fn install_barriers(
+        portal: &InputCapture,
+        session: &Session<InputCapture>,
         edge: Edge,
-        control: ControlHandle,
-    ) -> Result<(), Box<dyn Error>> {
-        let portal = InputCapture::new().await?;
-        let (session, _) = portal
-            .create_session(
-                None,
-                CreateSessionOptions::default()
-                    .set_capabilities(Capabilities::Keyboard | Capabilities::Pointer),
-            )
-            .await?;
+    ) -> Result<u32, Box<dyn Error>> {
         let zones = portal
-            .zones(&session, Default::default())
+            .zones(session, Default::default())
             .await?
             .response()?;
         let regions: Vec<Rect> = zones
@@ -163,12 +156,30 @@ mod linux {
             })
             .collect::<Result<_, Box<dyn Error>>>()?;
         let response = portal
-            .set_pointer_barriers(&session, &barriers, zones.zone_set(), Default::default())
+            .set_pointer_barriers(session, &barriers, zones.zone_set(), Default::default())
             .await?
             .response()?;
         if !response.failed_barriers().is_empty() {
-            return Err("the compositor rejected the selected edge".into());
+            return Err("the compositor rejected one or more selected edges".into());
         }
+        Ok(zones.zone_set())
+    }
+
+    async fn capture_loop(
+        mut channel: SecureChannel<TcpStream>,
+        edge: Edge,
+        control: ControlHandle,
+    ) -> Result<(), Box<dyn Error>> {
+        let portal = InputCapture::new().await?;
+        let (session, _) = portal
+            .create_session(
+                None,
+                CreateSessionOptions::default()
+                    .set_capabilities(Capabilities::Keyboard | Capabilities::Pointer),
+            )
+            .await?;
+        let mut zones_changed = portal.receive_zones_changed().await?;
+        let mut current_zone_set = install_barriers(&portal, &session, edge).await?;
         let eis = portal.connect_to_eis(&session, Default::default()).await?;
         let stream = UnixStream::from(eis);
         stream.set_nonblocking(true)?;
@@ -244,6 +255,27 @@ mod linux {
                             active = false;
                             current_activation = None;
                             control.set_phase(if control.paused() { "paused" } else { "ready" });
+                        }
+                    }
+                    signal = zones_changed.next() => {
+                        let signal = signal.ok_or("capture zones stream closed")?;
+                        if signal.zone_set().is_some_and(|id| id != current_zone_set) { continue; }
+                        if active {
+                            send_frame(&mut channel, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                            active = false;
+                            current_activation = None;
+                        }
+                        if capture_enabled {
+                            portal.disable(&session, Default::default()).await?;
+                            capture_enabled = false;
+                        }
+                        current_zone_set = install_barriers(&portal, &session, edge).await?;
+                        if !control.paused() {
+                            portal.enable(&session, Default::default()).await?;
+                            capture_enabled = true;
+                            control.set_phase("ready");
+                        } else {
+                            control.set_phase("paused");
                         }
                     }
                     event = events.next() => {
