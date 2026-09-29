@@ -125,7 +125,7 @@ seamlesscontrol/
 └── tests/                     # integración y escenarios entre equipos
 ```
 
-La carpeta `agent/` contiene un prototipo ejecutable. `plugin/`, `packaging/` y `tests/` siguen en el plan; aún no hay un plugin instalable. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
+La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable que muestra el estado experimental. La UI de configuración y el IPC aún no están implementados. `packaging/` y las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
 
 ## Fuentes consultadas
 

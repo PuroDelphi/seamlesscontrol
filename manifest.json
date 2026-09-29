@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "seamlesscontrol.control",
+  "name": "SeamlessControl",
+  "version": "0.1.0",
+  "author": "PuroDelphi",
+  "license": "MIT",
+  "description": "Experimental Omarchy input sharing between LAN computers",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "plugin/BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "SeamlessControl",
+    "description": "Development status and setup guide for the experimental Omarchy agent",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

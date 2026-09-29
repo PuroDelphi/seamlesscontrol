@@ -22,7 +22,11 @@ agent/target/release/seamlesscontrold connect 192.168.1.20:47832 right
 
 `right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. La primera conexión muestra un código de seis cifras en ambos terminales. **Compare los códigos y escriba `SI` en ambos sólo si coinciden.** Las claves quedan fijadas por IP en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, y **Ctrl+C** en el terminal de origen para cerrar. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
 
-Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El regreso por el borde del equipo remoto, la reconexión automática, la interfaz Omarchy, el portapapeles, los archivos y Windows siguen pendientes.
+Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El regreso por el borde del equipo remoto, la reconexión automática, la configuración visual de pares, el portapapeles, los archivos y Windows siguen pendientes.
+
+## Widget de Omarchy
+
+El repositorio incluye un `manifest.json` válido y un widget que muestra el estado del prototipo y abre esta guía. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. **El widget todavía no controla el agente**: el emparejamiento y las pruebas se hacen en los terminales como se indica arriba. Esta limitación queda visible dentro del panel.
 
 ## Compilar y probar
 
