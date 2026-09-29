@@ -1,0 +1,167 @@
+//! Omarchy text clipboard adapter using wl-clipboard's selection notifications.
+
+use crate::clipboard::{ClipboardEvent, ClipboardPacket, ClipboardSync, MAX_TEXT_BYTES};
+use std::io::{self, Read, Write};
+use std::process::{Child, Command, Stdio};
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
+
+pub fn emit_watched_event() -> io::Result<()> {
+    let event = match std::env::var("CLIPBOARD_STATE").as_deref() {
+        Ok("data") => {
+            let mut bytes = Vec::new();
+            io::stdin()
+                .take((MAX_TEXT_BYTES + 1) as u64)
+                .read_to_end(&mut bytes)?;
+            if bytes.len() > MAX_TEXT_BYTES || std::str::from_utf8(&bytes).is_err() {
+                ClipboardEvent::Ignore
+            } else {
+                ClipboardEvent::Text(bytes)
+            }
+        }
+        Ok("clear") => ClipboardEvent::Clear,
+        _ => ClipboardEvent::Ignore,
+    };
+    let mut output = io::stdout().lock();
+    event.write_framed(&mut output)?;
+    output.flush()
+}
+
+fn wait_child(mut child: Child) -> io::Result<()> {
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        if let Some(status) = child.try_wait()? {
+            return if status.success() {
+                Ok(())
+            } else {
+                Err(io::Error::other(format!("wl-copy exited with {status}")))
+            };
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(io::Error::new(io::ErrorKind::TimedOut, "wl-copy timed out"));
+        }
+        thread::sleep(Duration::from_millis(20));
+    }
+}
+
+pub fn apply(event: &ClipboardEvent) -> io::Result<()> {
+    match event {
+        ClipboardEvent::Text(bytes) => {
+            if bytes.len() > MAX_TEXT_BYTES || std::str::from_utf8(bytes).is_err() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid clipboard text",
+                ));
+            }
+            let mut child = Command::new("wl-copy")
+                .args(["--type", "text/plain"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()?;
+            child
+                .stdin
+                .take()
+                .ok_or_else(|| io::Error::other("wl-copy stdin missing"))?
+                .write_all(bytes)?;
+            wait_child(child)
+        }
+        ClipboardEvent::Clear => wait_child(
+            Command::new("wl-copy")
+                .arg("--clear")
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()?,
+        ),
+        ClipboardEvent::Ignore => Ok(()),
+    }
+}
+
+pub fn spawn_apply_worker(
+    sync: Arc<Mutex<ClipboardSync>>,
+) -> (mpsc::Sender<ClipboardPacket>, JoinHandle<()>) {
+    let (sender, mut receiver) = mpsc::channel::<ClipboardPacket>(8);
+    let worker = thread::spawn(move || {
+        while let Some(packet) = receiver.blocking_recv() {
+            let Ok(mut state) = sync.lock() else { break };
+            match state.remote_needs_apply(&packet) {
+                Ok(false) => {}
+                Ok(true) => match apply(&packet.event) {
+                    Ok(()) => state.remote_applied(&packet),
+                    Err(error) => {
+                        eprintln!("SeamlessControl: no se pudo aplicar el portapapeles: {error}")
+                    }
+                },
+                Err(error) => {
+                    eprintln!("SeamlessControl: cambio de portapapeles inválido: {error}")
+                }
+            }
+        }
+    });
+    (sender, worker)
+}
+
+pub struct ClipboardWatch {
+    child: Arc<Mutex<Child>>,
+    worker: Option<JoinHandle<()>>,
+}
+
+impl ClipboardWatch {
+    pub fn start(
+        sync: Arc<Mutex<ClipboardSync>>,
+        mut forward: impl FnMut(ClipboardPacket) + Send + 'static,
+    ) -> io::Result<Self> {
+        let executable = std::env::current_exe()?;
+        let mut child = Command::new("wl-paste")
+            .args(["--type", "text/plain", "--watch"])
+            .arg(executable)
+            .arg("clipboard-helper")
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()?;
+        let mut output = child
+            .stdout
+            .take()
+            .ok_or_else(|| io::Error::other("wl-paste stdout missing"))?;
+        let child = Arc::new(Mutex::new(child));
+        let worker = thread::spawn(move || {
+            loop {
+                match ClipboardEvent::read_framed(&mut output) {
+                    Ok(Some(event)) => {
+                        let Ok(mut state) = sync.lock() else { break };
+                        if let Some(packet) = state.local_changed(&event) {
+                            drop(state);
+                            forward(packet);
+                        }
+                    }
+                    Ok(None) => break,
+                    Err(error) => {
+                        eprintln!("SeamlessControl: error observando portapapeles: {error}");
+                        break;
+                    }
+                }
+            }
+        });
+        Ok(Self {
+            child,
+            worker: Some(worker),
+        })
+    }
+
+    pub fn stop(mut self) {
+        if let Ok(mut child) = self.child.lock() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        if let Some(worker) = self.worker.take()
+            && worker.is_finished()
+        {
+            let _ = worker.join();
+        }
+    }
+}

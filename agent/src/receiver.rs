@@ -1,6 +1,7 @@
 //! Authenticated input receiver. This module contains no platform calls, so
 //! disconnect and malformed-frame behavior can be tested without a desktop.
 
+use crate::clipboard::ClipboardPacket;
 use crate::protocol::{Frame, FrameError, Kind};
 use crate::state::{ApplyResult, EventError, InputEvent, Receiver};
 use std::fmt;
@@ -8,6 +9,13 @@ use std::io::{self, Read};
 
 pub trait Injector {
     fn inject(&mut self, event: &InputEvent) -> io::Result<()>;
+
+    fn clipboard_received(&mut self, _packet: ClipboardPacket) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "clipboard receiver unavailable",
+        ))
+    }
 
     fn ownership_changed(&mut self, _controlling: bool) {}
 
@@ -18,6 +26,7 @@ pub trait Injector {
 pub enum ReceiverError {
     Frame(FrameError),
     Event(EventError),
+    Clipboard(io::Error),
     Injection(io::Error),
     UnexpectedFrame,
 }
@@ -27,6 +36,7 @@ impl fmt::Display for ReceiverError {
         match self {
             Self::Frame(e) => write!(f, "frame error: {e}"),
             Self::Event(e) => write!(f, "input event error: {e}"),
+            Self::Clipboard(e) => write!(f, "clipboard error: {e}"),
             Self::Injection(e) => write!(f, "injection error: {e}"),
             Self::UnexpectedFrame => write!(f, "unexpected frame in input receiver"),
         }
@@ -86,6 +96,13 @@ impl<I: Injector> InputReceiver<I> {
                 Ok(())
             }
             Kind::Heartbeat => Ok(()),
+            Kind::Clipboard => {
+                let packet =
+                    ClipboardPacket::decode(&frame.payload).map_err(ReceiverError::Clipboard)?;
+                self.injector
+                    .clipboard_received(packet)
+                    .map_err(ReceiverError::Clipboard)
+            }
             _ => Err(ReceiverError::UnexpectedFrame),
         }
     }
@@ -163,6 +180,7 @@ pub fn run_receiver_with_first_until<R: Read, I: Injector>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::clipboard::{ClipboardEvent, ClipboardSync};
     use crate::secure::{Identity, Role, SecureChannel};
     use std::net::{TcpListener, TcpStream};
     use std::thread;
@@ -186,6 +204,47 @@ mod tests {
         fn ownership_changed(&mut self, controlling: bool) {
             self.0.push(controlling);
         }
+    }
+
+    #[derive(Default)]
+    struct ClipboardInjector(Vec<ClipboardPacket>);
+    impl Injector for ClipboardInjector {
+        fn inject(&mut self, _event: &InputEvent) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
+            self.0.push(packet);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn clipboard_is_bounded_utf8_and_independent_of_input_capture() {
+        let mut receiver = InputReceiver::new(ClipboardInjector::default());
+        let text = ClipboardPacket {
+            revision: 1,
+            origin: [2; 32],
+            event: ClipboardEvent::Text("hola 🙂".as_bytes().to_vec()),
+        };
+        receiver
+            .handle(&Frame {
+                kind: Kind::Clipboard,
+                epoch: 0,
+                sequence: 1,
+                payload: text.encode(),
+            })
+            .unwrap();
+        assert!(matches!(
+            receiver.handle(&Frame {
+                kind: Kind::Clipboard,
+                epoch: 0,
+                sequence: 2,
+                payload: vec![1, 0xff],
+            }),
+            Err(ReceiverError::Clipboard(_))
+        ));
+        assert_eq!(receiver.into_injector().0, vec![text]);
     }
 
     #[test]
@@ -399,6 +458,65 @@ mod tests {
             server.join().unwrap(),
             vec![InputEvent::KeyDown(42), InputEvent::KeyUp(42)]
         );
+    }
+
+    #[test]
+    fn encrypted_clipboard_exchange_remains_text_only_and_echo_free() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let initiator = Identity::generate().unwrap();
+        let responder = Identity::generate().unwrap();
+        let initiator_key = initiator.public;
+        let responder_key = responder.public;
+        let server = thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let (channel, _) =
+                SecureChannel::connect(stream, Role::Responder, &responder, None, |_| true)
+                    .unwrap();
+            let (mut reader, mut writer) = channel.into_tcp_halves().unwrap();
+            let mut receiver = InputReceiver::new(ClipboardInjector::default());
+            receiver
+                .handle(&Frame::read_from(&mut reader).unwrap())
+                .unwrap();
+            Frame {
+                kind: Kind::Clipboard,
+                epoch: 0,
+                sequence: 1,
+                payload: ClipboardPacket {
+                    revision: 2,
+                    origin: responder_key,
+                    event: ClipboardEvent::Text(b"destino".to_vec()),
+                }
+                .encode(),
+            }
+            .write_to(&mut writer)
+            .unwrap();
+            receiver.into_injector().0
+        });
+        let stream = TcpStream::connect(address).unwrap();
+        let (channel, _) =
+            SecureChannel::connect(stream, Role::Initiator, &initiator, None, |_| true).unwrap();
+        let (mut reader, mut writer) = channel.into_tcp_halves().unwrap();
+        let local = ClipboardPacket {
+            revision: 1,
+            origin: initiator_key,
+            event: ClipboardEvent::Text("origen 🙂".as_bytes().to_vec()),
+        };
+        Frame {
+            kind: Kind::Clipboard,
+            epoch: 0,
+            sequence: 1,
+            payload: local.encode(),
+        }
+        .write_to(&mut writer)
+        .unwrap();
+        let remote =
+            ClipboardPacket::decode(&Frame::read_from(&mut reader).unwrap().payload).unwrap();
+        let mut sync = ClipboardSync::new(initiator_key, responder_key);
+        assert!(sync.remote_needs_apply(&remote).unwrap());
+        sync.remote_applied(&remote);
+        assert!(sync.local_changed(&remote.event).is_none());
+        assert_eq!(server.join().unwrap(), vec![local]);
     }
 
     #[test]

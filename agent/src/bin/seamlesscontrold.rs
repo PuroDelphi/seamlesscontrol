@@ -10,6 +10,8 @@ mod linux {
         ei,
         event::{DeviceCapability, EiEvent},
     };
+    use seamlesscontrol_core::clipboard::{ClipboardPacket, ClipboardSync};
+    use seamlesscontrol_core::clipboard_omarchy::{self, ClipboardWatch, spawn_apply_worker};
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::hypr_ipc::HyprIpc;
     use seamlesscontrol_core::omarchy::VirtualInput;
@@ -29,12 +31,13 @@ mod linux {
     use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
-    use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::{Arc, Mutex};
     use std::thread;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
+    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/2";
 
     #[derive(Clone, Copy)]
     enum Edge {
@@ -173,6 +176,8 @@ mod linux {
         mut channel: SecureChannel<TcpStream>,
         edge: Edge,
         control: ControlHandle,
+        local_id: [u8; 32],
+        remote_id: [u8; 32],
     ) -> Result<(), Box<dyn Error>> {
         let portal = InputCapture::new().await?;
         let (session, _) = portal
@@ -212,6 +217,19 @@ mod linux {
                 }
             }
         });
+        let clipboard_sync = Arc::new(Mutex::new(ClipboardSync::new(local_id, remote_id)));
+        let (clipboard_apply, clipboard_apply_worker) =
+            spawn_apply_worker(Arc::clone(&clipboard_sync));
+        let (clipboard_tx, mut clipboard_rx) = tokio::sync::mpsc::channel(8);
+        let clipboard_watch = match ClipboardWatch::start(clipboard_sync, move |event| {
+            let _ = clipboard_tx.blocking_send(event);
+        }) {
+            Ok(watch) => Some(watch),
+            Err(error) => {
+                eprintln!("SeamlessControl: observación del portapapeles no disponible: {error}");
+                None
+            }
+        };
 
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
@@ -248,8 +266,19 @@ mod linux {
                     _ = heartbeat.tick() => {
                         send_frame(&mut writer, Kind::Heartbeat, epoch, &mut sequence, Vec::new())?;
                     }
+                    Some(event) = clipboard_rx.recv() => {
+                        send_frame(&mut writer, Kind::Clipboard, 0, &mut sequence, event.encode())?;
+                    }
                     feedback = feedback_rx.recv() => {
                         let frame = feedback.ok_or("feedback reader stopped")??;
+                        if frame.kind == Kind::Clipboard {
+                            let packet = ClipboardPacket::decode(&frame.payload)?;
+                            if packet.origin != remote_id {
+                                return Err("clipboard origin does not match peer".into());
+                            }
+                            clipboard_apply.try_send(packet).map_err(|_| "clipboard apply queue is full")?;
+                            continue;
+                        }
                         if frame.kind != Kind::Control || frame.payload != b"RETURN" {
                             return Err("unexpected feedback from remote peer".into());
                         }
@@ -349,9 +378,15 @@ mod linux {
             let _ = portal.release(&session, options).await;
         }
         let _ = portal.disable(&session, Default::default()).await;
+        drop(clipboard_rx);
+        if let Some(watch) = clipboard_watch {
+            watch.stop();
+        }
         drop(feedback_rx);
         let _ = writer.stream_mut().shutdown(Shutdown::Both);
         let _ = feedback_reader.join();
+        drop(clipboard_apply);
+        let _ = clipboard_apply_worker.join();
         control.set_phase("disconnected");
         result
     }
@@ -361,6 +396,8 @@ mod linux {
         started: Instant,
         control: ControlHandle,
         motion_generation: Arc<AtomicU64>,
+        clipboard_apply: tokio::sync::mpsc::Sender<ClipboardPacket>,
+        clipboard_remote_id: [u8; 32],
     }
 
     impl Injector for OmarchyInjector {
@@ -385,6 +422,18 @@ mod linux {
 
         fn active_epoch_changed(&mut self, epoch: Option<u64>) {
             self.control.set_active_epoch(epoch);
+        }
+
+        fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
+            if packet.origin != self.clipboard_remote_id {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "clipboard origin does not match peer",
+                ));
+            }
+            self.clipboard_apply
+                .try_send(packet)
+                .map_err(|_| io::Error::other("clipboard apply queue is full"))
         }
     }
 
@@ -436,14 +485,14 @@ mod linux {
             .set_write_timeout(Some(Duration::from_secs(120)))?;
         control.set_peer(&peer_ip.to_string());
         let greeting = Frame::read_from(&mut channel)?;
-        if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
+        if greeting.kind != Kind::Hello || greeting.payload != AGENT_PROTOCOL {
             return Err("incompatible peer protocol".into());
         }
         Frame {
             kind: Kind::Hello,
             epoch: 0,
             sequence: 0,
-            payload: b"seamlesscontrol/1".to_vec(),
+            payload: AGENT_PROTOCOL.to_vec(),
         }
         .write_to(&mut channel)?;
         remember_peer_key(&peers, peer_ip, &peer.public_key)?;
@@ -472,13 +521,32 @@ mod linux {
             .and_then(|topology| topology.edge_to(peer_ip).ok());
         let hypr = return_edge.and_then(|_| HyprIpc::from_env());
         let motion_generation = Arc::new(AtomicU64::new(0));
+        let input = VirtualInput::connect()?;
+        let (mut reader, mut writer) = channel.into_tcp_halves()?;
+        let clipboard_sync = Arc::new(Mutex::new(ClipboardSync::new(
+            identity.public,
+            peer.public_key,
+        )));
+        let (clipboard_apply, clipboard_apply_worker) =
+            spawn_apply_worker(Arc::clone(&clipboard_sync));
+        let (clipboard_tx, clipboard_rx) = std::sync::mpsc::sync_channel(8);
+        let clipboard_watch = match ClipboardWatch::start(clipboard_sync, move |event| {
+            let _ = clipboard_tx.send(event);
+        }) {
+            Ok(watch) => Some(watch),
+            Err(error) => {
+                eprintln!("SeamlessControl: observación del portapapeles no disponible: {error}");
+                None
+            }
+        };
         let injector = OmarchyInjector {
-            input: VirtualInput::connect()?,
+            input,
             started: Instant::now(),
             control: control.clone(),
             motion_generation: Arc::clone(&motion_generation),
+            clipboard_apply: clipboard_apply.clone(),
+            clipboard_remote_id: peer.public_key,
         };
-        let (mut reader, mut writer) = channel.into_tcp_halves()?;
         let watcher_running = Arc::new(AtomicBool::new(true));
         let watcher_flag = Arc::clone(&watcher_running);
         let watcher_control = control.clone();
@@ -554,14 +622,34 @@ mod linux {
                     }
                     sent_epoch = Some(active_epoch);
                 }
+                while let Ok(event) = clipboard_rx.try_recv() {
+                    if send_frame(
+                        &mut writer,
+                        Kind::Clipboard,
+                        0,
+                        &mut sequence,
+                        event.encode(),
+                    )
+                    .is_err()
+                    {
+                        let _ = writer.stream_mut().shutdown(Shutdown::Both);
+                        return;
+                    }
+                }
                 thread::sleep(Duration::from_millis(40));
             }
         });
         let result = run_receiver_with_first_until(&mut reader, injector, Some(first), || {
             control.revoked_active()
-        });
+        })
+        .map(|_| ());
         watcher_running.store(false, Ordering::Relaxed);
         let _ = watcher.join();
+        if let Some(watch) = clipboard_watch {
+            watch.stop();
+        }
+        drop(clipboard_apply);
+        let _ = clipboard_apply_worker.join();
         control.set_phase("listening");
         control.set_peer("");
         result?;
@@ -627,12 +715,12 @@ mod linux {
             kind: Kind::Hello,
             epoch: 0,
             sequence: 0,
-            payload: b"seamlesscontrol/1".to_vec(),
+            payload: AGENT_PROTOCOL.to_vec(),
         }
         .write_to(&mut channel)
         .map_err(frame_attempt)?;
         let greeting = Frame::read_from(&mut channel).map_err(frame_attempt)?;
-        if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
+        if greeting.kind != Kind::Hello || greeting.payload != AGENT_PROTOCOL {
             return Err(AttemptError::Stop("incompatible peer protocol".into()));
         }
         remember_peer_key(&peers, address.ip(), &peer.public_key)
@@ -643,18 +731,24 @@ mod linux {
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         if let Some(edge) = edge {
             println!("Conexión autenticada con {address}.");
-            capture_loop(channel, edge, control.clone())
-                .await
-                .map_err(|error| {
-                    if error
-                        .downcast_ref::<FrameError>()
-                        .is_some_and(|frame| matches!(frame, FrameError::Io(_)))
-                    {
-                        AttemptError::Retry(error)
-                    } else {
-                        AttemptError::Stop(error)
-                    }
-                })
+            capture_loop(
+                channel,
+                edge,
+                control.clone(),
+                identity.public,
+                peer.public_key,
+            )
+            .await
+            .map_err(|error| {
+                if error
+                    .downcast_ref::<FrameError>()
+                    .is_some_and(|frame| matches!(frame, FrameError::Io(_)))
+                {
+                    AttemptError::Retry(error)
+                } else {
+                    AttemptError::Stop(error)
+                }
+            })
         } else {
             Frame {
                 kind: Kind::Control,
@@ -677,6 +771,10 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
+        if args.len() == 2 && args[1] == "clipboard-helper" {
+            clipboard_omarchy::emit_watched_event()?;
+            return Ok(());
+        }
         if args.len() == 2 && args[1] == "diagnose" {
             let ipc = HyprIpc::from_env().ok_or("Hyprland IPC environment is unavailable")?;
             let (x, y) = ipc.cursor_position()?;

@@ -20,6 +20,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 4. Configurar el mapa inverso en B. Activar el control en B, alejar el cursor al menos 16 píxeles del borde hacia A y cruzar ese borde. Confirmar que A recupera el control una sola vez y que una nueva activación sigue siendo posible. Repetir con monitores escalados y uniones internas, que no deben activar la vuelta.
 5. Interrumpir la red mientras se mantiene una tecla y luego un botón. Confirmar que B los libera al vencer el plazo de latido y que A recupera el control.
 6. Repetir cambiando A y B, y con los cuatro bordes. Registrar p50/p95 del tiempo desde el cruce hasta el primer movimiento o tecla visible en destino.
+7. Con la conexión activa, copiar texto ASCII, Unicode, texto vacío y más de 256 KiB en A y B. Comprobar la sincronización bidireccional, que el texto excesivo no se transmite y que no hay rebotes repetidos. Copiar casi a la vez en ambos extremos y comprobar que terminan con el mismo contenido. Probar una selección marcada como sensible por `wl-clipboard`; no debe llegar al otro equipo. Repetir tras reconectar. Estos casos siguen pendientes de dos máquinas físicas.
 
 ## Casos que deben pasar antes de cerrar la fase 0
 
