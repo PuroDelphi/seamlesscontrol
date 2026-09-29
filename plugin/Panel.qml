@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
+import QtQuick.Dialogs as Dialogs
+import QtCore as Core
 import Quickshell
 import qs.Commons
 import qs.Ui
@@ -43,6 +45,23 @@ Panel {
   function open() { controller.show() }
   function close() { controller.hide() }
   function toggle() { opened ? close() : open() }
+
+  function localPath(url) {
+    return decodeURIComponent(String(url).replace(/^file:\/\/(localhost)?/, ""))
+  }
+
+  Dialogs.FileDialog {
+    id: sourceChooser
+    title: "Archivo para SeamlessControl"
+    fileMode: Dialogs.FileDialog.OpenFile
+    onAccepted: fileSourcePath.text = root.localPath(selectedFile)
+  }
+
+  Dialogs.FolderDialog {
+    id: destinationChooser
+    title: "Guardar archivos de SeamlessControl"
+    onAccepted: fileDirectory.text = root.localPath(selectedFolder)
+  }
 
   KeyboardPanel {
     id: panel
@@ -439,6 +458,183 @@ Panel {
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        PanelSeparator {
+          Layout.fillWidth: true
+          foreground: root.ink
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: "ARCHIVOS · ENTRE EQUIPOS EMPAREJADOS"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: "En el destino, escuche en otro puerto LAN y elija un directorio. Cada archivo requiere aceptación. El límite predeterminado es 100 MiB."
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Controls.TextField {
+          id: fileListenAddress
+          Layout.fillWidth: true
+          placeholderText: "IP local:47833"
+          color: root.ink
+          font.family: root.face
+          background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: fileDirectory
+            Layout.fillWidth: true
+            placeholderText: "Directorio de destino"
+            color: root.ink
+            font.family: root.face
+            Component.onCompleted: text = Core.StandardPaths.writableLocation(Core.StandardPaths.DownloadLocation)
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+          }
+          Button {
+            text: "Elegir"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: destinationChooser.open()
+          }
+        }
+
+        Button {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.receivingFile ? "Dejar de esperar archivo" : "Esperar un archivo"
+          bordered: true
+          focusable: true
+          enabled: root.backend && (root.backend.receivingFile
+            || (fileListenAddress.text.trim() !== "" && fileDirectory.text.trim() !== ""))
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: {
+            if (!root.backend) return
+            if (root.backend.receivingFile) root.backend.stopFileReceiver()
+            else root.backend.startFileReceiver(fileListenAddress.text.trim(), fileDirectory.text.trim())
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.fileOffer !== null
+          text: root.backend && root.backend.fileOffer
+            ? "De " + root.backend.fileOffer.peer + ": " + root.backend.fileOffer.name
+              + " (" + root.backend.fileOffer.size + " bytes)\nSHA-256 " + root.backend.fileOffer.hash
+            : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.fileOffer !== null
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: "Aceptar archivo"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decideFile(true)
+          }
+          Button {
+            Layout.fillWidth: true
+            text: "Rechazar"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decideFile(false)
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: "En el origen, indique la dirección del destino y un archivo local."
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Controls.TextField {
+          id: fileSendAddress
+          Layout.fillWidth: true
+          placeholderText: "IP del destino:47833"
+          color: root.ink
+          font.family: root.face
+          background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: fileSourcePath
+            Layout.fillWidth: true
+            placeholderText: "Ruta absoluta del archivo"
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+          }
+          Button {
+            text: "Elegir"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: sourceChooser.open()
+          }
+        }
+
+        Button {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.sendingFile ? "Enviando…" : "Enviar archivo"
+          bordered: true
+          focusable: true
+          enabled: root.backend && !root.backend.sendingFile
+            && fileSendAddress.text.trim() !== "" && fileSourcePath.text.trim() !== ""
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend)
+            root.backend.sendFile(fileSendAddress.text.trim(), fileSourcePath.text.trim())
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.fileResult !== ""
+          text: root.backend ? root.backend.fileResult : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.ink
           font.family: root.face
           font.pixelSize: Style.font.caption
         }

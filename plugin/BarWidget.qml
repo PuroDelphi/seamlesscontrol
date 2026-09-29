@@ -8,7 +8,10 @@ BarWidget {
 
   implicitWidth: label.implicitWidth + Style.space(12)
   implicitHeight: barSize
-  readonly property string stateLabel: !backend.available ? "sin agente"
+  readonly property string stateLabel: backend.fileOffer ? "archivo pendiente"
+    : backend.receivingFile ? "esperando archivo"
+    : backend.sendingFile ? "enviando archivo"
+    : !backend.available ? "sin agente"
     : backend.paused ? "pausa"
     : backend.phase === "controlling" ? "remoto"
     : backend.phase === "connected" ? "conectado"

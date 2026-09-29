@@ -183,6 +183,37 @@ pub fn terminal_approval(offer: &FileOffer, peer: IpAddr) -> io::Result<bool> {
     Ok(answer.trim() == "SI")
 }
 
+pub fn panel_approval(offer: &FileOffer, peer: IpAddr) -> io::Result<bool> {
+    panel_approval_with_io(
+        offer,
+        peer,
+        &mut io::stdin().lock(),
+        &mut io::stdout().lock(),
+    )
+}
+
+fn panel_approval_with_io(
+    offer: &FileOffer,
+    peer: IpAddr,
+    input: &mut impl BufRead,
+    output: &mut impl Write,
+) -> io::Result<bool> {
+    let hash: String = offer
+        .sha256
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    writeln!(
+        output,
+        "OFFER\t{peer}\t{}\t{}\t{hash}",
+        offer.name, offer.size
+    )?;
+    output.flush()?;
+    let mut answer = String::new();
+    input.read_line(&mut answer)?;
+    Ok(answer.trim() == "SI")
+}
+
 pub fn configured_limit() -> Result<u64, Box<dyn Error>> {
     match std::env::var("SEAMLESSCONTROL_MAX_FILE_BYTES") {
         Ok(value) => {
@@ -203,6 +234,36 @@ mod tests {
     use crate::storage::remember_peer_key;
     use std::fs;
     use std::thread;
+
+    #[test]
+    fn panel_offer_is_machine_readable_and_acceptance_is_explicit() {
+        let offer = FileOffer {
+            name: "informe.txt".to_owned(),
+            size: 8,
+            sha256: [0xab; 32],
+        };
+        let peer: IpAddr = "192.168.1.10".parse().unwrap();
+        let mut output = Vec::new();
+        assert!(panel_approval_with_io(&offer, peer, &mut "SI\n".as_bytes(), &mut output).unwrap());
+        let line = String::from_utf8(output).unwrap();
+        let fields: Vec<_> = line.trim_end().split('\t').collect();
+        assert_eq!(
+            fields,
+            [
+                "OFFER",
+                "192.168.1.10",
+                "informe.txt",
+                "8",
+                &"ab".repeat(32)
+            ]
+        );
+        assert!(
+            !panel_approval_with_io(&offer, peer, &mut "NO\n".as_bytes(), &mut Vec::new()).unwrap()
+        );
+        assert!(
+            !panel_approval_with_io(&offer, peer, &mut "".as_bytes(), &mut Vec::new()).unwrap()
+        );
+    }
 
     #[test]
     fn paired_transfer_requires_consent_and_confirms_saved_bytes() {

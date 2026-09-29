@@ -788,7 +788,12 @@ mod linux {
             }
             return Ok(());
         }
-        if args.len() == 4 && matches!(args[1].as_str(), "send-file" | "receive-file") {
+        if args.len() == 4
+            && matches!(
+                args[1].as_str(),
+                "send-file" | "receive-file" | "receive-file-ui"
+            )
+        {
             let address: SocketAddr = args[2].parse()?;
             if !local_address(address.ip()) {
                 return Err(
@@ -814,7 +819,11 @@ mod linux {
                     &identity,
                     &config.join("peers"),
                     limit,
-                    file_session::terminal_approval,
+                    if args[1] == "receive-file-ui" {
+                        file_session::panel_approval
+                    } else {
+                        file_session::terminal_approval
+                    },
                 )?;
                 match result {
                     Some(path) => println!("Archivo guardado en {}", path.display()),

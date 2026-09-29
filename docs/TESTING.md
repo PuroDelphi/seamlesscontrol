@@ -2,7 +2,7 @@
 
 El agente experimental compila y supera las pruebas locales, pero **aún no se ha validado entre dos Omarchy** porque sólo hay uno disponible. Esta guía define la primera prueba reproducible y evita confundir simulaciones de loopback con una prueba de entrada física.
 
-La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, reconexión con claves fijadas, persistencia e intercambio de posiciones de la cuadrícula, revocación, limpieza de la posición y rechazo posterior, además del cierre del receptor. `bash tests/reconnect_wait.sh` comprueba el reintento del emisor sin receptor y su salida limpia. Ninguna abre el portal ni inyecta entrada.
+La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, reconexión con claves fijadas, persistencia e intercambio de posiciones de la cuadrícula, revocación, limpieza de la posición y rechazo posterior, además del cierre del receptor. `bash tests/reconnect_wait.sh` comprueba el reintento del emisor sin receptor y su salida limpia. `bash tests/file_loopback.sh` comprueba la oferta que usa el panel, la aceptación con verificación del archivo y el rechazo sin escritura. Ninguna abre el portal ni inyecta entrada.
 
 ## Preparación
 
@@ -21,7 +21,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 5. Interrumpir la red mientras se mantiene una tecla y luego un botón. Confirmar que B los libera al vencer el plazo de latido y que A recupera el control.
 6. Repetir cambiando A y B, y con los cuatro bordes. Registrar p50/p95 del tiempo desde el cruce hasta el primer movimiento o tecla visible en destino.
 7. Con la conexión activa, copiar texto ASCII, Unicode, texto vacío y más de 256 KiB en A y B. Comprobar la sincronización bidireccional, que el texto excesivo no se transmite y que no hay rebotes repetidos. Copiar casi a la vez en ambos extremos y comprobar que terminan con el mismo contenido. Probar una selección marcada como sensible por `wl-clipboard`; no debe llegar al otro equipo. Repetir tras reconectar. Estos casos siguen pendientes de dos máquinas físicas.
-8. Después de emparejar, abrir `receive-file <IP-B:47833> <directorio>` en B y `send-file <IP-B:47833> <archivo>` en A. Probar aceptación `SI`, rechazo, archivo vacío, Unicode, límite de tamaño, archivo existente, destino sin espacio, corte de red y reintento. Comprobar SHA-256 en ambos y que nunca quede un archivo final incompleto ni se reemplace uno existente. Repetir cambiando A y B. Esta prueba física sigue pendiente.
+8. Después de emparejar, probar el panel **Archivos** en ambos sentidos con otro puerto LAN. Repetir por CLI con `receive-file <IP-B:47833> <directorio>` en B y `send-file <IP-B:47833> <archivo>` en A. Probar aceptación, rechazo, archivo vacío, Unicode, límite de tamaño, archivo existente, destino sin espacio, corte de red y reintento. Comprobar SHA-256 en ambos y que nunca quede un archivo final incompleto ni se reemplace uno existente. Repetir cambiando A y B. Esta prueba física sigue pendiente.
 
 ## Casos que deben pasar antes de cerrar la fase 0
 

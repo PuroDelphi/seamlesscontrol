@@ -49,15 +49,15 @@ El portapapeles de **texto UTF-8** se sincroniza en ambos sentidos mientras la c
 
 ## Enviar un archivo con confirmación
 
-Después de emparejar los equipos, abra **en el destino** otro terminal y otro puerto LAN (por ejemplo, `47833`):
+Después de emparejar los equipos, puede usar la sección **Archivos** del panel Omarchy. En el destino indique su IP LAN con otro puerto (por ejemplo, `192.168.1.20:47833`), elija el directorio y pulse **Esperar un archivo**. En el origen indique esa dirección, elija el archivo y pulse **Enviar archivo**. El destino verá el equipo, nombre, tamaño y SHA-256 y debe pulsar **Aceptar archivo** o **Rechazar**. El panel conserva el estilo del resto del plugin y utiliza el mismo protocolo cifrado que la CLI. Si prefiere terminal, abra **en el destino** otro terminal y el mismo puerto LAN:
 
 ```bash
 seamlesscontrold receive-file 192.168.1.20:47833 ~/Downloads
 ```
 
-En el origen ejecute `seamlesscontrold send-file 192.168.1.20:47833 /ruta/al/archivo`. El destino muestra nombre, tamaño y SHA-256 y sólo escribe el archivo si alguien responde exactamente `SI` en ese terminal. Es una transferencia por comando: cada ejecución de `receive-file` acepta una sola conexión. Puede ejecutarse junto al agente de control si utiliza **otro puerto**. El archivo llega por un canal Noise autenticado con las claves ya emparejadas; el destino lo guarda temporalmente y verifica tamaño y SHA-256 antes de publicarlo. Si existe un archivo con el mismo nombre, la transferencia falla sin reemplazarlo. El límite predeterminado es 100 MiB en ambos equipos; `SEAMLESSCONTROL_MAX_FILE_BYTES` permite cambiarlo en cada comando. Ambos agentes deben tener la misma versión del protocolo de archivos. El panel de Omarchy aún no ofrece selección ni aprobación de archivos.
+En el origen ejecute `seamlesscontrold send-file 192.168.1.20:47833 /ruta/al/archivo`. El destino muestra nombre, tamaño y SHA-256 y sólo escribe el archivo si alguien responde exactamente `SI` en ese terminal. Es una transferencia por comando: cada ejecución de `receive-file` acepta una sola conexión. Puede ejecutarse junto al agente de control si utiliza **otro puerto**. El archivo llega por un canal Noise autenticado con las claves ya emparejadas; el destino lo guarda temporalmente y verifica tamaño y SHA-256 antes de publicarlo. Si existe un archivo con el mismo nombre, la transferencia falla sin reemplazarlo. El límite predeterminado es 100 MiB en ambos equipos; `SEAMLESSCONTROL_MAX_FILE_BYTES` permite cambiarlo en cada comando o en el entorno de `omarchy-shell`. Ambos agentes deben tener la misma versión del protocolo de archivos.
 
-Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor reintenta las pérdidas de red con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación real tras una caída de Wi-Fi aún requiere pruebas físicas. La captura instala barreras en los tramos exteriores del borde elegido para todos los monitores anunciados y las recalcula cuando el portal notifica un cambio de zonas; falta validar ese flujo con monitores reales. La cuadrícula guarda hasta cuatro posiciones, pero el agente controla un solo par por conexión. El retorno manual y el detector de borde remoto usan el canal cifrado; **el retorno automático, el portapapeles y los archivos aún no se han probado físicamente**. El enrutamiento entre cuatro equipos, la integración visual de archivos y Windows siguen pendientes.
+Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor reintenta las pérdidas de red con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación real tras una caída de Wi-Fi aún requiere pruebas físicas. La captura instala barreras en los tramos exteriores del borde elegido para todos los monitores anunciados y las recalcula cuando el portal notifica un cambio de zonas; falta validar ese flujo con monitores reales. La cuadrícula guarda hasta cuatro posiciones, pero el agente controla un solo par por conexión. El retorno manual y el detector de borde remoto usan el canal cifrado; **el retorno automático, el portapapeles y los archivos aún no se han probado físicamente**. El enrutamiento entre cuatro equipos y Windows siguen pendientes.
 
 ## Widget de Omarchy
 
@@ -78,6 +78,7 @@ cargo test --manifest-path agent/Cargo.toml
 cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
 CARGO=cargo bash tests/pair_loopback.sh
 CARGO=cargo bash tests/reconnect_wait.sh
+CARGO=cargo bash tests/file_loopback.sh
 ```
 
 La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe permitirlo. En un Omarchy con sesión gráfica se pueden ejecutar los probes:
