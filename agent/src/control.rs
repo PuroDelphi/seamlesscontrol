@@ -64,6 +64,10 @@ impl ControlHandle {
         }
     }
 
+    pub fn active_epoch(&self) -> Option<u64> {
+        self.0.0.lock().expect("control state lock").active_epoch
+    }
+
     pub fn take_return_request(&self) -> Option<u64> {
         let mut state = self.0.0.lock().expect("control state lock");
         std::mem::take(&mut state.return_requested)

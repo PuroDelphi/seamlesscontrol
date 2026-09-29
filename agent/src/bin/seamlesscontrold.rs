@@ -11,6 +11,7 @@ mod linux {
         event::{DeviceCapability, EiEvent},
     };
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
+    use seamlesscontrol_core::hypr_ipc::HyprIpc;
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{Frame, FrameError, Kind};
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
@@ -21,7 +22,7 @@ mod linux {
         load_topology, remember_peer_key, revoke_peer_key, save_topology,
     };
     use seamlesscontrol_core::topology::{
-        Edge as LogicalEdge, Machine, Rect, Slot, external_barriers,
+        Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, external_barriers,
     };
     use std::error::Error;
     use std::io::{self, Write};
@@ -29,7 +30,7 @@ mod linux {
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
     use std::thread;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -359,6 +360,7 @@ mod linux {
         input: VirtualInput,
         started: Instant,
         control: ControlHandle,
+        motion_generation: Arc<AtomicU64>,
     }
 
     impl Injector for OmarchyInjector {
@@ -366,7 +368,11 @@ mod linux {
             let time_ms = self.started.elapsed().as_millis() as u32;
             self.input
                 .apply(event, time_ms)
-                .map_err(|error| io::Error::other(error.to_string()))
+                .map_err(|error| io::Error::other(error.to_string()))?;
+            if matches!(event, InputEvent::Motion { .. }) {
+                self.motion_generation.fetch_add(1, Ordering::Relaxed);
+            }
+            Ok(())
         }
 
         fn ownership_changed(&mut self, controlling: bool) {
@@ -461,10 +467,16 @@ mod linux {
             .set_write_timeout(Some(Duration::from_secs(5)))?;
         println!("Conexión autenticada con {peer_ip}. Esperando control...");
         control.set_phase("connected");
+        let return_edge = load_topology(&config.join("topology"))
+            .ok()
+            .and_then(|topology| topology.edge_to(peer_ip).ok());
+        let hypr = return_edge.and_then(|_| HyprIpc::from_env());
+        let motion_generation = Arc::new(AtomicU64::new(0));
         let injector = OmarchyInjector {
             input: VirtualInput::connect()?,
             started: Instant::now(),
             control: control.clone(),
+            motion_generation: Arc::clone(&motion_generation),
         };
         let (mut reader, mut writer) = channel.into_tcp_halves()?;
         let watcher_running = Arc::new(AtomicBool::new(true));
@@ -472,8 +484,58 @@ mod linux {
         let watcher_control = control.clone();
         let watcher = thread::spawn(move || {
             let mut sequence = 0_u64;
+            let mut observed_epoch = None;
+            let mut sent_epoch = None;
+            let mut observed_motion = 0_u64;
+            let mut detector: Option<EdgeReturnDetector> = None;
+            let mut monitor_regions: Option<Vec<Rect>> = None;
+            let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
-                if let Some(active_epoch) = watcher_control.take_return_request() {
+                let active_epoch = watcher_control.active_epoch();
+                if active_epoch != observed_epoch {
+                    observed_epoch = active_epoch;
+                    sent_epoch = None;
+                    observed_motion = motion_generation.load(Ordering::Relaxed);
+                    last_geometry_refresh = Instant::now();
+                    monitor_regions = if active_epoch.is_some() {
+                        hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
+                    } else {
+                        None
+                    };
+                    detector = match (&monitor_regions, return_edge) {
+                        (Some(regions), Some(edge)) => Some(EdgeReturnDetector::new(regions, edge)),
+                        _ => None,
+                    };
+                } else if active_epoch.is_some()
+                    && sent_epoch.is_none()
+                    && last_geometry_refresh.elapsed() >= Duration::from_secs(5)
+                {
+                    last_geometry_refresh = Instant::now();
+                    if let Some(regions) = hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
+                        && monitor_regions.as_ref() != Some(&regions)
+                    {
+                        detector = return_edge.map(|edge| EdgeReturnDetector::new(&regions, edge));
+                        monitor_regions = Some(regions);
+                    }
+                }
+                let manual_return = watcher_control.take_return_request();
+                let motion = motion_generation.load(Ordering::Relaxed);
+                let automatic_return = if sent_epoch.is_none() && motion != observed_motion {
+                    observed_motion = motion;
+                    match (active_epoch, detector.as_mut(), hypr.as_ref()) {
+                        (Some(epoch), Some(detector), Some(ipc)) => ipc
+                            .cursor_position()
+                            .ok()
+                            .filter(|&(x, y)| detector.sample(x, y))
+                            .map(|_| epoch),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                if let Some(active_epoch) = manual_return.or(automatic_return)
+                    && sent_epoch != Some(active_epoch)
+                {
                     let Some(next) = sequence.checked_add(1) else {
                         break;
                     };
@@ -490,8 +552,9 @@ mod linux {
                         let _ = writer.stream_mut().shutdown(Shutdown::Both);
                         break;
                     }
+                    sent_epoch = Some(active_epoch);
                 }
-                thread::sleep(Duration::from_millis(50));
+                thread::sleep(Duration::from_millis(40));
             }
         });
         let result = run_receiver_with_first_until(&mut reader, injector, Some(first), || {
@@ -614,6 +677,18 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
+        if args.len() == 2 && args[1] == "diagnose" {
+            let ipc = HyprIpc::from_env().ok_or("Hyprland IPC environment is unavailable")?;
+            let (x, y) = ipc.cursor_position()?;
+            println!("CURSOR\t{x}\t{y}");
+            for rect in ipc.monitor_rects()? {
+                println!(
+                    "MONITOR\t{}\t{}\t{}\t{}",
+                    rect.x, rect.y, rect.width, rect.height
+                );
+            }
+            return Ok(());
+        }
         if args.len() >= 2 && args[1] == "topology" {
             let config = config_dir()?;
             let path = config.join("topology");

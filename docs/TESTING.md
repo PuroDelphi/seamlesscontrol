@@ -10,14 +10,16 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 2. Registrar `omarchy --version`, `hyprctl version`, `quickshell --version`, versión del portal, monitores (`hyprctl monitors`) y distribución de teclado en ambos.
 3. Confirmar conectividad LAN y que el puerto elegido acepta TCP únicamente desde la LAN. No abrirlo hacia Internet.
 4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos paneles o terminales antes de aprobar en ambos. Por CLI: `seamlesscontrold status` y `seamlesscontrold approve <código>`.
+5. Ejecutar `seamlesscontrold diagnose` en ambos equipos y comparar sus rectángulos lógicos con `hyprctl -j monitors`; el comando debe mostrar también una posición de cursor dentro de un monitor.
 
 ## Circuito básico
 
 1. Ejecutar `serve` en B y `connect ... right` en A. Comprobar que el portal de A solicita el permiso esperado y que se autentica el mismo par.
 2. Llevar el ratón **físico** al borde derecho de A. Moverlo en B, hacer clic, arrastrar, usar la rueda y escribir con letras, modificadores y atajos. Confirmar que esos eventos no actúan también sobre aplicaciones de A.
 3. Pulsar Escape mientras B tiene el control. Confirmar que A recupera el puntero y que B no conserva teclas ni botones pulsados. Repetir con **Devolver control al origen** en el panel de B y con `seamlesscontrold return`; verificar que A libera el portal y que un nuevo cruce vuelve a funcionar.
-4. Interrumpir la red mientras se mantiene una tecla y luego un botón. Confirmar que B los libera al vencer el plazo de latido y que A recupera el control.
-5. Repetir cambiando A y B, y con los cuatro bordes. Registrar p50/p95 del tiempo desde el cruce hasta el primer movimiento o tecla visible en destino.
+4. Configurar el mapa inverso en B. Activar el control en B, alejar el cursor al menos 16 píxeles del borde hacia A y cruzar ese borde. Confirmar que A recupera el control una sola vez y que una nueva activación sigue siendo posible. Repetir con monitores escalados y uniones internas, que no deben activar la vuelta.
+5. Interrumpir la red mientras se mantiene una tecla y luego un botón. Confirmar que B los libera al vencer el plazo de latido y que A recupera el control.
+6. Repetir cambiando A y B, y con los cuatro bordes. Registrar p50/p95 del tiempo desde el cruce hasta el primer movimiento o tecla visible en destino.
 
 ## Casos que deben pasar antes de cerrar la fase 0
 

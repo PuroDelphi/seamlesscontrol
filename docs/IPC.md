@@ -15,12 +15,13 @@
 | `seamlesscontrold topology` | Enumera las casillas guardadas como líneas `SLOT` |
 | `seamlesscontrold topology set <local\|IP> <columna> <fila>` | Sitúa o intercambia un equipo en la cuadrícula 2×2 |
 | `seamlesscontrold topology remove <IP>` | Quita un equipo del mapa sin revocar su clave |
+| `seamlesscontrold diagnose` | Lee por IPC de Hyprland la posición del cursor y los monitores lógicos |
 
 La respuesta `STATUS` contiene, en orden, rol, fase, IP remota, pausa, código pendiente y clave pública remota en hexadecimal. Los campos finales están vacíos fuera de un emparejamiento. El código se muestra durante cinco minutos como máximo; se debe comparar en **ambos equipos** antes de aprobar. La conexión Noise XX no queda disponible para entrada hasta recibir aceptación autenticada de los dos lados.
 
 La fase `reconnecting` indica que el emisor sigue ejecutándose y espera para volver a conectar. El retardo se duplica desde un segundo hasta un máximo de treinta; un error de clave cambiada, revocación o protocolo incompatible termina el intento en vez de repetirlo.
 
-La fase `controlling` ahora aparece en ambos extremos durante una captura. El receptor sólo acepta `return` en esa fase y envía una trama de control autenticada `RETURN` con el identificador de la captura activa por la dirección de vuelta del mismo canal Noise. El origen sólo atiende la solicitud si el identificador coincide; responde con `END`, libera la sesión del portal y conserva la conexión para un siguiente cruce. Esta ruta tiene prueba de loopback del protocolo; todavía falta verificar el retorno físico entre dos equipos.
+La fase `controlling` ahora aparece en ambos extremos durante una captura. El receptor sólo acepta `return` en esa fase y envía una trama de control autenticada `RETURN` con el identificador de la captura activa por la dirección de vuelta del mismo canal Noise. También puede emitirla al detectar el cursor en el borde exterior que conduce al origen, siempre que el mapa local tenga ese par adyacente. El origen sólo atiende la solicitud si el identificador coincide; responde con `END`, libera la sesión del portal y conserva la conexión para un siguiente cruce. Esta ruta tiene pruebas de geometría y loopback del protocolo; todavía falta verificar el retorno físico entre dos equipos.
 
 `revoke` guarda un marcador de la clave pública antes de eliminar el par por IP y quita su posición guardada. Aunque el equipo vuelva a presentarse o cambie de IP, esa clave no puede ser aceptada de nuevo. Para volver a confiar en ese equipo será necesaria una nueva identidad, cuyo código debe confirmarse en ambos extremos. Si el agente está activo, la revocación se procesa por IPC y libera la entrada remota; sin agente, el comando actualiza el almacén privado directamente.
 

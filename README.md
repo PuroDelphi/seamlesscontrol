@@ -32,9 +32,20 @@ seamlesscontrold connect 192.168.1.20:47832
 
 La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. Una conexión sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal.
 
+Para que el destino solicite automáticamente la vuelta al cruzar el borde hacia el origen, configure también su mapa en sentido inverso. Si el origen es `192.168.1.10` y queda a la izquierda del destino, ejecute **en el destino**:
+
+```bash
+seamlesscontrold topology set local 1 0
+seamlesscontrold topology set 192.168.1.10 0 0
+```
+
+Durante una captura, el receptor consulta la posición global del cursor a través del [IPC de Hyprland](https://wiki.hypr.land/IPC/). Sólo solicita el retorno después de observar que el puntero se alejó del borde y volvió a él. Si el mapa no sitúa al origen como vecino, falta el socket de Hyprland o el monitor tiene una rotación aún no validada, sigue disponible el botón manual del panel.
+
+`seamlesscontrold diagnose` consulta ese IPC sin modificar el escritorio y muestra la posición del cursor y los rectángulos lógicos de los monitores. Ejecútelo dentro de la sesión gráfica para comprobar que el agente puede leerlos.
+
 `right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. La primera conexión muestra un código de seis cifras en ambos paneles Omarchy y en ambos terminales. **Compare los códigos en los dos equipos y apruebe en ambos paneles sólo si coinciden.** Como alternativa por terminal, consulte `seamlesscontrold status` y ejecute `seamlesscontrold approve 123456` con el código mostrado; `seamlesscontrold reject` deniega el par. Las claves quedan fijadas por IP en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, o use **Devolver control al origen** en el panel del destino (`seamlesscontrold return` por terminal). **Ctrl+C** en el terminal de origen cierra el agente. `seamlesscontrold pause` y `resume`, o el botón del panel, desactivan y reactivan la captura. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
 
-Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor reintenta las pérdidas de red con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación real tras una caída de Wi-Fi aún requiere pruebas físicas. La captura instala barreras en los tramos exteriores del borde elegido para todos los monitores anunciados y las recalcula cuando el portal notifica un cambio de zonas; falta validar ese flujo con monitores reales. La cuadrícula guarda hasta cuatro posiciones, pero el agente controla un solo par por conexión. El retorno solicitado desde el destino ya viaja por el canal cifrado; la vuelta automática al cruzar el borde remoto, el enrutamiento entre cuatro equipos, el portapapeles, los archivos y Windows siguen pendientes.
+Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor reintenta las pérdidas de red con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación real tras una caída de Wi-Fi aún requiere pruebas físicas. La captura instala barreras en los tramos exteriores del borde elegido para todos los monitores anunciados y las recalcula cuando el portal notifica un cambio de zonas; falta validar ese flujo con monitores reales. La cuadrícula guarda hasta cuatro posiciones, pero el agente controla un solo par por conexión. El retorno manual y el detector de borde remoto usan el canal cifrado; **el retorno automático aún no se ha probado físicamente**. El enrutamiento entre cuatro equipos, el portapapeles, los archivos y Windows siguen pendientes.
 
 ## Widget de Omarchy
 

@@ -11,4 +11,6 @@ pub mod topology;
 #[cfg(target_os = "linux")]
 pub mod control;
 #[cfg(target_os = "linux")]
+pub mod hypr_ipc;
+#[cfg(target_os = "linux")]
 pub mod omarchy;

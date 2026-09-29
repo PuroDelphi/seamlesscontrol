@@ -127,6 +127,54 @@ pub fn external_barriers(regions: &[Rect], edge: Edge) -> Vec<BarrierSegment> {
     barriers
 }
 
+pub struct EdgeReturnDetector {
+    edge: Edge,
+    segments: Vec<BarrierSegment>,
+    away_seen: bool,
+    fired: bool,
+}
+
+impl EdgeReturnDetector {
+    pub fn new(regions: &[Rect], edge: Edge) -> Self {
+        Self {
+            edge,
+            segments: external_barriers(regions, edge),
+            away_seen: false,
+            fired: false,
+        }
+    }
+
+    /// Arm only after the remote cursor has moved into the destination.
+    /// A new epoch starting at an edge must not bounce straight back.
+    pub fn sample(&mut self, x: i32, y: i32) -> bool {
+        if self.fired {
+            return false;
+        }
+        let distance = self
+            .segments
+            .iter()
+            .filter_map(|segment| match self.edge {
+                Edge::Left | Edge::Right if y >= segment.y1 && y <= segment.y2 => {
+                    Some((i64::from(x) - i64::from(segment.x1)).abs())
+                }
+                Edge::Top | Edge::Bottom if x >= segment.x1 && x <= segment.x2 => {
+                    Some((i64::from(y) - i64::from(segment.y1)).abs())
+                }
+                _ => None,
+            })
+            .min();
+        match distance {
+            Some(value) if value > 16 => self.away_seen = true,
+            Some(value) if self.away_seen && value <= 2 => {
+                self.fired = true;
+                return true;
+            }
+            _ => {}
+        }
+        false
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Edge {
     Left,
@@ -580,6 +628,33 @@ mod tests {
                 },
             ]
         );
+    }
+
+    #[test]
+    fn remote_return_arms_inside_and_fires_once_at_exterior_edge() {
+        let regions = [
+            Rect::new(0, 0, 100, 100).unwrap(),
+            Rect::new(100, 0, 100, 100).unwrap(),
+        ];
+        let mut detector = EdgeReturnDetector::new(&regions, Edge::Left);
+        assert!(!detector.sample(0, 50));
+        assert!(!detector.sample(100, 50));
+        assert!(!detector.sample(20, 50));
+        assert!(detector.sample(1, 50));
+        assert!(!detector.sample(1, 50));
+    }
+
+    #[test]
+    fn return_ignores_internal_seams_and_coordinates_off_the_edge() {
+        let regions = [
+            Rect::new(0, 0, 100, 100).unwrap(),
+            Rect::new(100, 50, 100, 100).unwrap(),
+        ];
+        let mut detector = EdgeReturnDetector::new(&regions, Edge::Right);
+        assert!(!detector.sample(50, 75));
+        assert!(!detector.sample(100, 75));
+        assert!(!detector.sample(200, 200));
+        assert!(detector.sample(199, 75));
     }
 
     #[test]

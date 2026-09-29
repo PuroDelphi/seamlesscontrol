@@ -435,7 +435,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "Escape devuelve el control local desde el origen; el destino también puede solicitar el retorno desde este panel. La prueba física entre dos Omarchy sigue pendiente."
+          text: "Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen o use el botón del destino. La prueba física sigue pendiente."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
