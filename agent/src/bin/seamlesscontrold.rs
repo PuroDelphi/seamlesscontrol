@@ -17,8 +17,9 @@ mod linux {
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
-        remember_peer_key, revoke_peer_key,
+        load_topology, remember_peer_key, revoke_peer_key, save_topology,
     };
+    use seamlesscontrol_core::topology::{Edge as LogicalEdge, Machine, Slot};
     use std::error::Error;
     use std::io;
     use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
@@ -37,6 +38,15 @@ mod linux {
     }
 
     impl Edge {
+        fn from_logical(edge: LogicalEdge) -> Self {
+            match edge {
+                LogicalEdge::Left => Self::Left,
+                LogicalEdge::Right => Self::Right,
+                LogicalEdge::Top => Self::Top,
+                LogicalEdge::Bottom => Self::Bottom,
+            }
+        }
+
         fn parse(value: &str) -> Result<Self, Box<dyn Error>> {
             match value {
                 "left" | "izquierda" => Ok(Self::Left),
@@ -480,6 +490,50 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
+        if args.len() >= 2 && args[1] == "topology" {
+            let config = config_dir()?;
+            let path = config.join("topology");
+            let mut layout = load_topology(&path)?;
+            match args.as_slice() {
+                [_, command] if command == "topology" => {}
+                [_, command, action, who, column, row]
+                    if command == "topology" && action == "set" =>
+                {
+                    let machine = if who == "local" {
+                        Machine::Local
+                    } else {
+                        let address: IpAddr = who.parse()?;
+                        if load_peer_key(&config.join("peers"), address)?.is_none() {
+                            return Err("peer must be paired before placement".into());
+                        }
+                        Machine::Peer(address)
+                    };
+                    let column: u8 = column.parse()?;
+                    let row: u8 = row.parse()?;
+                    let slot = Slot::new(column, row).ok_or("slot must be within the 2x2 grid")?;
+                    layout.place(machine, slot)?;
+                    save_topology(&path, &layout)?;
+                }
+                [_, command, action, who] if command == "topology" && action == "remove" => {
+                    let address: IpAddr = who.parse()?;
+                    layout.remove_peer(address);
+                    save_topology(&path, &layout)?;
+                }
+                _ => {
+                    return Err(
+                        "usage: topology [set <local|IP> <column> <row> | remove <IP>]".into(),
+                    );
+                }
+            }
+            for (machine, slot) in layout.positions() {
+                let name = match machine {
+                    Machine::Local => "local".to_owned(),
+                    Machine::Peer(address) => address.to_string(),
+                };
+                println!("SLOT\t{name}\t{}\t{}", slot.column, slot.row);
+            }
+            return Ok(());
+        }
         if args.len() == 2 && args[1] == "peers" {
             let config = config_dir()?;
             for (address, key) in list_peer_keys(&config.join("peers"))? {
@@ -527,13 +581,17 @@ mod linux {
                 }
                 Err(error) => return Err(error.into()),
             }
+            let path = config_dir()?.join("topology");
+            let mut layout = load_topology(&path)?;
+            layout.remove_peer(address);
+            save_topology(&path, &layout)?;
             return Ok(());
         }
-        if !(args.len() == 3 && matches!(args[1].as_str(), "serve" | "pair")
+        if !(args.len() == 3 && matches!(args[1].as_str(), "serve" | "pair" | "connect")
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> <left|right|top|bottom>"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]"
             );
             return Err("invalid arguments".into());
         }
@@ -547,8 +605,11 @@ mod linux {
         if args[1] == "connect" || args[1] == "pair" {
             let _local_control = ControlServer::start("connect", &config)?;
             let control = _local_control.handle();
-            let edge = if args[1] == "connect" {
+            let edge = if args[1] == "connect" && args.len() == 4 {
                 Some(Edge::parse(&args[3])?)
+            } else if args[1] == "connect" {
+                let topology = load_topology(&config.join("topology"))?;
+                Some(Edge::from_logical(topology.edge_to(address.ip())?))
             } else {
                 None
             };

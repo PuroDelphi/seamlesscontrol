@@ -5,7 +5,7 @@
 > Repositorio público del proyecto: **[PuroDelphi/seamlesscontrol](https://github.com/PuroDelphi/seamlesscontrol)**  
 > [Ver el plan visual](./index.html)
 
-**Avance de fase 0:** [inventario y probes en este equipo](./docs/FEASIBILITY.md). El portal aceptó una barrera, abrió EIS y activó/liberó la captura al cruzar el borde con un puntero virtual; Hyprland creó teclado y puntero virtuales. El [agente experimental](./README.md) ya conecta captura, transporte cifrado e inyección. Aún falta recibir eventos físicos y demostrar el flujo real entre dos equipos; [pruebas pendientes](./docs/TESTING.md).
+**Avance de fase 0:** [inventario y probes en este equipo](./docs/FEASIBILITY.md). El portal aceptó una barrera, abrió EIS y activó/liberó la captura al cruzar el borde con un puntero virtual; Hyprland creó teclado y puntero virtuales. El [agente experimental](./README.md) ya conecta captura, transporte cifrado e inyección. El panel guarda una cuadrícula de hasta cuatro equipos y la CLI deduce el borde hacia un vecino, aunque la sesión activa sigue limitada a un par. Aún falta recibir eventos físicos y demostrar el flujo real entre dos equipos; [pruebas pendientes](./docs/TESTING.md).
 
 ## 1. Objetivo
 

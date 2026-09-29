@@ -2,10 +2,12 @@
 //! after corruption: doing so would change the device identity unexpectedly.
 
 use crate::secure::Identity;
+use crate::topology::Topology;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Write};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const IDENTITY_MAGIC: &[u8; 8] = b"SCID0001";
 const IDENTITY_SIZE: usize = 8 + 32 + 32;
@@ -257,6 +259,71 @@ pub fn remember_peer_key(dir: &Path, address: IpAddr, key: &[u8; 32]) -> io::Res
     file.sync_all()
 }
 
+pub fn load_topology(path: &Path) -> io::Result<Topology> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            if !metadata.is_file() || metadata.file_type().is_symlink() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "topology path is not a regular file",
+                ));
+            }
+            #[cfg(unix)]
+            if metadata.permissions().mode() & 0o077 != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "topology file is accessible by others",
+                ));
+            }
+            let mut raw = String::new();
+            File::open(path)?.take(513).read_to_string(&mut raw)?;
+            Topology::decode(&raw).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+        }
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(Topology::new()),
+        Err(error) => Err(error),
+    }
+}
+
+pub fn save_topology(path: &Path, topology: &Topology) -> io::Result<()> {
+    let parent = path
+        .parent()
+        .ok_or_else(|| io::Error::other("topology path has no parent"))?;
+    ensure_private_directory(parent)?;
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if !metadata.is_file() || metadata.file_type().is_symlink() => {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "topology path is not a regular file",
+            ));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error),
+    }
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_nanos();
+    let temp = parent.join(format!(".topology-{}-{nonce}.tmp", std::process::id()));
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let result = (|| {
+        let mut file = options.open(&temp)?;
+        file.write_all(topology.encode().as_bytes())?;
+        file.sync_all()?;
+        fs::rename(&temp, path)?;
+        #[cfg(unix)]
+        File::open(parent)?.sync_all()?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -348,6 +415,40 @@ mod tests {
         let address: IpAddr = "192.168.1.4".parse().unwrap();
         remember_peer_key(&peers, address, &[4; 32]).unwrap();
         assert_eq!(list_peer_keys(&peers).unwrap(), vec![(address, [4; 32])]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn topology_persists_atomically_and_rejects_corruption() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "seamlesscontrol-topology-{}-{unique}",
+            std::process::id()
+        ));
+        let path = root.join("topology");
+        let mut layout = load_topology(&path).unwrap();
+        let peer: IpAddr = "192.168.1.7".parse().unwrap();
+        layout
+            .place(
+                crate::topology::Machine::Peer(peer),
+                crate::topology::Slot::new(1, 0).unwrap(),
+            )
+            .unwrap();
+        save_topology(&path, &layout).unwrap();
+        assert_eq!(load_topology(&path).unwrap(), layout);
+        #[cfg(unix)]
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        fs::write(&path, "bad").unwrap();
+        assert_eq!(
+            load_topology(&path).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
         fs::remove_dir_all(root).unwrap();
     }
 }

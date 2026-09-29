@@ -25,6 +25,7 @@ Item {
   property bool pairingRunning: false
   property string actionName: ""
   property var peers: []
+  property var topology: []
 
   function refresh() {
     if (statusProcess.running) return
@@ -34,6 +35,18 @@ Item {
   function refreshPeers() {
     if (peersProcess.running) return
     peersProcess.running = true
+  }
+
+  function refreshTopology() {
+    if (topologyProcess.running) return
+    topologyProcess.running = true
+  }
+
+  function placeMachine(machine, column, row) {
+    if (topologyAction.running || !machine) return
+    error = ""
+    topologyAction.command = ["seamlesscontrold", "topology", "set", machine, String(column), String(row)]
+    topologyAction.running = true
   }
 
   function togglePause() {
@@ -108,6 +121,7 @@ Item {
       root.error = code !== 0 ? "No se pudo " + root.actionName : ""
       root.refresh()
       root.refreshPeers()
+      root.refreshTopology()
     }
   }
 
@@ -125,6 +139,31 @@ Item {
         })
         root.peers = next
       }
+    }
+  }
+
+  Process {
+    id: topologyProcess
+    command: ["seamlesscontrold", "topology"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = []
+        String(text || "").split("\n").forEach(function(line) {
+          var fields = line.split("\t")
+          if (fields.length === 4 && fields[0] === "SLOT")
+            next.push({ id: fields[1], column: Number(fields[2]), row: Number(fields[3]) })
+        })
+        root.topology = next
+      }
+    }
+  }
+
+  Process {
+    id: topologyAction
+    onExited: function(code) {
+      if (code !== 0) root.error = "No se pudo guardar la posición del equipo"
+      root.refreshTopology()
     }
   }
 
@@ -151,5 +190,13 @@ Item {
     running: true
     triggeredOnStart: true
     onTriggered: root.refreshPeers()
+  }
+
+  Timer {
+    interval: 5000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: root.refreshTopology()
   }
 }

@@ -2,6 +2,8 @@
 //! physical pixels to these coordinates before requesting an edge crossing.
 
 use std::collections::BTreeMap;
+use std::fmt;
+use std::net::IpAddr;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Rect {
@@ -42,6 +44,179 @@ pub enum Edge {
     Right,
     Top,
     Bottom,
+}
+
+impl Edge {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Right => "right",
+            Self::Top => "top",
+            Self::Bottom => "bottom",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum Machine {
+    Local,
+    Peer(IpAddr),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct Slot {
+    pub column: u8,
+    pub row: u8,
+}
+
+impl Slot {
+    pub fn new(column: u8, row: u8) -> Option<Self> {
+        (column < 2 && row < 2).then_some(Self { column, row })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TopologyError {
+    InvalidFormat,
+    Occupied,
+    TooManyMachines,
+    MissingMachine,
+    NotAdjacent,
+}
+
+impl fmt::Display for TopologyError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidFormat => write!(f, "invalid topology format"),
+            Self::Occupied => write!(f, "slot is occupied by a different machine"),
+            Self::TooManyMachines => write!(f, "topology supports at most four machines"),
+            Self::MissingMachine => write!(f, "machine is not placed in the topology"),
+            Self::NotAdjacent => write!(f, "machines are not adjacent"),
+        }
+    }
+}
+
+impl std::error::Error for TopologyError {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Topology {
+    positions: BTreeMap<Machine, Slot>,
+}
+
+impl Default for Topology {
+    fn default() -> Self {
+        let mut positions = BTreeMap::new();
+        positions.insert(Machine::Local, Slot { column: 0, row: 0 });
+        Self { positions }
+    }
+}
+
+impl Topology {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn positions(&self) -> impl Iterator<Item = (Machine, Slot)> + '_ {
+        self.positions
+            .iter()
+            .map(|(machine, slot)| (*machine, *slot))
+    }
+
+    pub fn place(&mut self, machine: Machine, slot: Slot) -> Result<(), TopologyError> {
+        let old = self.positions.get(&machine).copied();
+        if old == Some(slot) {
+            return Ok(());
+        }
+        if old.is_none() && self.positions.len() >= 4 {
+            return Err(TopologyError::TooManyMachines);
+        }
+        if let Some((&occupant, _)) = self
+            .positions
+            .iter()
+            .find(|(other, value)| **other != machine && **value == slot)
+        {
+            let previous = old.ok_or(TopologyError::Occupied)?;
+            self.positions.insert(occupant, previous);
+        }
+        self.positions.insert(machine, slot);
+        Ok(())
+    }
+
+    pub fn remove_peer(&mut self, address: IpAddr) {
+        self.positions.remove(&Machine::Peer(address));
+    }
+
+    pub fn edge_to(&self, address: IpAddr) -> Result<Edge, TopologyError> {
+        let local = self
+            .positions
+            .get(&Machine::Local)
+            .ok_or(TopologyError::MissingMachine)?;
+        let peer = self
+            .positions
+            .get(&Machine::Peer(address))
+            .ok_or(TopologyError::MissingMachine)?;
+        match (
+            peer.column as i8 - local.column as i8,
+            peer.row as i8 - local.row as i8,
+        ) {
+            (-1, 0) => Ok(Edge::Left),
+            (1, 0) => Ok(Edge::Right),
+            (0, -1) => Ok(Edge::Top),
+            (0, 1) => Ok(Edge::Bottom),
+            _ => Err(TopologyError::NotAdjacent),
+        }
+    }
+
+    pub fn encode(&self) -> String {
+        let mut out = String::from("SCTO0001\n");
+        for (machine, slot) in self.positions() {
+            match machine {
+                Machine::Local => out.push_str(&format!("local\t{}\t{}\n", slot.column, slot.row)),
+                Machine::Peer(address) => {
+                    out.push_str(&format!("peer\t{address}\t{}\t{}\n", slot.column, slot.row))
+                }
+            }
+        }
+        out
+    }
+
+    pub fn decode(raw: &str) -> Result<Self, TopologyError> {
+        if raw.len() > 512 {
+            return Err(TopologyError::InvalidFormat);
+        }
+        let mut lines = raw.lines();
+        if lines.next() != Some("SCTO0001") {
+            return Err(TopologyError::InvalidFormat);
+        }
+        let mut positions = BTreeMap::new();
+        for line in lines {
+            let parts: Vec<&str> = line.split('\t').collect();
+            let (machine, column, row) = match parts.as_slice() {
+                ["local", column, row] => (Machine::Local, *column, *row),
+                ["peer", address, column, row] => (
+                    Machine::Peer(address.parse().map_err(|_| TopologyError::InvalidFormat)?),
+                    *column,
+                    *row,
+                ),
+                _ => return Err(TopologyError::InvalidFormat),
+            };
+            let column = column.parse().map_err(|_| TopologyError::InvalidFormat)?;
+            let row = row.parse().map_err(|_| TopologyError::InvalidFormat)?;
+            let slot = Slot::new(column, row).ok_or(TopologyError::InvalidFormat)?;
+            if positions.insert(machine, slot).is_some()
+                || positions.values().filter(|value| **value == slot).count() > 1
+            {
+                return Err(TopologyError::InvalidFormat);
+            }
+            if positions.len() > 4 {
+                return Err(TopologyError::TooManyMachines);
+            }
+        }
+        if !positions.contains_key(&Machine::Local) {
+            return Err(TopologyError::InvalidFormat);
+        }
+        Ok(Self { positions })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -200,5 +375,37 @@ mod tests {
     fn invalid_geometry_is_rejected() {
         assert!(Rect::new(0, 0, 0, 1).is_none());
         assert!(Rect::new(i32::MAX, 0, 10, 10).is_none());
+    }
+
+    #[test]
+    fn machine_slots_swap_and_define_an_edge() {
+        let mut topology = Topology::new();
+        let a: IpAddr = "192.168.1.2".parse().unwrap();
+        let b: IpAddr = "192.168.1.3".parse().unwrap();
+        topology
+            .place(Machine::Peer(a), Slot::new(1, 0).unwrap())
+            .unwrap();
+        topology
+            .place(Machine::Peer(b), Slot::new(0, 1).unwrap())
+            .unwrap();
+        assert_eq!(topology.edge_to(a).unwrap(), Edge::Right);
+        topology
+            .place(Machine::Local, Slot::new(1, 0).unwrap())
+            .unwrap();
+        assert_eq!(topology.edge_to(a).unwrap(), Edge::Left);
+        let encoded = topology.encode();
+        assert_eq!(Topology::decode(&encoded).unwrap(), topology);
+    }
+
+    #[test]
+    fn topology_rejects_occupied_new_peer_and_bad_files() {
+        let mut topology = Topology::new();
+        let a: IpAddr = "192.168.1.2".parse().unwrap();
+        assert_eq!(
+            topology.place(Machine::Peer(a), Slot::new(0, 0).unwrap()),
+            Err(TopologyError::Occupied)
+        );
+        assert!(Topology::decode("SCTO0001\nlocal\t0\t0\npeer\t192.168.1.2\t0\t0\n").is_err());
+        assert!(Topology::decode("SCTO0001\npeer\t192.168.1.2\t1\t0\n").is_err());
     }
 }
