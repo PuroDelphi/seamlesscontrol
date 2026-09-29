@@ -24,7 +24,7 @@ También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 
 
 `right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. La primera conexión muestra un código de seis cifras en ambos paneles Omarchy y en ambos terminales. **Compare los códigos en los dos equipos y apruebe en ambos paneles sólo si coinciden.** Como alternativa por terminal, consulte `seamlesscontrold status` y ejecute `seamlesscontrold approve 123456` con el código mostrado; `seamlesscontrold reject` deniega el par. Las claves quedan fijadas por IP en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, y **Ctrl+C** en el terminal de origen para cerrar. `seamlesscontrold pause` y `resume`, o el botón del panel, desactivan y reactivan la captura. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
 
-Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El regreso por el borde del equipo remoto, la reconexión automática, la configuración visual de pares, el portapapeles, los archivos y Windows siguen pendientes.
+Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo está disponible una; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor reintenta las pérdidas de red con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación real tras una caída de Wi-Fi aún requiere pruebas físicas. El regreso por el borde del equipo remoto, la configuración visual de topología, el portapapeles, los archivos y Windows siguen pendientes.
 
 ## Widget de Omarchy
 
@@ -44,6 +44,7 @@ Con Rust estable y Cargo instalados:
 cargo test --manifest-path agent/Cargo.toml
 cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
 CARGO=cargo bash tests/pair_loopback.sh
+CARGO=cargo bash tests/reconnect_wait.sh
 ```
 
 La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe permitirlo. En un Omarchy con sesión gráfica se pueden ejecutar los probes:

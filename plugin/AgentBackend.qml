@@ -6,6 +6,17 @@ Item {
   property bool available: false
   property string role: ""
   property string phase: ""
+  readonly property string phaseText: ({
+    connecting: "conectando",
+    reconnecting: "reconectando",
+    pairing: "emparejando",
+    ready: "listo",
+    controlling: "control remoto",
+    connected: "conectado",
+    listening: "disponible",
+    paused: "en pausa",
+    disconnected: "desconectado"
+  })[phase] || phase
   property string peer: ""
   property bool paused: false
   property string pairSas: ""

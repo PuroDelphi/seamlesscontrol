@@ -14,6 +14,8 @@
 
 La respuesta `STATUS` contiene, en orden, rol, fase, IP remota, pausa, código pendiente y clave pública remota en hexadecimal. Los campos finales están vacíos fuera de un emparejamiento. El código se muestra durante cinco minutos como máximo; se debe comparar en **ambos equipos** antes de aprobar. La conexión Noise XX no queda disponible para entrada hasta recibir aceptación autenticada de los dos lados.
 
+La fase `reconnecting` indica que el emisor sigue ejecutándose y espera para volver a conectar. El retardo se duplica desde un segundo hasta un máximo de treinta; un error de clave cambiada, revocación o protocolo incompatible termina el intento en vez de repetirlo.
+
 `revoke` guarda un marcador de la clave pública antes de eliminar el par por IP. Aunque el equipo vuelva a presentarse o cambie de IP, esa clave no puede ser aceptada de nuevo. Para volver a confiar en ese equipo será necesaria una nueva identidad, cuyo código debe confirmarse en ambos extremos. Si el agente está activo, la revocación se procesa por IPC y libera la entrada remota; sin agente, el comando actualiza el almacén privado directamente.
 
 El IPC todavía es un contrato interno del prototipo: no se expone por red ni sustituye el protocolo binario cifrado entre equipos. Una versión posterior añadirá comandos de topología y diagnóstico sin depender de la salida tabulada.

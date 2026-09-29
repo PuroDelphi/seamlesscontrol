@@ -54,6 +54,11 @@ client_pid=
 [[ -f "$scratch/server/config/seamlesscontrol/peers/127.0.0.1" ]]
 [[ -f "$scratch/client/config/seamlesscontrol/peers/127.0.0.1" ]]
 
+XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+  "$agent" pair "$address" >"$scratch/reconnect.log" 2>&1
+reconnect_message=$(<"$scratch/reconnect.log")
+[[ "$reconnect_message" == *'emparejado sin iniciar la captura'* ]]
+
 XDG_RUNTIME_DIR="$scratch/server/run" "$agent" revoke 127.0.0.1 >/dev/null
 [[ ! -e "$scratch/server/config/seamlesscontrol/peers/127.0.0.1" ]]
 compgen -G "$scratch/server/config/seamlesscontrol/revoked/*" >/dev/null

@@ -11,9 +11,9 @@ mod linux {
     };
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::omarchy::VirtualInput;
-    use seamlesscontrol_core::protocol::{Frame, Kind};
+    use seamlesscontrol_core::protocol::{Frame, FrameError, Kind};
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
-    use seamlesscontrol_core::secure::{Identity, Role, SecureChannel};
+    use seamlesscontrol_core::secure::{Identity, Role, SecureChannel, SecureError};
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
@@ -25,6 +25,8 @@ mod linux {
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+    const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
 
     #[derive(Clone, Copy)]
     enum Edge {
@@ -308,8 +310,8 @@ mod linux {
         let peers = config.join("peers");
         let pinned = load_peer_key(&peers, peer_ip)?;
         stream.set_nodelay(true)?;
-        stream.set_read_timeout(Some(Duration::from_secs(120)))?;
-        stream.set_write_timeout(Some(Duration::from_secs(120)))?;
+        stream.set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
+        stream.set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
         let (mut channel, peer) =
             SecureChannel::connect(stream, Role::Responder, identity, pinned.as_ref(), |peer| {
                 !is_revoked(&peers, &peer.public_key).unwrap_or(true) && control.confirm_pair(peer)
@@ -317,6 +319,12 @@ mod linux {
         if is_revoked(&peers, &peer.public_key)? {
             return Err("peer identity has been revoked".into());
         }
+        channel
+            .stream_mut()
+            .set_read_timeout(Some(Duration::from_secs(120)))?;
+        channel
+            .stream_mut()
+            .set_write_timeout(Some(Duration::from_secs(120)))?;
         control.set_peer(&peer_ip.to_string());
         let greeting = Frame::read_from(&mut channel)?;
         if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
@@ -362,6 +370,112 @@ mod linux {
         result?;
         println!("Control terminado; teclado y botones liberados.");
         Ok(())
+    }
+
+    enum AttemptError {
+        Retry(Box<dyn Error>),
+        Stop(Box<dyn Error>),
+    }
+
+    fn frame_attempt(error: FrameError) -> AttemptError {
+        if matches!(error, FrameError::Io(_)) {
+            AttemptError::Retry(Box::new(error))
+        } else {
+            AttemptError::Stop(Box::new(error))
+        }
+    }
+
+    async fn connect_once(
+        address: SocketAddr,
+        edge: Option<Edge>,
+        identity: &Identity,
+        config: &std::path::Path,
+        control: &ControlHandle,
+    ) -> Result<(), AttemptError> {
+        let peers = config.join("peers");
+        let pinned =
+            load_peer_key(&peers, address.ip()).map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        stream
+            .set_nodelay(true)
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        stream
+            .set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        stream
+            .set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        let (mut channel, peer) =
+            SecureChannel::connect(stream, Role::Initiator, identity, pinned.as_ref(), |peer| {
+                !is_revoked(&peers, &peer.public_key).unwrap_or(true) && control.confirm_pair(peer)
+            })
+            .map_err(|error| match error {
+                SecureError::Io(_) => AttemptError::Retry(Box::new(error)),
+                _ => AttemptError::Stop(Box::new(error)),
+            })?;
+        if is_revoked(&peers, &peer.public_key).map_err(|e| AttemptError::Stop(Box::new(e)))? {
+            return Err(AttemptError::Stop("peer identity has been revoked".into()));
+        }
+        channel
+            .stream_mut()
+            .set_read_timeout(Some(Duration::from_secs(120)))
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        channel
+            .stream_mut()
+            .set_write_timeout(Some(Duration::from_secs(120)))
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        control.set_peer(&address.ip().to_string());
+        Frame {
+            kind: Kind::Hello,
+            epoch: 0,
+            sequence: 0,
+            payload: b"seamlesscontrol/1".to_vec(),
+        }
+        .write_to(&mut channel)
+        .map_err(frame_attempt)?;
+        let greeting = Frame::read_from(&mut channel).map_err(frame_attempt)?;
+        if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
+            return Err(AttemptError::Stop("incompatible peer protocol".into()));
+        }
+        remember_peer_key(&peers, address.ip(), &peer.public_key)
+            .map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        channel
+            .stream_mut()
+            .set_write_timeout(Some(Duration::from_secs(5)))
+            .map_err(|e| AttemptError::Retry(Box::new(e)))?;
+        if let Some(edge) = edge {
+            println!("Conexión autenticada con {address}.");
+            capture_loop(channel, edge, control.clone())
+                .await
+                .map_err(|error| {
+                    if error
+                        .downcast_ref::<FrameError>()
+                        .is_some_and(|frame| matches!(frame, FrameError::Io(_)))
+                    {
+                        AttemptError::Retry(error)
+                    } else {
+                        AttemptError::Stop(error)
+                    }
+                })
+        } else {
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 0,
+                payload: b"PAIR".to_vec(),
+            }
+            .write_to(&mut channel)
+            .map_err(frame_attempt)?;
+            let reply = Frame::read_from(&mut channel).map_err(frame_attempt)?;
+            if reply.kind != Kind::Control || reply.payload != b"PAIRED" {
+                return Err(AttemptError::Stop(
+                    "the peer did not acknowledge pairing".into(),
+                ));
+            }
+            println!("Par {address} emparejado sin iniciar la captura.");
+            Ok(())
+        }
     }
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
@@ -438,58 +552,30 @@ mod linux {
             } else {
                 None
             };
-            let peers = config.join("peers");
-            let pinned = load_peer_key(&peers, address.ip())?;
-            let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))?;
-            stream.set_nodelay(true)?;
-            stream.set_read_timeout(Some(Duration::from_secs(120)))?;
-            stream.set_write_timeout(Some(Duration::from_secs(120)))?;
-            let (mut channel, peer) = SecureChannel::connect(
-                stream,
-                Role::Initiator,
-                &identity,
-                pinned.as_ref(),
-                |peer| {
-                    !is_revoked(&peers, &peer.public_key).unwrap_or(true)
-                        && control.confirm_pair(peer)
-                },
-            )?;
-            if is_revoked(&peers, &peer.public_key)? {
-                return Err("peer identity has been revoked".into());
-            }
-            control.set_peer(&address.ip().to_string());
-            Frame {
-                kind: Kind::Hello,
-                epoch: 0,
-                sequence: 0,
-                payload: b"seamlesscontrol/1".to_vec(),
-            }
-            .write_to(&mut channel)?;
-            let greeting = Frame::read_from(&mut channel)?;
-            if greeting.kind != Kind::Hello || greeting.payload != b"seamlesscontrol/1" {
-                return Err("incompatible peer protocol".into());
-            }
-            remember_peer_key(&peers, address.ip(), &peer.public_key)?;
-            channel
-                .stream_mut()
-                .set_write_timeout(Some(Duration::from_secs(5)))?;
-            if edge.is_none() {
-                Frame {
-                    kind: Kind::Control,
-                    epoch: 0,
-                    sequence: 0,
-                    payload: b"PAIR".to_vec(),
+            let mut delay = Duration::from_secs(1);
+            loop {
+                match connect_once(address, edge, &identity, &config, &control).await {
+                    Ok(()) => return Ok(()),
+                    Err(AttemptError::Stop(error)) => return Err(error),
+                    Err(AttemptError::Retry(error)) if edge.is_none() => return Err(error),
+                    Err(AttemptError::Retry(error)) => {
+                        if control.phase() == "disconnected" {
+                            delay = Duration::from_secs(1);
+                        }
+                        eprintln!(
+                            "Conexión interrumpida: {error}. Reintentando en {} s.",
+                            delay.as_secs()
+                        );
+                        control.set_peer("");
+                        control.set_phase("reconnecting");
+                        tokio::select! {
+                            _ = tokio::signal::ctrl_c() => return Ok(()),
+                            _ = tokio::time::sleep(delay) => {}
+                        }
+                        delay = delay.saturating_mul(2).min(Duration::from_secs(30));
+                    }
                 }
-                .write_to(&mut channel)?;
-                let reply = Frame::read_from(&mut channel)?;
-                if reply.kind != Kind::Control || reply.payload != b"PAIRED" {
-                    return Err("the peer did not acknowledge pairing".into());
-                }
-                println!("Par {address} emparejado sin iniciar la captura.");
-                return Ok(());
             }
-            println!("Conexión autenticada con {address}.");
-            return capture_loop(channel, edge.expect("validated edge"), control).await;
         }
         let _local_control = ControlServer::start("serve", &config)?;
         let control = _local_control.handle();

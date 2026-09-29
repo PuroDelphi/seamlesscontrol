@@ -34,6 +34,10 @@ impl ControlHandle {
         self.0.0.lock().expect("control state lock").phase = phase.to_owned();
     }
 
+    pub fn phase(&self) -> String {
+        self.0.0.lock().expect("control state lock").phase.clone()
+    }
+
     pub fn set_peer(&self, peer: &str) {
         let mut state = self.0.0.lock().expect("control state lock");
         state.peer = peer.to_owned();
