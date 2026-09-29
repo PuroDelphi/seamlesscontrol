@@ -19,7 +19,9 @@ mod linux {
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
         load_topology, remember_peer_key, revoke_peer_key, save_topology,
     };
-    use seamlesscontrol_core::topology::{Edge as LogicalEdge, Machine, Slot};
+    use seamlesscontrol_core::topology::{
+        Edge as LogicalEdge, Machine, Rect, Slot, external_barriers,
+    };
     use std::error::Error;
     use std::io;
     use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
@@ -57,12 +59,12 @@ mod linux {
             }
         }
 
-        fn barrier(self, x: i32, y: i32, width: i32, height: i32) -> BarrierPosition {
+        fn logical(self) -> LogicalEdge {
             match self {
-                Self::Left => BarrierPosition::new(x, y, x, y + height - 1),
-                Self::Right => BarrierPosition::new(x + width, y, x + width, y + height - 1),
-                Self::Top => BarrierPosition::new(x, y, x + width - 1, y),
-                Self::Bottom => BarrierPosition::new(x, y + height, x + width - 1, y + height),
+                Self::Left => LogicalEdge::Left,
+                Self::Right => LogicalEdge::Right,
+                Self::Top => LogicalEdge::Top,
+                Self::Bottom => LogicalEdge::Bottom,
             }
         }
 
@@ -134,22 +136,34 @@ mod linux {
             .zones(&session, Default::default())
             .await?
             .response()?;
-        let region = zones
+        let regions: Vec<Rect> = zones
             .regions()
-            .first()
-            .ok_or("the portal returned no monitor regions")?;
-        let barrier_id = BarrierID::new(1).ok_or("invalid barrier ID")?;
-        let barrier = Barrier::new(
-            barrier_id,
-            edge.barrier(
-                region.x_offset(),
-                region.y_offset(),
-                region.width() as i32,
-                region.height() as i32,
-            ),
-        );
+            .iter()
+            .map(|region| {
+                let width = i32::try_from(region.width())?;
+                let height = i32::try_from(region.height())?;
+                Rect::new(region.x_offset(), region.y_offset(), width, height)
+                    .ok_or("invalid monitor region")
+                    .map_err(Into::into)
+            })
+            .collect::<Result<_, Box<dyn Error>>>()?;
+        let segments = external_barriers(&regions, edge.logical());
+        if segments.is_empty() {
+            return Err("the portal returned no exposed monitor edge".into());
+        }
+        let barriers: Vec<Barrier> = segments
+            .into_iter()
+            .enumerate()
+            .map(|(index, segment)| {
+                let id = BarrierID::new(u32::try_from(index + 1)?).ok_or("invalid barrier ID")?;
+                Ok(Barrier::new(
+                    id,
+                    BarrierPosition::new(segment.x1, segment.y1, segment.x2, segment.y2),
+                ))
+            })
+            .collect::<Result<_, Box<dyn Error>>>()?;
         let response = portal
-            .set_pointer_barriers(&session, &[barrier], zones.zone_set(), Default::default())
+            .set_pointer_barriers(&session, &barriers, zones.zone_set(), Default::default())
             .await?
             .response()?;
         if !response.failed_barriers().is_empty() {

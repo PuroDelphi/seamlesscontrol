@@ -24,6 +24,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 - Ratón, teclado, modificadores, rueda y arrastre en ambos sentidos, sin duplicación local.
 - Cruces rápidos, esquinas y pantalla completa; salida de emergencia bajo pérdida de red.
 - Monitores múltiples, escala fraccional, distinta resolución y distinto mapa de teclado.
+- En A con dos o más monitores, recorrer las uniones entre monitores sin activar el control remoto; cruzar cada tramo exterior del borde elegido y comprobar la activación. Repetir tras cambiar la disposición y después de desconectar un monitor, reiniciando el agente mientras no exista manejo de zonas en vivo.
 - Bloqueo, suspensión, reinicio de Hyprland, desconexión de monitor y recuperación.
 - Consentimiento del portal en primera conexión y conexiones siguientes.
 

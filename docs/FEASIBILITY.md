@@ -54,4 +54,4 @@ El siguiente experimento debe recibir eventos reales, liberar la captura y repet
 2. Probar el cliente EIS con movimiento y teclado físicos; confirmar liberación mediante un atajo local.
 3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones.
 4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
-5. Integrar ambos adaptadores en el agente y medir la latencia real.
+5. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha verificado su flujo físico extremo a extremo.

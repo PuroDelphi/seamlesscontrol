@@ -38,6 +38,95 @@ impl Rect {
     }
 }
 
+/// A portal pointer barrier, represented by its inclusive end points.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct BarrierSegment {
+    pub x1: i32,
+    pub y1: i32,
+    pub x2: i32,
+    pub y2: i32,
+}
+
+/// Expose only the parts of a chosen edge that face outside the local monitor
+/// union. A barrier at a seam between two local monitors would steal the
+/// pointer while it moves normally between them.
+pub fn external_barriers(regions: &[Rect], edge: Edge) -> Vec<BarrierSegment> {
+    let mut barriers = Vec::new();
+    for (index, region) in regions.iter().enumerate() {
+        let (start, end) = match edge {
+            Edge::Left | Edge::Right => (region.y, region.bottom()),
+            Edge::Top | Edge::Bottom => (region.x, region.right()),
+        };
+        let mut exposed = vec![(start, end)];
+        for (other_index, other) in regions.iter().enumerate() {
+            if index == other_index {
+                continue;
+            }
+            let covered = match edge {
+                Edge::Left => other.x < region.x && other.right() >= region.x,
+                Edge::Right => other.x <= region.right() && other.right() > region.right(),
+                Edge::Top => other.y < region.y && other.bottom() >= region.y,
+                Edge::Bottom => other.y <= region.bottom() && other.bottom() > region.bottom(),
+            };
+            if !covered {
+                continue;
+            }
+            let (cover_start, cover_end) = match edge {
+                Edge::Left | Edge::Right => (other.y, other.bottom()),
+                Edge::Top | Edge::Bottom => (other.x, other.right()),
+            };
+            let mut remainder = Vec::new();
+            for (part_start, part_end) in exposed {
+                if cover_end <= part_start || cover_start >= part_end {
+                    remainder.push((part_start, part_end));
+                    continue;
+                }
+                if cover_start > part_start {
+                    remainder.push((part_start, cover_start.min(part_end)));
+                }
+                if cover_end < part_end {
+                    remainder.push((cover_end.max(part_start), part_end));
+                }
+            }
+            exposed = remainder;
+        }
+        for (part_start, part_end) in exposed {
+            if part_start >= part_end {
+                continue;
+            }
+            barriers.push(match edge {
+                Edge::Left => BarrierSegment {
+                    x1: region.x,
+                    y1: part_start,
+                    x2: region.x,
+                    y2: part_end - 1,
+                },
+                Edge::Right => BarrierSegment {
+                    x1: region.right(),
+                    y1: part_start,
+                    x2: region.right(),
+                    y2: part_end - 1,
+                },
+                Edge::Top => BarrierSegment {
+                    x1: part_start,
+                    y1: region.y,
+                    x2: part_end - 1,
+                    y2: region.y,
+                },
+                Edge::Bottom => BarrierSegment {
+                    x1: part_start,
+                    y1: region.bottom(),
+                    x2: part_end - 1,
+                    y2: region.bottom(),
+                },
+            });
+        }
+    }
+    barriers.sort_unstable();
+    barriers.dedup();
+    barriers
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Edge {
     Left,
@@ -375,6 +464,122 @@ mod tests {
     fn invalid_geometry_is_rejected() {
         assert!(Rect::new(0, 0, 0, 1).is_none());
         assert!(Rect::new(i32::MAX, 0, 10, 10).is_none());
+    }
+
+    #[test]
+    fn barriers_cover_exterior_not_seams_of_staggered_monitors() {
+        let regions = [
+            Rect::new(-100, 0, 100, 100).unwrap(),
+            Rect::new(0, 50, 100, 100).unwrap(),
+        ];
+        assert_eq!(
+            external_barriers(&regions, Edge::Right),
+            vec![
+                BarrierSegment {
+                    x1: 0,
+                    y1: 0,
+                    x2: 0,
+                    y2: 49
+                },
+                BarrierSegment {
+                    x1: 100,
+                    y1: 50,
+                    x2: 100,
+                    y2: 149
+                },
+            ]
+        );
+        assert_eq!(
+            external_barriers(&regions, Edge::Left),
+            vec![
+                BarrierSegment {
+                    x1: -100,
+                    y1: 0,
+                    x2: -100,
+                    y2: 99
+                },
+                BarrierSegment {
+                    x1: 0,
+                    y1: 100,
+                    x2: 0,
+                    y2: 149
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn barrier_splits_around_a_narrow_adjacent_monitor() {
+        let regions = [
+            Rect::new(0, 0, 100, 200).unwrap(),
+            Rect::new(100, 50, 100, 50).unwrap(),
+        ];
+        assert_eq!(
+            external_barriers(&regions, Edge::Right),
+            vec![
+                BarrierSegment {
+                    x1: 100,
+                    y1: 0,
+                    x2: 100,
+                    y2: 49
+                },
+                BarrierSegment {
+                    x1: 100,
+                    y1: 100,
+                    x2: 100,
+                    y2: 199
+                },
+                BarrierSegment {
+                    x1: 200,
+                    y1: 50,
+                    x2: 200,
+                    y2: 99
+                },
+            ]
+        );
+        assert!(external_barriers(&[], Edge::Right).is_empty());
+    }
+
+    #[test]
+    fn four_local_monitors_leave_only_the_outer_border() {
+        let regions: Vec<Rect> = [(0, 0), (100, 0), (0, 100), (100, 100)]
+            .into_iter()
+            .map(|(x, y)| Rect::new(x, y, 100, 100).unwrap())
+            .collect();
+        assert_eq!(
+            external_barriers(&regions, Edge::Right),
+            vec![
+                BarrierSegment {
+                    x1: 200,
+                    y1: 0,
+                    x2: 200,
+                    y2: 99
+                },
+                BarrierSegment {
+                    x1: 200,
+                    y1: 100,
+                    x2: 200,
+                    y2: 199
+                },
+            ]
+        );
+        assert_eq!(
+            external_barriers(&regions, Edge::Top),
+            vec![
+                BarrierSegment {
+                    x1: 0,
+                    y1: 0,
+                    x2: 99,
+                    y2: 0
+                },
+                BarrierSegment {
+                    x1: 100,
+                    y1: 0,
+                    x2: 199,
+                    y2: 0
+                },
+            ]
+        );
     }
 
     #[test]
