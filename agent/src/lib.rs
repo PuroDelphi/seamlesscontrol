@@ -4,6 +4,7 @@
 pub mod clipboard;
 pub mod file_session;
 pub mod file_transfer;
+pub mod handoff;
 pub mod protocol;
 pub mod receiver;
 pub mod secure;

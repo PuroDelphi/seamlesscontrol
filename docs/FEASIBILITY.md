@@ -64,6 +64,8 @@ El receptor ahora atiende conexiones entrantes en trabajadores independientes, c
 
 Se añadió el intercambio `RELEASE`/`ENDED` como condición para cambiar de destino: una prueba del núcleo verificó que una época antigua no se confirma y que el acuse se produce después de soltar una tecla y un botón retenidos. El receptor Omarchy envía el acuse por el canal Noise; todavía falta que el emisor mantenga varias conexiones y use ese acuse para efectuar una cesión real.
 
+La política pura `HandoffCoordinator` pasó pruebas de una ruta de cuatro casillas y de solicitudes con origen, época y destino inválidos. Conserva al dueño anterior hasta recibir el acuse correspondiente; un fallo puede devolver la propiedad al equipo físico. Esto sólo verifica la lógica de propiedad, no la transición real del puntero ni la red entre tres o cuatro máquinas.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
