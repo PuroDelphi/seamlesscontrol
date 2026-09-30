@@ -140,6 +140,33 @@ mod linux {
         }
     }
 
+    async fn bind_initial_eis_seat(
+        context: &ei::Context,
+        events: &mut reis::tokio::EiConvertEventStream,
+    ) -> Result<(), Box<dyn Error>> {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                match events.next().await {
+                    Some(Ok(EiEvent::SeatAdded(seat))) => {
+                        seat.seat.bind_capabilities(
+                            DeviceCapability::Pointer
+                                | DeviceCapability::Keyboard
+                                | DeviceCapability::Scroll
+                                | DeviceCapability::Button,
+                        );
+                        context.flush()?;
+                        return Ok::<_, Box<dyn Error>>(());
+                    }
+                    Some(Ok(_)) => {}
+                    Some(Err(error)) => return Err(error.into()),
+                    None => return Err("EIS ended before announcing an input seat".into()),
+                }
+            }
+        })
+        .await
+        .map_err(|_| "EIS did not announce an input seat in five seconds")?
+    }
+
     fn send_frame(
         channel: &mut impl Write,
         kind: Kind,
@@ -438,6 +465,7 @@ mod linux {
         let (_connection, mut events) = context
             .handshake_tokio("seamlesscontrol", ei::handshake::ContextType::Receiver)
             .await?;
+        bind_initial_eis_seat(&context, &mut events).await?;
         let mut activated = portal.receive_activated().await?;
         let mut deactivated = portal.receive_deactivated().await?;
         if !locked {
@@ -772,6 +800,7 @@ mod linux {
         let (_connection, mut events) = context
             .handshake_tokio("seamlesscontrol", ei::handshake::ContextType::Receiver)
             .await?;
+        bind_initial_eis_seat(&context, &mut events).await?;
         let mut activated = portal.receive_activated().await?;
         let mut deactivated = portal.receive_deactivated().await?;
         if !locked {

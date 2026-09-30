@@ -37,7 +37,7 @@ El [probe de sólo lectura](../probe/README.md) se compiló con `-Wall -Wextra -
 
 Usar `InputCapture`/EIS para capturar en el origen y protocolos de teclado/puntero virtuales de Hyprland para inyectar en el destino. El agente debe aislar ambas detrás de interfaces de plataforma; Windows utilizará otros adaptadores cuando llegue su fase.
 
-La decisión se mantiene **provisional** porque la enumeración no prueba cesión de foco, calidad de movimiento, permisos repetidos ni salida de emergencia.
+La decisión se mantiene **provisional** aunque el probe ya recibe movimiento físico: faltan cesión de foco, calidad de movimiento, permisos repetidos y salida de emergencia en el agente integrado y entre dos equipos.
 
 El 29 de septiembre se ejecutaron además dos probes del agente Rust:
 
@@ -46,13 +46,13 @@ El 29 de septiembre se ejecutaron además dos probes del agente Rust:
 
 Con `capture-probe --listen` y movimiento generado por `virtual-input-probe --edge-test`, la barrera **se activó** y luego se liberó correctamente. El lector no recibió eventos EIS de entrada en los cinco segundos siguientes. Una explicación posible era que el portal no reenviase eventos del dispositivo virtual que activó la barrera; la prueba física posterior tampoco recibió eventos, así que esa explicación no basta. El puntero volvió a su posición original al terminar.
 
-Se repitió el probe después de enlazar las capacidades del asiento EIS *mientras esperaba* la activación, igual que el agente principal. La barrera volvió a activarse con el puntero virtual, pero tampoco llegó un evento EIS durante los cinco segundos posteriores. El orden de enlace del asiento no explica por sí solo el resultado.
+Se repitió el probe después de enlazar las capacidades del asiento EIS *mientras esperaba* la activación, igual que el agente principal en esa revisión. La barrera volvió a activarse con el puntero virtual, pero tampoco llegó un evento EIS durante los cinco segundos posteriores. Enlazar el asiento durante la espera no bastaba.
 
 Con el usuario moviendo el ratón físico al borde derecho durante `cargo run --quiet --bin capture-probe -- --listen`, el portal aceptó la barrera y EIS, notificó **Barrera activada** y el probe liberó la captura tras cinco segundos sin un evento EIS de movimiento, teclado, botón o desplazamiento. La prueba duró menos de los veinte segundos máximos porque el temporizador de lectura empezó al activarse. Esto verifica la activación física y la liberación, pero **no verifica la recepción de entrada capturada**. Hay que averiguar qué eventos y capacidades anuncia el servidor EIS antes de considerar viable el control entre equipos.
 
-Una segunda ventana con ratón físico y un probe que distingue anuncios EIS no activó la barrera en veinte segundos; sí anunció un asiento. En una ejecución controlada posterior, `virtual-input-probe --edge-test` activó la barrera y EIS anunció un asiento y tres dispositivos después de la activación, pero ningún evento de movimiento, teclado, botón o desplazamiento llegó en los cinco segundos de lectura. Ninguna de las tres ejecuciones confirma una ruta utilizable de entrada. El probe ahora reconoce también movimiento absoluto y enlaza esa capacidad, pero no recibió ese tipo de evento tampoco.
+Una segunda ventana con ratón físico y un probe que distingue anuncios EIS no activó la barrera en veinte segundos; sí anunció un asiento. En una ejecución controlada posterior, `virtual-input-probe --edge-test` activó la barrera y EIS anunció un asiento y tres dispositivos después de la activación, pero ningún evento de movimiento, teclado, botón o desplazamiento llegó en los cinco segundos de lectura. El probe también reconocía movimiento absoluto. Estos resultados apuntaron al orden de inicialización.
 
-El siguiente experimento debe recibir eventos reales, liberar la captura y repetir el flujo en dos equipos. Ningún dato de entrada fue capturado durante estas comprobaciones. El agente experimental `seamlesscontrold` ya enlaza portal/EIS, Noise XX y entrada virtual; está compilado y sometido a pruebas locales, pero su flujo de entrada físico y la ejecución entre dos máquinas siguen sin verificar. Véase [la guía de pruebas](./TESTING.md).
+Al esperar `SeatAdded`, enlazar sus capacidades y vaciar la conexión **antes de `InputCapture.Enable`**, el probe recibió anuncios de inicio de captura y un evento EIS en la prueba con puntero virtual. Se aplicó ese mismo orden a `connect` y `mesh` en `seamlesscontrold`. Una nueva prueba con el ratón físico activó la barrera, anunció dos dispositivos y su inicio de captura, y entregó **movimiento relativo**; el probe liberó el cursor. La captura física local de movimiento queda demostrada en este Omarchy. Todavía falta probar teclado físico, el agente integrado y el flujo entre dos equipos. Véase [la guía de pruebas](./TESTING.md).
 
 ## Carga real del plugin en Omarchy
 
@@ -89,7 +89,7 @@ La transferencia de archivos ahora usa el mismo descriptor para calcular SHA-256
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
-2. Diagnosticar por qué el cliente EIS no recibió movimiento tras la activación con ratón físico; repetir con movimiento y teclado físicos y confirmar liberación mediante un atajo local.
+2. Probar teclado físico, liberación mediante un atajo local y captura del agente integrado; el probe ya recibió movimiento relativo físico y liberó el cursor.
 3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones.
 4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
 5. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha verificado su flujo físico extremo a extremo.

@@ -63,6 +63,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     ei::handshake::ContextType::Receiver,
                 )
                 .await?;
+            tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                loop {
+                    match events.next().await {
+                        Some(Ok(EiEvent::SeatAdded(seat))) => {
+                            println!("EIS anunció un asiento antes de habilitar la captura.");
+                            seat.seat.bind_capabilities(
+                                DeviceCapability::Pointer
+                                    | DeviceCapability::PointerAbsolute
+                                    | DeviceCapability::Keyboard
+                                    | DeviceCapability::Scroll
+                                    | DeviceCapability::Button,
+                            );
+                            context.flush()?;
+                            break Ok::<_, Box<dyn std::error::Error>>(());
+                        }
+                        Some(Ok(_)) => {}
+                        Some(Err(error)) => break Err(error.into()),
+                        None => break Err("EIS terminó antes de anunciar un asiento".into()),
+                    }
+                }
+            })
+            .await
+            .map_err(|_| "EIS no anunció un asiento en cinco segundos")??;
             let mut activations = portal.receive_activated().await?;
             portal.enable(&session, Default::default()).await?;
             println!(
@@ -135,17 +158,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             EiEvent::DeviceAdded(_) => println!("EIS anunció un dispositivo tras la activación."),
                             EiEvent::DeviceStartEmulating(_) => println!("EIS inició la captura de un dispositivo."),
                             EiEvent::DevicePaused(_) => println!("EIS pausó un dispositivo."),
-                            EiEvent::PointerMotion(_)
-                            | EiEvent::PointerMotionAbsolute(_)
-                            | EiEvent::KeyboardKey(_)
-                            | EiEvent::Button(_)
-                            | EiEvent::ScrollDelta(_) => {
-                                return Ok::<_, Box<dyn std::error::Error>>(true);
-                            }
+                            EiEvent::PointerMotion(_) => return Ok::<_, Box<dyn std::error::Error>>(Some("movimiento relativo")),
+                            EiEvent::PointerMotionAbsolute(_) => return Ok(Some("movimiento absoluto")),
+                            EiEvent::KeyboardKey(_) => return Ok(Some("teclado")),
+                            EiEvent::Button(_) => return Ok(Some("botón")),
+                            EiEvent::ScrollDelta(_) => return Ok(Some("desplazamiento")),
                             _ => {}
                         }
                     }
-                    Ok(false)
+                    Ok(None)
                 })
                 .await;
                 let release = ReleaseOptions::default()
@@ -153,8 +174,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .set_cursor_position((x, y));
                 portal.release(&session, release).await?;
                 match read {
-                    Ok(Ok(true)) => println!("Captura liberada; se recibió un evento EIS."),
-                    Ok(Ok(false)) => {
+                    Ok(Ok(Some(kind))) => println!("Captura liberada; EIS entregó {kind}."),
+                    Ok(Ok(None)) => {
                         println!("Captura liberada; EIS terminó sin un evento de entrada.")
                     }
                     Ok(Err(error)) => eprintln!("Captura liberada; error al leer EIS: {error}"),
