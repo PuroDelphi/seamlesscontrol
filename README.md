@@ -14,6 +14,8 @@ Si cambia la IP de un equipo emparejado y conserva su identidad, **Recibir contr
 
 La detección automática necesita `avahi-daemon`, `avahi-publish-service` y `avahi-browse` en los dos Omarchy, con multicast mDNS disponible en la LAN. Si no están disponibles, el panel conserva los campos de IP manual. También puede usar terminales o servicios de usuario. Para iniciar un receptor sin escribir su IP:
 
+Con varias interfaces, el agente intenta elegir la IP de la ruta multicast mDNS. Puede comprobar la dirección elegida con `seamlesscontrold local-address 47832`; si la red no permite esta detección, use la alternativa manual.
+
 ```bash
 seamlesscontrold serve-auto 47832
 ```

@@ -17,7 +17,7 @@ En el emisor, la fase `locked` suspende la barrera de captura y la sincronizaci�
 | `seamlesscontrold peers` | Enumera pares guardados con IP y clave pública |
 | `seamlesscontrold revoke <IP>` | Revoca la clave fijada y corta la sesión activa con esa IP |
 | `seamlesscontrold rotate-key` | Con el agente detenido, reemplaza la identidad local y obliga a emparejar de nuevo en los equipos remotos |
-| `seamlesscontrold serve-auto <PUERTO>` | Elige la dirección IPv4 LAN de la ruta predeterminada, escucha y anuncia el receptor por mDNS; espera si no hay dirección y vuelve a enlazarse si cambia |
+| `seamlesscontrold serve-auto <PUERTO>` | Elige la dirección IPv4 LAN de la ruta multicast mDNS, escucha y anuncia el receptor; espera si no hay dirección y vuelve a enlazarse si cambia |
 | `seamlesscontrold discover` | Busca receptores Avahi `_seamlesscontrol._tcp` y produce líneas `FOUND` con nombre, IP, puerto y huella anunciada |
 | `seamlesscontrold local-address <PUERTO>` | Muestra la dirección IPv4 LAN que escogerían los modos automáticos |
 | `seamlesscontrold topology` | Enumera las casillas guardadas como líneas `SLOT` |
@@ -47,7 +47,7 @@ La transferencia de archivos usa una conexión Noise XX separada, con las mismas
 
 Cuando un par llega desde una IP nueva, el agente sólo lo reconoce automáticamente si la conexión Noise XX demuestra la misma clave pública guardada y no revocada. Tras el saludo de versión compatible, mueve su pin y su casilla de la cuadrícula a la IP nueva. Si esa dirección ya pertenece a otra clave, rechaza el cambio. Un anuncio mDNS puede proponer la dirección, pero no autoriza la migración. El panel muestra **Actualizar IP** para una huella conocida en otra dirección; el mismo mecanismo sirve si cambia la IP del origen.
 
-`serve-auto` revisa cada tres segundos la dirección IPv4 LAN elegida por la ruta predeterminada. Ante una pérdida o cambio de IP, retira el anuncio anterior, cierra las conexiones activas para liberar la entrada y espera hasta poder enlazarse y anunciar la dirección vigente. Conserva el socket de control local durante la espera, con fase `reconnecting`. El modo manual `serve <IP:PUERTO>` mantiene una dirección fija.
+`serve-auto` revisa cada tres segundos la dirección IPv4 LAN elegida por la ruta multicast de mDNS (`224.0.0.251:5353`). Ante una pérdida o cambio de IP, retira el anuncio anterior, cierra las conexiones activas para liberar la entrada y espera hasta poder enlazarse y anunciar la dirección vigente. Conserva el socket de control local durante la espera, con fase `reconnecting`. El modo manual `serve <IP:PUERTO>` mantiene una dirección fija.
 
 Los comandos `topology` leen y escriben directamente el archivo privado de configuración, incluso si el agente no está en ejecución. `connect <IP:PUERTO>` calcula el borde desde la casilla contigua del par; `connect <IP:PUERTO> <borde>` mantiene la elección explícita. `mesh` y el primer modo de `connect` comprueban el mapa guardado cada segundo; al cambiar, terminan la captura y vuelven a instalar barreras o recalcular el borde. El IPC todavía es un contrato interno del prototipo: no se expone por red ni sustituye el protocolo binario cifrado entre equipos. Una versión posterior añadirá diagnóstico sin depender de la salida tabulada.
 

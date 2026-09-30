@@ -30,16 +30,16 @@ pub fn auto_lan_address(port: u16) -> io::Result<SocketAddr> {
             "port must be nonzero",
         ));
     }
-    // A UDP connect chooses the default route without sending a datagram.
+    // RFC 6762 uses 224.0.0.251:5353. Connect chooses its route without sending.
     let probe = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
-    probe.connect((Ipv4Addr::new(192, 0, 2, 1), 9))?;
+    probe.connect((Ipv4Addr::new(224, 0, 0, 251), 5353))?;
     let IpAddr::V4(ip) = probe.local_addr()?.ip() else {
-        return Err(io::Error::other("default route is not IPv4"));
+        return Err(io::Error::other("mDNS route is not IPv4"));
     };
     if !lan_ipv4(ip) {
         return Err(io::Error::new(
             io::ErrorKind::AddrNotAvailable,
-            "default route has no private IPv4 LAN address; enter a local IP manually",
+            "mDNS route has no private IPv4 LAN address; enter a local IP manually",
         ));
     }
     Ok(SocketAddr::new(IpAddr::V4(ip), port))
