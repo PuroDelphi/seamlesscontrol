@@ -96,7 +96,7 @@ Panel {
           Layout.fillWidth: true
           title: "SeamlessControl"
           meta: "OMARCHY  ·  " + (root.backend && root.backend.available
-            ? root.backend.phaseText.toUpperCase() : "SIN AGENTE")
+            ? root.backend.phaseText.toUpperCase() : "SIN SESIÓN")
           foreground: root.ink
           fontFamily: root.face
           iconComponent: Component {
