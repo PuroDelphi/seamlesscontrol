@@ -472,7 +472,7 @@ Panel {
               + (root.backend.peer !== "" ? " · " + root.backend.peer : "")
               + (root.backend.paused ? " · en pausa" : "")
             : root.backend && !root.backend.installed
-              ? "Falta el agente. Ejecute bash packaging/install-agent.sh desde el repositorio; el panel lo detectará automáticamente."
+              ? "Falta el agente. Ejecute bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh; el panel lo detectará automáticamente."
               : "No hay sesión activa. Iníciela desde este panel o desde un terminal."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap

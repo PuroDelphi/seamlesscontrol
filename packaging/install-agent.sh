@@ -5,6 +5,36 @@ repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cargo_bin=${CARGO:-cargo}
 install_dir=${XDG_BIN_HOME:-"$HOME/.local/bin"}
 
+if [[ ${SEAMLESSCONTROL_INSTALL_DEPS:-1} == 1 ]]; then
+  packages=()
+  if ! "$cargo_bin" --version >/dev/null 2>&1; then packages+=(rust); fi
+  if ! command -v avahi-browse >/dev/null || ! command -v avahi-publish-service >/dev/null; then
+    packages+=(avahi)
+  fi
+  if ! command -v wl-copy >/dev/null || ! command -v wl-paste >/dev/null; then
+    packages+=(wl-clipboard)
+  fi
+  if ((${#packages[@]})); then
+    if ! command -v omarchy >/dev/null; then
+      printf 'Faltan dependencias (%s) y no se encontró el comando omarchy.\n' "${packages[*]}" >&2
+      exit 1
+    fi
+    printf 'Instalando dependencias de Omarchy: %s\n' "${packages[*]}"
+    omarchy pkg add "${packages[@]}"
+  fi
+  if ! "$cargo_bin" --version >/dev/null 2>&1 && [[ ${CARGO:-} == "" && -x /usr/bin/cargo ]]; then
+    cargo_bin=/usr/bin/cargo
+  fi
+  if ! "$cargo_bin" --version >/dev/null 2>&1; then
+    printf 'Cargo no está disponible después de instalar Rust.\n' >&2
+    exit 1
+  fi
+  if ! systemctl is-active --quiet avahi-daemon.service; then
+    printf 'Activando Avahi para descubrir equipos en la red local.\n'
+    sudo systemctl enable --now avahi-daemon.service
+  fi
+fi
+
 "$cargo_bin" build --release --manifest-path "$repo_dir/agent/Cargo.toml" --bin seamlesscontrold
 install -d -m 755 "$install_dir"
 temp_bin=$(mktemp "$install_dir/.seamlesscontrold.XXXXXXXX")
@@ -25,4 +55,6 @@ if [[ "$install_dir" == "$HOME/.local/bin" ]]; then
 fi
 
 printf 'Agente instalado en %s/seamlesscontrold\n' "$install_dir"
-printf 'Añada ese directorio a PATH antes de abrir el widget.\n'
+if [[ ":$PATH:" != *":$install_dir:"* ]]; then
+  printf 'Añada %s a PATH de la sesión gráfica para que el widget encuentre el agente.\n' "$install_dir"
+fi

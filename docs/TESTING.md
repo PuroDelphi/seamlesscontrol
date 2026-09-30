@@ -6,7 +6,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 
 ## Preparación
 
-1. Instalar la misma revisión del repositorio en ambos equipos Omarchy y compilar el binario de release indicado en el README.
+1. Instalar la misma revisión en ambos Omarchy con los dos comandos de instalación del README; el segundo compila el binario de release e instala las dependencias que falten.
 2. Registrar `omarchy --version`, `hyprctl version`, `quickshell --version`, versión del portal, monitores (`hyprctl monitors`) y distribución de teclado en ambos.
 3. Confirmar conectividad LAN y que el puerto elegido acepta TCP únicamente desde la LAN. No abrirlo hacia Internet.
 4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos paneles o terminales antes de aprobar en ambos. Por CLI: `seamlesscontrold status` y `seamlesscontrold approve <código>`.

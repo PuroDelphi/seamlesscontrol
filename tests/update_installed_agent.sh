@@ -35,7 +35,8 @@ XDG_RUNTIME_DIR="$scratch/run" "$agent" status >/dev/null
 identity="$scratch/config/seamlesscontrol/identity"
 before=$(sha256sum "$identity" | cut -d ' ' -f1)
 
-XDG_BIN_HOME="$scratch/bin" bash "$repo_dir/packaging/install-agent.sh" >"$scratch/install.log" 2>&1
+XDG_BIN_HOME="$scratch/bin" SEAMLESSCONTROL_INSTALL_DEPS=0 \
+  bash "$repo_dir/packaging/install-agent.sh" >"$scratch/install.log" 2>&1
 new_inode=$(stat -c '%i' "$agent")
 [[ "$new_inode" != "$old_inode" ]]
 [[ "$(sha256sum "$agent" | cut -d ' ' -f1)" == \
