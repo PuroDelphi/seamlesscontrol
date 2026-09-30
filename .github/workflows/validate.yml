@@ -1,0 +1,25 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Check Rust format
+        run: cargo fmt --manifest-path agent/Cargo.toml --check
+      - name: Test agent and protocol
+        run: cargo test --locked --manifest-path agent/Cargo.toml --all-targets
+      - name: Lint agent
+        run: cargo clippy --locked --manifest-path agent/Cargo.toml --all-targets -- -D warnings
+      - name: Check shell syntax
+        run: bash -n packaging/*.sh tests/*.sh
