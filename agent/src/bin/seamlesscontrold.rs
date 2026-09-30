@@ -423,6 +423,7 @@ mod linux {
         clipboard_apply: tokio::sync::mpsc::Sender<ClipboardPacket>,
         clipboard_remote_id: [u8; 32],
         lock_ipc: HyprIpc,
+        acknowledge_release: std::sync::mpsc::SyncSender<u64>,
     }
 
     impl Injector for OmarchyInjector {
@@ -455,6 +456,12 @@ mod linux {
 
         fn active_epoch_changed(&mut self, epoch: Option<u64>) {
             self.control.set_active_epoch(epoch);
+        }
+
+        fn control_released(&mut self, epoch: u64) -> io::Result<()> {
+            self.acknowledge_release
+                .try_send(epoch)
+                .map_err(|_| io::Error::other("release acknowledgement queue is unavailable"))
         }
 
         fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
@@ -622,6 +629,7 @@ mod linux {
         let (clipboard_apply, clipboard_apply_worker) =
             spawn_apply_worker(Arc::clone(&clipboard_sync));
         let (clipboard_tx, clipboard_rx) = std::sync::mpsc::sync_channel(8);
+        let (release_tx, release_rx) = std::sync::mpsc::sync_channel(8);
         let clipboard_watch = match ClipboardWatch::start(clipboard_sync, move |event| {
             let _ = clipboard_tx.send(event);
         }) {
@@ -639,6 +647,7 @@ mod linux {
             clipboard_apply: clipboard_apply.clone(),
             clipboard_remote_id: peer.public_key,
             lock_ipc: hypr.clone(),
+            acknowledge_release: release_tx,
         };
         let watcher_running = Arc::new(AtomicBool::new(true));
         let watcher_flag = Arc::clone(&watcher_running);
@@ -729,6 +738,20 @@ mod linux {
                         break;
                     }
                     sent_epoch = Some(active_epoch);
+                }
+                while let Ok(ended_epoch) = release_rx.try_recv() {
+                    if send_frame(
+                        &mut writer,
+                        Kind::Control,
+                        ended_epoch,
+                        &mut sequence,
+                        b"ENDED".to_vec(),
+                    )
+                    .is_err()
+                    {
+                        let _ = writer.stream_mut().shutdown(Shutdown::Both);
+                        return;
+                    }
                 }
                 while let Ok(event) = clipboard_rx.try_recv() {
                     if send_frame(

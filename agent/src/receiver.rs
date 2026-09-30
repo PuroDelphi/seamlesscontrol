@@ -20,6 +20,13 @@ pub trait Injector {
     fn ownership_changed(&mut self, _controlling: bool) {}
 
     fn active_epoch_changed(&mut self, _epoch: Option<u64>) {}
+
+    fn control_released(&mut self, _epoch: u64) -> io::Result<()> {
+        Err(io::Error::new(
+            io::ErrorKind::Unsupported,
+            "release acknowledgement unavailable",
+        ))
+    }
 }
 
 #[derive(Debug)]
@@ -59,6 +66,7 @@ pub struct InputReceiver<I: Injector> {
     injector: I,
     ledger: Receiver,
     controlling: bool,
+    active_epoch: Option<u64>,
 }
 
 impl<I: Injector> InputReceiver<I> {
@@ -67,6 +75,7 @@ impl<I: Injector> InputReceiver<I> {
             injector,
             ledger: Receiver::new(),
             controlling: false,
+            active_epoch: None,
         }
     }
 
@@ -80,11 +89,21 @@ impl<I: Injector> InputReceiver<I> {
                         .map_err(ReceiverError::Injection)?;
                 }
                 self.controlling = true;
+                self.active_epoch = Some(frame.epoch);
                 self.injector.active_epoch_changed(Some(frame.epoch));
                 self.injector.ownership_changed(true);
                 Ok(())
             }
             Kind::Control if frame.payload == b"END" => self.release(),
+            Kind::Control if frame.payload == b"RELEASE" => {
+                if self.active_epoch != Some(frame.epoch) {
+                    return Err(ReceiverError::UnexpectedFrame);
+                }
+                self.release()?;
+                self.injector
+                    .control_released(frame.epoch)
+                    .map_err(ReceiverError::Injection)
+            }
             Kind::Input if self.controlling => {
                 let event = InputEvent::decode(&frame.payload)?;
                 if self.ledger.apply(frame.epoch, frame.sequence, &event) == ApplyResult::Accepted
@@ -109,6 +128,7 @@ impl<I: Injector> InputReceiver<I> {
 
     /// Always call after EOF, error, timeout, pause, or lock.
     pub fn release(&mut self) -> Result<(), ReceiverError> {
+        self.active_epoch = None;
         if std::mem::take(&mut self.controlling) {
             self.injector.active_epoch_changed(None);
             self.injector.ownership_changed(false);
@@ -192,6 +212,69 @@ mod tests {
             self.0.push(event.clone());
             Ok(())
         }
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    enum ReleaseAction {
+        Input(InputEvent),
+        Acknowledged(u64),
+    }
+
+    #[derive(Default)]
+    struct ReleaseInjector(Vec<ReleaseAction>);
+
+    impl Injector for ReleaseInjector {
+        fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
+            self.0.push(ReleaseAction::Input(event.clone()));
+            Ok(())
+        }
+
+        fn control_released(&mut self, epoch: u64) -> io::Result<()> {
+            self.0.push(ReleaseAction::Acknowledged(epoch));
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn explicit_release_acknowledges_only_after_held_input_is_lifted() {
+        let mut receiver = InputReceiver::new(ReleaseInjector::default());
+        let frame = |kind, epoch, sequence, payload: Vec<u8>| Frame {
+            kind,
+            epoch,
+            sequence,
+            payload,
+        };
+        receiver
+            .handle(&frame(Kind::Control, 17, 1, b"BEGIN".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Input, 17, 2, InputEvent::KeyDown(42).encode()))
+            .unwrap();
+        receiver
+            .handle(&frame(
+                Kind::Input,
+                17,
+                3,
+                InputEvent::ButtonDown(272).encode(),
+            ))
+            .unwrap();
+        assert!(matches!(
+            receiver.handle(&frame(Kind::Control, 16, 4, b"RELEASE".to_vec())),
+            Err(ReceiverError::UnexpectedFrame)
+        ));
+        receiver
+            .handle(&frame(Kind::Control, 17, 5, b"RELEASE".to_vec()))
+            .unwrap();
+        assert_eq!(
+            receiver.into_injector().0,
+            vec![
+                ReleaseAction::Input(InputEvent::KeyDown(42)),
+                ReleaseAction::Input(InputEvent::ButtonDown(272)),
+                ReleaseAction::Input(InputEvent::KeyUp(42)),
+                ReleaseAction::Input(InputEvent::ButtonUp(272)),
+                ReleaseAction::Acknowledged(17),
+            ]
+        );
     }
 
     #[derive(Default)]

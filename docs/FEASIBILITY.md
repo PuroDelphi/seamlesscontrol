@@ -62,6 +62,8 @@ El diagnóstico `latency` se probó en `127.0.0.1` con dos identidades temporale
 
 El receptor ahora atiende conexiones entrantes en trabajadores independientes, con un límite de ocho. En loopback, una conexión TCP que no completó el saludo permaneció abierta mientras otro par completó veinte pulsos cifrados; antes, la escucha serial habría quedado bloqueada. Una prueba del protocolo Noise verificó que un segundo `CLAIM` recibe `BUSY` cuando otro par tiene la reserva de entrada. No se inyectó entrada durante esas pruebas. El saludo de aplicación pasó a `seamlesscontrol/3`; hay que instalar el agente nuevo en todos los extremos.
 
+Se añadió el intercambio `RELEASE`/`ENDED` como condición para cambiar de destino: una prueba del núcleo verificó que una época antigua no se confirma y que el acuse se produce después de soltar una tecla y un botón retenidos. El receptor Omarchy envía el acuse por el canal Noise; todavía falta que el emisor mantenga varias conexiones y use ese acuse para efectuar una cesión real.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
