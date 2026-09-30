@@ -242,7 +242,14 @@ impl FileReceiver {
         // final name already exists, so an existing download is never replaced.
         fs::hard_link(&self.temp_path, &self.target_path)?;
         self.published = true;
-        fs::remove_file(&self.temp_path)?;
+        // Publication already succeeded. A failure to remove the temporary
+        // link must not make the sender report an ambiguous failed transfer.
+        if let Err(error) = fs::remove_file(&self.temp_path) {
+            eprintln!(
+                "SeamlessControl: could not remove temporary file {}: {error}",
+                self.temp_path.display()
+            );
+        }
         Ok(self.target_path.clone())
     }
 }

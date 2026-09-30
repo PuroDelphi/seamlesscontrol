@@ -52,7 +52,7 @@ Con el usuario moviendo el ratón físico al borde derecho durante `cargo run --
 
 Una segunda ventana con ratón físico y un probe que distingue anuncios EIS no activó la barrera en veinte segundos; sí anunció un asiento. En una ejecución controlada posterior, `virtual-input-probe --edge-test` activó la barrera y EIS anunció un asiento y tres dispositivos después de la activación, pero ningún evento de movimiento, teclado, botón o desplazamiento llegó en los cinco segundos de lectura. El probe también reconocía movimiento absoluto. Estos resultados apuntaron al orden de inicialización.
 
-Al esperar `SeatAdded`, enlazar sus capacidades y vaciar la conexión **antes de `InputCapture.Enable`**, el probe recibió anuncios de inicio de captura y un evento EIS en la prueba con puntero virtual. Se aplicó ese mismo orden a `connect` y `mesh` en `seamlesscontrold`. Una nueva prueba con el ratón físico activó la barrera, anunció dos dispositivos y su inicio de captura, y entregó **movimiento relativo**; el probe liberó el cursor. La captura física local de movimiento queda demostrada en este Omarchy. Todavía falta probar teclado físico, el agente integrado y el flujo entre dos equipos. Véase [la guía de pruebas](./TESTING.md).
+Al esperar `SeatAdded`, enlazar sus capacidades y vaciar la conexión **antes de `InputCapture.Enable`**, el probe recibió anuncios de inicio de captura y un evento EIS en la prueba con puntero virtual. Se aplicó ese mismo orden a `connect` y `mesh` en `seamlesscontrold`. Una nueva prueba con el ratón físico activó la barrera, anunció dos dispositivos y su inicio de captura, y entregó **movimiento relativo**; el probe liberó el cursor. Con `capture-probe --listen --verify-input`, el usuario volvió a cruzar el borde y pulsó una tecla y el botón izquierdo: EIS entregó eventos de **teclado y botón** y el probe liberó el cursor. No se guardaron los valores de los eventos. La captura física local de ratón, teclado y clic queda demostrada en este Omarchy. Todavía falta probar el agente integrado y el flujo entre dos equipos. Véase [la guía de pruebas](./TESTING.md).
 
 ## Carga real del plugin en Omarchy
 
@@ -86,10 +86,12 @@ En `connect` y `mesh`, la señal de cambio de zonas ahora intenta liberar explí
 
 La transferencia de archivos ahora usa el mismo descriptor para calcular SHA-256 y leer los fragmentos. Si el archivo origen crece después de la oferta, el emisor envía `Cancel` y el receptor borra el temporal sin publicar el archivo. Pasaron la prueba unitaria y la prueba de sesión cifrada con un origen que crece durante la aprobación. Esto evita publicar silenciosamente el prefijo antiguo; aún falta probar cambios del archivo y cortes de red entre dos equipos físicos.
 
+Una vez creado el enlace del archivo final, un error al borrar el nombre temporal se registra localmente y la sesión confirma el archivo publicado. De ese modo el emisor no anuncia un fallo ambiguo cuando el destino ya tiene el archivo. El caso de error de limpieza todavía requiere una simulación específica; la prueba de archivos por loopback conserva la aceptación y el rechazo esperados.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
-2. Probar teclado físico, liberación mediante un atajo local y captura del agente integrado; el probe ya recibió movimiento relativo físico y liberó el cursor.
+2. Probar liberación mediante el atajo local y captura del agente integrado; el probe ya recibió movimiento, teclado y clic físicos y liberó el cursor.
 3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones.
 4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
 5. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha verificado su flujo físico extremo a extremo.

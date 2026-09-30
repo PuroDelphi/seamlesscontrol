@@ -17,7 +17,8 @@ use std::os::unix::net::UnixStream;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listen = std::env::args().any(|arg| arg == "--listen");
-    let result = tokio::time::timeout(std::time::Duration::from_secs(30), async {
+    let verify_input = std::env::args().any(|arg| arg == "--verify-input");
+    let result = tokio::time::timeout(std::time::Duration::from_secs(40), async {
         let portal = InputCapture::new().await?;
         println!("InputCapture portal v{}", portal.version());
         let (session, capabilities) = portal
@@ -91,8 +92,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "Captura habilitada durante 20 s. Mueva el puntero al borde derecho para probarla."
             );
-            // Bind the EIS seat as soon as it is announced. Waiting until
-            // after the barrier activates can discard the first real input.
+            // Bind any newly announced seat as well. The first seat was bound
+            // before enabling capture so the first real input can be delivered.
             let activation = tokio::time::timeout(std::time::Duration::from_secs(20), async {
                 loop {
                     tokio::select! {
@@ -139,8 +140,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .cursor_position()
                     .map(|pos| pos.1 as f64)
                     .unwrap_or(y as f64);
-                println!("Barrera activada. Leyendo el primer evento EIS...");
-                let read = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                println!("Barrera activada. Leyendo eventos EIS...");
+                let mut saw_keyboard = false;
+                let mut saw_button = false;
+                let read_window = if verify_input { 8 } else { 5 };
+                let read = tokio::time::timeout(std::time::Duration::from_secs(read_window), async {
                     while let Some(event) = events.next().await {
                         let event = event?;
                         match event {
@@ -158,12 +162,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             EiEvent::DeviceAdded(_) => println!("EIS anunció un dispositivo tras la activación."),
                             EiEvent::DeviceStartEmulating(_) => println!("EIS inició la captura de un dispositivo."),
                             EiEvent::DevicePaused(_) => println!("EIS pausó un dispositivo."),
-                            EiEvent::PointerMotion(_) => return Ok::<_, Box<dyn std::error::Error>>(Some("movimiento relativo")),
-                            EiEvent::PointerMotionAbsolute(_) => return Ok(Some("movimiento absoluto")),
-                            EiEvent::KeyboardKey(_) => return Ok(Some("teclado")),
-                            EiEvent::Button(_) => return Ok(Some("botón")),
-                            EiEvent::ScrollDelta(_) => return Ok(Some("desplazamiento")),
+                            EiEvent::PointerMotion(_) if !verify_input => return Ok::<_, Box<dyn std::error::Error>>(Some("movimiento relativo")),
+                            EiEvent::PointerMotionAbsolute(_) if !verify_input => return Ok(Some("movimiento absoluto")),
+                            EiEvent::KeyboardKey(_) => {
+                                saw_keyboard = true;
+                                if !verify_input { return Ok(Some("teclado")); }
+                            }
+                            EiEvent::Button(_) => {
+                                saw_button = true;
+                                if !verify_input { return Ok(Some("botón")); }
+                            }
+                            EiEvent::ScrollDelta(_) if !verify_input => return Ok(Some("desplazamiento")),
                             _ => {}
+                        }
+                        if verify_input && saw_keyboard && saw_button {
+                            return Ok(Some("teclado y botón"));
                         }
                     }
                     Ok(None)
@@ -179,6 +192,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         println!("Captura liberada; EIS terminó sin un evento de entrada.")
                     }
                     Ok(Err(error)) => eprintln!("Captura liberada; error al leer EIS: {error}"),
+                    Err(_) if verify_input => println!("Captura liberada; teclado: {}, botón: {}.", saw_keyboard, saw_button),
                     Err(_) => println!("Captura liberada; no llegó un evento EIS en 5 s."),
                 }
             } else {
