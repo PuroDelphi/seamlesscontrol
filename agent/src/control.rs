@@ -26,12 +26,43 @@ pub struct ControlStatus {
     active_epoch: Option<u64>,
     return_requested: Option<u64>,
     decision: Option<bool>,
+    receiver_active: bool,
 }
 
 #[derive(Clone)]
 pub struct ControlHandle(Arc<(Mutex<ControlStatus>, Condvar)>);
 
+pub struct ReceiverLease(ControlHandle);
+
+impl Drop for ReceiverLease {
+    fn drop(&mut self) {
+        let (lock, _) = &*self.0.0;
+        let mut state = lock.lock().expect("control state lock");
+        state.receiver_active = false;
+        state.phase = "listening".to_owned();
+        state.peer.clear();
+        state.active_epoch = None;
+        state.return_requested = None;
+    }
+}
+
 impl ControlHandle {
+    /// Only one authenticated peer may inject input at a time. Short pairing
+    /// and diagnostic connections do not claim this lease.
+    pub fn claim_receiver(&self, peer: &str) -> Option<ReceiverLease> {
+        let mut state = self.0.0.lock().expect("control state lock");
+        if state.role != "serve" || state.receiver_active || state.phase == "pairing" {
+            return None;
+        }
+        state.receiver_active = true;
+        state.peer = peer.to_owned();
+        state.phase = "connected".to_owned();
+        state.revoked_active = false;
+        state.active_epoch = None;
+        state.return_requested = None;
+        Some(ReceiverLease(self.clone()))
+    }
+
     pub fn set_phase(&self, phase: &str) {
         self.0.0.lock().expect("control state lock").phase = phase.to_owned();
     }
@@ -85,6 +116,9 @@ impl ControlHandle {
     pub fn confirm_pair(&self, peer: &PeerInfo) -> bool {
         let (lock, wake) = &*self.0;
         let mut state = lock.lock().expect("control state lock");
+        if state.receiver_active || state.phase == "pairing" {
+            return false;
+        }
         let prior = state.phase.clone();
         state.phase = "pairing".to_owned();
         state.pair_sas = peer.sas.clone();
@@ -178,6 +212,7 @@ impl ControlServer {
                 active_epoch: None,
                 return_requested: None,
                 decision: None,
+                receiver_active: false,
             }),
             Condvar::new(),
         )));
@@ -354,6 +389,10 @@ mod tests {
             thread::sleep(Duration::from_millis(5));
         }
         assert!(request_at(&path, "status").unwrap().contains("\t007321\t"));
+        assert!(!server.handle().confirm_pair(&PeerInfo {
+            public_key: [8; 32],
+            sas: "123456".to_owned(),
+        }));
         assert!(
             request_at(&path, "approve 999999")
                 .unwrap()
@@ -362,6 +401,38 @@ mod tests {
         assert_eq!(request_at(&path, "approve 007321").unwrap(), "OK\n");
         assert!(pairing.join().unwrap());
         assert!(!request_at(&path, "status").unwrap().contains("\t007321\t"));
+        drop(server);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn receiver_lease_excludes_other_input_owners_and_pairing() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-receiver-lease-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let path = dir.join("control.sock");
+        let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
+        let handle = server.handle();
+        let lease = handle.claim_receiver("192.168.1.2").unwrap();
+        assert!(handle.claim_receiver("192.168.1.3").is_none());
+        assert!(!handle.confirm_pair(&PeerInfo {
+            public_key: [9; 32],
+            sas: "123456".to_owned(),
+        }));
+        assert!(
+            request_at(&path, "status")
+                .unwrap()
+                .contains("\tconnected\t192.168.1.2\t")
+        );
+        drop(lease);
+        assert!(
+            request_at(&path, "status")
+                .unwrap()
+                .contains("\tlistening\t\t")
+        );
+        assert!(handle.claim_receiver("192.168.1.3").is_some());
         drop(server);
         fs::remove_dir_all(dir).unwrap();
     }

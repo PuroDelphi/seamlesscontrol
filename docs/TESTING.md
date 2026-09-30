@@ -36,5 +36,6 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 - Bloquear A mientras controla B: B debe recibir `END`, A debe recuperar el puntero y suspender la captura y el portapapeles. Tras desbloquear A, la barrera debe volver sin nuevo emparejamiento; una pausa manual previa debe mantenerse.
 - Consentimiento del portal en primera conexión y conexiones siguientes.
 - Con tres o cuatro Omarchy, configurar la misma cuadrícula física en todos, comprobar `topology route <IP>` y recorrer los enlaces vecinos, incluido un destino diagonal mediante dos saltos. Verificar que no hay dos dueños de la entrada ni ciclos de retorno. Esta puerta sigue pendiente: el agente actual sólo abre una sesión activa con un par.
+- Con A conectado a B, medir `latency` desde C hacia B: el diagnóstico debe responder sin desplazar a A. Intentar controlar B desde C: C debe recibir `BUSY` antes de solicitar el portal y reintentar; al terminar A, C debe obtener `READY`. Una sesión nueva de emparejamiento debe rechazarse mientras A posee la entrada.
 
 Anotar en `docs/FEASIBILITY.md` resultados observados, comandos, versiones y límites. Un fallo de captura física o de cesión de foco bloquea la puerta de salida de la fase 0.

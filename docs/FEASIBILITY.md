@@ -60,6 +60,8 @@ La revisión 0.14 del widget separa «sin agente» (ejecutable ausente) de «sin
 
 El diagnóstico `latency` se probó en `127.0.0.1` con dos identidades temporales: rechazó un equipo sin emparejar y, después de aprobar el par, completó veinte solicitudes y respuestas cifradas con mínimo, p50, p95 y máximo ordenados. La prueba también confirmó la revocación posterior. Estos números de loopback no miden la LAN ni el tiempo de captura e inyección; hay que tomar medidas reales en dos Omarchy.
 
+El receptor ahora atiende conexiones entrantes en trabajadores independientes, con un límite de ocho. En loopback, una conexión TCP que no completó el saludo permaneció abierta mientras otro par completó veinte pulsos cifrados; antes, la escucha serial habría quedado bloqueada. Una prueba del protocolo Noise verificó que un segundo `CLAIM` recibe `BUSY` cuando otro par tiene la reserva de entrada. No se inyectó entrada durante esas pruebas. El saludo de aplicación pasó a `seamlesscontrol/3`; hay que instalar el agente nuevo en todos los extremos.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.

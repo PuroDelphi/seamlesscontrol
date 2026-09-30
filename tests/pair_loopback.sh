@@ -8,7 +8,9 @@ agent="$repo_dir/agent/target/debug/seamlesscontrold"
 scratch=$(mktemp -d /tmp/seamlesscontrol-pair-XXXXXX)
 server_pid=
 client_pid=
+slow_pid=
 cleanup() {
+  if [[ -n "$slow_pid" ]]; then kill "$slow_pid" 2>/dev/null || true; fi
   if [[ -n "$client_pid" ]]; then kill "$client_pid" 2>/dev/null || true; fi
   if [[ -n "$server_pid" ]]; then kill -INT "$server_pid" 2>/dev/null || true; fi
   if [[ -n "$client_pid" ]]; then wait "$client_pid" 2>/dev/null || true; fi
@@ -78,8 +80,16 @@ XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
 reconnect_message=$(<"$scratch/reconnect.log")
 [[ "$reconnect_message" == *'emparejado sin iniciar la captura'* ]]
 
-latency_output=$(XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+# An unauthenticated socket may be slow; it must not block another paired
+# peer's encrypted diagnostic session.
+bash -c 'exec 9<>/dev/tcp/127.0.0.1/$1; sleep 5' _ "$port" &
+slow_pid=$!
+sleep 0.2
+latency_output=$(timeout 2 env XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
   "$agent" latency "$address")
+kill "$slow_pid" 2>/dev/null || true
+wait "$slow_pid" 2>/dev/null || true
+slow_pid=
 latency_line=$(printf '%s\n' "$latency_output" | awk -F '\t' '$1 == "LATENCY" { print }')
 IFS=$'\t' read -r label count minimum p50 p95 maximum <<<"$latency_line"
 [[ "$label" == LATENCY && "$count" == 20 ]]

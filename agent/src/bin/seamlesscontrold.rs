@@ -27,6 +27,7 @@ mod linux {
     use seamlesscontrol_core::topology::{
         Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, external_barriers,
     };
+    use std::collections::HashMap;
     use std::error::Error;
     use std::io::{self, Write};
     use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
@@ -38,8 +39,9 @@ mod linux {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
-    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/2";
+    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/3";
     const LATENCY_SAMPLES: u64 = 20;
+    const MAX_INBOUND_CONNECTIONS: usize = 8;
 
     #[derive(Clone, Copy)]
     enum Edge {
@@ -526,7 +528,7 @@ mod linux {
         }
         .write_to(&mut channel)?;
         remember_peer_key(&peers, peer_ip, &peer.public_key)?;
-        let first = Frame::read_from(&mut channel)?;
+        let mut first = Frame::read_from(&mut channel)?;
         if first.kind == Kind::Control && first.payload == b"PAIR" {
             Frame {
                 kind: Kind::Control,
@@ -567,7 +569,34 @@ mod linux {
             }
             return Ok(());
         }
-        control.set_peer(&peer_ip.to_string());
+        if first.kind != Kind::Control
+            || first.epoch != 0
+            || first.sequence != 0
+            || first.payload != b"CLAIM"
+        {
+            return Err("capture claim required before remote input".into());
+        }
+        let Some(_lease) = control.claim_receiver(&peer_ip.to_string()) else {
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 0,
+                payload: b"BUSY".to_vec(),
+            }
+            .write_to(&mut channel)?;
+            return Err("another peer already owns remote input".into());
+        };
+        Frame {
+            kind: Kind::Control,
+            epoch: 0,
+            sequence: 0,
+            payload: b"READY".to_vec(),
+        }
+        .write_to(&mut channel)?;
+        channel
+            .stream_mut()
+            .set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
+        first = Frame::read_from(&mut channel)?;
         channel
             .stream_mut()
             .set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -575,7 +604,6 @@ mod linux {
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(5)))?;
         println!("Conexión autenticada con {peer_ip}. Esperando control...");
-        control.set_phase("connected");
         let return_edge = load_topology(&config.join("topology"))
             .ok()
             .and_then(|topology| topology.edge_to(peer_ip).ok());
@@ -730,8 +758,6 @@ mod linux {
         }
         drop(clipboard_apply);
         let _ = clipboard_apply_worker.join();
-        control.set_phase("listening");
-        control.set_peer("");
         result?;
         println!("Control terminado; teclado y botones liberados.");
         Ok(())
@@ -811,6 +837,25 @@ mod linux {
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         match mode {
             ConnectionMode::Capture(edge) => {
+                Frame {
+                    kind: Kind::Control,
+                    epoch: 0,
+                    sequence: 0,
+                    payload: b"CLAIM".to_vec(),
+                }
+                .write_to(&mut channel)
+                .map_err(frame_attempt)?;
+                let response = Frame::read_from(&mut channel).map_err(frame_attempt)?;
+                if response.kind == Kind::Control && response.payload == b"BUSY" {
+                    return Err(AttemptError::Retry("remote input is busy".into()));
+                }
+                if response.kind != Kind::Control
+                    || response.epoch != 0
+                    || response.sequence != 0
+                    || response.payload != b"READY"
+                {
+                    return Err(AttemptError::Stop("invalid capture claim reply".into()));
+                }
                 println!("Conexión autenticada con {address}.");
                 capture_loop(
                     channel,
@@ -1132,49 +1177,187 @@ mod linux {
         println!("SeamlessControl escucha en {address}");
         let stop = tokio::signal::ctrl_c();
         tokio::pin!(stop);
+        let connections = Arc::new(Mutex::new(HashMap::<u64, TcpStream>::new()));
+        let limit = Arc::new(tokio::sync::Semaphore::new(MAX_INBOUND_CONNECTIONS));
+        let mut workers = tokio::task::JoinSet::new();
+        let mut next_connection_id = 0_u64;
         loop {
-            let incoming = tokio::select! {
-                _ = &mut stop => break,
-                incoming = listener.accept() => incoming,
-            };
-            let (stream, address) = match incoming {
-                Ok(value) => value,
-                Err(error) => {
-                    eprintln!("Error al aceptar conexión: {error}");
-                    continue;
-                }
-            };
-            let ip = address.ip();
-            if !local_address(ip) {
-                eprintln!("Se rechazó una conexión fuera de la red local: {ip}");
-                continue;
-            }
-            let stream = stream.into_std()?;
-            stream.set_nonblocking(false)?;
-            let shutdown = stream.try_clone()?;
-            let identity = identity.clone();
-            let config = config.clone();
-            let connection_control = control.clone();
-            let mut worker = tokio::task::spawn_blocking(move || {
-                serve_connection(stream, ip, &identity, &config, &connection_control)
-                    .map_err(|error| error.to_string())
-            });
-            let result = tokio::select! {
+            tokio::select! {
                 _ = &mut stop => {
                     control.cancel_pair();
-                    let _ = shutdown.shutdown(Shutdown::Both);
-                    let _ = worker.await;
+                    if let Ok(open) = connections.lock() {
+                        for stream in open.values() {
+                            let _ = stream.shutdown(Shutdown::Both);
+                        }
+                    }
                     break;
                 }
-                result = &mut worker => result,
-            };
-            if let Err(error) = result? {
-                eprintln!("Conexión con {ip} terminada: {error}");
+                completed = workers.join_next(), if !workers.is_empty() => {
+                    if let Some(Err(error)) = completed {
+                        eprintln!("Error en un trabajador de red: {error}");
+                    }
+                }
+                incoming = listener.accept() => {
+                    let (stream, address) = match incoming {
+                        Ok(value) => value,
+                        Err(error) => {
+                            eprintln!("Error al aceptar conexión: {error}");
+                            continue;
+                        }
+                    };
+                    let ip = address.ip();
+                    if !local_address(ip) {
+                        eprintln!("Se rechazó una conexión fuera de la red local: {ip}");
+                        continue;
+                    }
+                    let permit = match Arc::clone(&limit).try_acquire_owned() {
+                        Ok(permit) => permit,
+                        Err(_) => {
+                            eprintln!("Demasiadas conexiones entrantes; se rechazó {ip}");
+                            continue;
+                        }
+                    };
+                    let stream = stream.into_std()?;
+                    stream.set_nonblocking(false)?;
+                    let shutdown = stream.try_clone()?;
+                    next_connection_id = next_connection_id
+                        .checked_add(1)
+                        .ok_or("connection identifier exhausted")?;
+                    let id = next_connection_id;
+                    connections.lock().expect("connection registry lock").insert(id, shutdown);
+                    let registry = Arc::clone(&connections);
+                    let identity = identity.clone();
+                    let config = config.clone();
+                    let connection_control = control.clone();
+                    workers.spawn_blocking(move || {
+                        let _permit = permit;
+                        let result = serve_connection(stream, ip, &identity, &config, &connection_control);
+                        registry.lock().expect("connection registry lock").remove(&id);
+                        if let Err(error) = result {
+                            eprintln!("Conexión con {ip} terminada: {error}");
+                        }
+                    });
+                }
             }
-            control.set_phase("listening");
-            control.set_peer("");
+        }
+        while let Some(result) = workers.join_next().await {
+            if let Err(error) = result {
+                eprintln!("Error al cerrar un trabajador de red: {error}");
+            }
         }
         Ok(())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use std::net::Ipv4Addr;
+
+        #[test]
+        fn authenticated_input_claim_is_exclusive_and_released_on_disconnect() {
+            let scratch =
+                std::env::temp_dir().join(format!("seamlesscontrol-claim-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&scratch);
+            let config = scratch.join("server");
+            let server_identity = Identity::generate().unwrap();
+            let server_public = server_identity.public;
+            let client_identity = Identity::generate().unwrap();
+            let loopback = IpAddr::V4(Ipv4Addr::LOCALHOST);
+            remember_peer_key(&config.join("peers"), loopback, &client_identity.public).unwrap();
+            let control_server =
+                ControlServer::start_at(scratch.join("run/control.sock"), "serve", &config)
+                    .unwrap();
+            let control = control_server.handle();
+            let lease = control.claim_receiver("127.0.0.2").unwrap();
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let worker = thread::spawn(move || {
+                let mut errors = Vec::new();
+                for _ in 0..2 {
+                    let (stream, _) = listener.accept().unwrap();
+                    errors.push(
+                        serve_connection(stream, loopback, &server_identity, &config, &control)
+                            .unwrap_err()
+                            .to_string(),
+                    );
+                }
+                errors
+            });
+            let stream = TcpStream::connect(address).unwrap();
+            let (mut channel, _) = SecureChannel::connect(
+                stream,
+                Role::Initiator,
+                &client_identity,
+                Some(&server_public),
+                |_| false,
+            )
+            .unwrap();
+            Frame {
+                kind: Kind::Hello,
+                epoch: 0,
+                sequence: 0,
+                payload: AGENT_PROTOCOL.to_vec(),
+            }
+            .write_to(&mut channel)
+            .unwrap();
+            assert_eq!(
+                Frame::read_from(&mut channel).unwrap().payload,
+                AGENT_PROTOCOL
+            );
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 0,
+                payload: b"CLAIM".to_vec(),
+            }
+            .write_to(&mut channel)
+            .unwrap();
+            assert_eq!(Frame::read_from(&mut channel).unwrap().payload, b"BUSY");
+            drop(channel);
+            drop(lease);
+            let stream = TcpStream::connect(address).unwrap();
+            let (mut channel, _) = SecureChannel::connect(
+                stream,
+                Role::Initiator,
+                &client_identity,
+                Some(&server_public),
+                |_| false,
+            )
+            .unwrap();
+            Frame {
+                kind: Kind::Hello,
+                epoch: 0,
+                sequence: 0,
+                payload: AGENT_PROTOCOL.to_vec(),
+            }
+            .write_to(&mut channel)
+            .unwrap();
+            assert_eq!(
+                Frame::read_from(&mut channel).unwrap().payload,
+                AGENT_PROTOCOL
+            );
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 0,
+                payload: b"CLAIM".to_vec(),
+            }
+            .write_to(&mut channel)
+            .unwrap();
+            assert_eq!(Frame::read_from(&mut channel).unwrap().payload, b"READY");
+            drop(channel);
+            let errors = worker.join().unwrap();
+            assert!(errors[0].contains("already owns remote input"));
+            assert!(errors[1].contains("I/O error"));
+            assert!(
+                control_server
+                    .handle()
+                    .claim_receiver("127.0.0.3")
+                    .is_some()
+            );
+            drop(control_server);
+            std::fs::remove_dir_all(scratch).unwrap();
+        }
     }
 }
 
