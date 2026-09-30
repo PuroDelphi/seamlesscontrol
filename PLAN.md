@@ -128,6 +128,14 @@ seamlesscontrol/
 
 La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento, pausa, revocación y cuadrícula 2×2. La geometría del agente evita capturar los pasos internos entre monitores locales al instalar barreras y recalcula las barreras ante cambios de zonas anunciados por el portal o de la cuadrícula guardada; falta verificar ambos comportamientos en monitores reales. `packaging/` contiene el instalador y cuatro unidades de usuario para receptor manual, receptor con autodescubrimiento, emisor y malla; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
 
+## 11. Publicación en la comunidad
+
+La instalación pública empieza con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` y la retirada termina con `omarchy plugin remove seamlesscontrol.control`, como en otros plugins comunitarios. Omarchy no ejecuta hooks del repositorio durante `plugin add`, así que el agente Rust requiere el segundo comando documentado en el README; ese instalador prepara las dependencias que falten. El repositorio ya contiene manifiesto validado, README y licencia.
+
+El [marketplace de plugins](https://plugins.omarchy.org/publish.html) acepta propuestas mediante su [formulario público](https://github.com/omacom/omarchy-plugin-marketplace/issues/new?template=submit-plugin.yml). Para SeamlessControl, la categoría propuesta es **System** y las etiquetas propuestas son **Hyprland**, **Quickshell** y **System**. Las notas de la propuesta deben indicar que el agente se compila después de `plugin add`, que Avahi y `wl-clipboard` son dependencias, que el instalador puede solicitar `sudo` para activar Avahi y que el control entre dos Omarchy aún es experimental. El formulario exige confirmar la autoría y los permisos sobre los recursos de vista previa.
+
+Antes de enviar la propuesta, cerrar el circuito físico de dos Omarchy de las fases 0–2, repetir instalación, actualización y retirada en un Omarchy limpio y comprobar que se conservan la identidad y los pares. Las funciones de cuatro equipos de la fase 3 deben seguir identificadas como experimentales hasta superar su matriz de pruebas. La validación local y CI no sustituyen esas pruebas físicas. Una vez cumplida la puerta de dos equipos, enviar el enlace del repositorio y los metadatos del formulario para revisión; la aceptación del directorio no equivale a una auditoría de seguridad.
+
 ## Fuentes consultadas
 
 - [Microsoft Learn · Mouse Without Borders](https://learn.microsoft.com/en-us/windows/powertoys/mouse-without-borders)
@@ -135,3 +143,5 @@ La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/
 - [Hyprland protocols · input capture](https://github.com/hyprwm/hyprland-protocols)
 - [XDG Desktop Portal · InputCapture](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.InputCapture.html)
 - [XDG Desktop Portal · RemoteDesktop](https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.RemoteDesktop.html)
+- [Omarchy Plugin Marketplace · publicación](https://plugins.omarchy.org/publish.html)
+- [Omarchy Plugin Marketplace · formulario de propuesta](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/.github/ISSUE_TEMPLATE/submit-plugin.yml)
