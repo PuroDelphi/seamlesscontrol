@@ -110,10 +110,14 @@ La prueba `bash tests/update_installed_agent.sh` pasó con un receptor y una ide
 
 `bash tests/uninstall_agent.sh` pasó con HOME temporal y `systemctl` simulado: el desinstalador se negó a quitar el binario mientras un receptor seguía activo, retiró las cuatro unidades y el ejecutable tras detenerlo, y preservó los bytes de la identidad y el marcador del widget. No se desinstaló el plugin real de esta sesión; sigue pendiente probar la retirada completa y reinstalación en un segundo Omarchy.
 
+`bash tests/integrated_capture_local.sh --synthetic` pasó con dos identidades y configuración temporales en el Omarchy real: el emisor abrió el portal, instaló la barrera derecha, recibió una activación EIS y envió dos eventos de movimiento por Noise XX. El receptor de depuración autenticó y descifró `BEGIN` y esos dos eventos; también contó un mensaje de portapapeles. La salida fue `OBSERVED begin=1 motion=2 keys=0 buttons=0 scroll=0 clipboard=1`. Este receptor sólo cuenta tipos y nunca crea entrada virtual, para evitar un bucle al ejecutar ambos extremos en el mismo escritorio. La inyección visible y la vuelta entre dos Omarchy siguen pendientes.
+
+La variante física `bash tests/integrated_capture_local.sh` también pasó en el mismo Omarchy, tras cruzar el borde derecho y mover el ratón físico, pulsar una tecla y hacer clic. La salida fue `OBSERVED begin=1 motion=443 keys=64 buttons=34 scroll=0 clipboard=1`. Los números son recuentos de eventos descifrados, no teclas, botones ni trayectorias almacenadas. Una primera ejecución produjo `begin=1 motion=946 keys=68 buttons=24`, pero el script terminó con fallo porque sólo esperaba el estado `ready` y el agente ya había pasado a `controlling`; la segunda ejecución aceptó ambos estados y terminó correctamente. La rueda, la inyección visible en un segundo equipo, la vuelta y la latencia completa siguen pendientes.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
-2. Probar liberación mediante el atajo local y captura del agente integrado; el probe ya recibió movimiento, teclado y clic físicos y liberó el cursor.
+2. Probar liberación mediante el atajo local en el agente integrado; la prueba local ya recibió movimiento, teclado y clic físicos y liberó el cursor al cerrar la captura, pero todavía falta el atajo Escape durante esa sesión.
 3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones.
 4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
 5. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha verificado su flujo físico extremo a extremo.

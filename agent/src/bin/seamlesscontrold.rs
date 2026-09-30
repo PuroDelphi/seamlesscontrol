@@ -1132,6 +1132,84 @@ mod linux {
         )
     }
 
+    #[cfg(debug_assertions)]
+    #[derive(Default)]
+    struct Observation {
+        begin: AtomicU64,
+        motion: AtomicU64,
+        keys: AtomicU64,
+        buttons: AtomicU64,
+        scroll: AtomicU64,
+        clipboard: AtomicU64,
+    }
+
+    #[cfg(debug_assertions)]
+    struct ObserveInjector {
+        counts: Arc<Observation>,
+        peer_id: [u8; 32],
+    }
+
+    #[cfg(debug_assertions)]
+    impl Injector for ObserveInjector {
+        fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
+            let counter = match event {
+                InputEvent::Motion { .. } => &self.counts.motion,
+                InputEvent::KeyDown(_) | InputEvent::KeyUp(_) => &self.counts.keys,
+                InputEvent::ButtonDown(_) | InputEvent::ButtonUp(_) => &self.counts.buttons,
+                InputEvent::Scroll { .. } => &self.counts.scroll,
+            };
+            counter.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+
+        fn ownership_changed(&mut self, controlling: bool) {
+            if controlling {
+                self.counts.begin.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+
+        fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
+            if packet.origin != self.peer_id {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "clipboard origin mismatch",
+                ));
+            }
+            self.counts.clipboard.fetch_add(1, Ordering::Relaxed);
+            Ok(())
+        }
+    }
+
+    #[cfg(debug_assertions)]
+    fn observe_connection(
+        channel: SecureChannel<TcpStream>,
+        first: Frame,
+        peer_id: [u8; 32],
+    ) -> Result<(), Box<dyn Error>> {
+        let (mut reader, _writer) = channel.into_tcp_halves()?;
+        let counts = Arc::new(Observation::default());
+        let result = run_receiver_with_first_until(
+            &mut reader,
+            ObserveInjector {
+                counts: Arc::clone(&counts),
+                peer_id,
+            },
+            Some(first),
+            || false,
+        );
+        println!(
+            "OBSERVED\tbegin={}\tmotion={}\tkeys={}\tbuttons={}\tscroll={}\tclipboard={}",
+            counts.begin.load(Ordering::Relaxed),
+            counts.motion.load(Ordering::Relaxed),
+            counts.keys.load(Ordering::Relaxed),
+            counts.buttons.load(Ordering::Relaxed),
+            counts.scroll.load(Ordering::Relaxed),
+            counts.clipboard.load(Ordering::Relaxed),
+        );
+        result?;
+        Ok(())
+    }
+
     fn serve_connection(
         stream: TcpStream,
         peer_ip: IpAddr,
@@ -1139,6 +1217,14 @@ mod linux {
         config: &std::path::Path,
         control: &ControlHandle,
     ) -> Result<(), Box<dyn Error>> {
+        if std::env::var_os("SEAMLESSCONTROL_TEST_OBSERVE").is_some() {
+            if !cfg!(debug_assertions) {
+                return Err("input observation requires a debug build".into());
+            }
+            if !peer_ip.is_loopback() {
+                return Err("input observation is restricted to loopback".into());
+            }
+        }
         let peers = config.join("peers");
         let pinned = load_peer_key(&peers, peer_ip)?;
         let known = if pinned.is_none() {
@@ -1264,6 +1350,10 @@ mod linux {
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(5)))?;
         println!("Conexión autenticada con {peer_ip}. Esperando control...");
+        if std::env::var_os("SEAMLESSCONTROL_TEST_OBSERVE").is_some() {
+            #[cfg(debug_assertions)]
+            return observe_connection(channel, first, peer.public_key);
+        }
         let topology = load_topology(&config.join("topology")).ok();
         let edge_targets: Vec<(LogicalEdge, IpAddr)> = if mesh_source {
             topology
