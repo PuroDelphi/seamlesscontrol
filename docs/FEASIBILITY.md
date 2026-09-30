@@ -68,6 +68,10 @@ La política pura `HandoffCoordinator` pasó pruebas de una ruta de cuatro casil
 
 El centro del portapapeles de malla pasó pruebas con tres identidades: reenvió un cambio de B a C como mensaje autenticado del origen, evitó el eco hacia B, rechazó una identidad suplantada y limitó el tamaño del texto. El agente lo conectó a los canales Noise y al observador Wayland; `cargo test` pasó 54 pruebas de Rust, y las tres pruebas de integración en loopback de emparejamiento, reconexión y archivos conservaron su resultado. La convergencia del portapapeles con copias simultáneas en escritorios reales sigue pendiente.
 
+El modo `mesh` ahora reinicia la sesión de captura después de un fallo de transporte: su cierre libera el portal y las conexiones, informa `reconnecting` por IPC y espera de 1 a 30 segundos antes de crear otro portal. Las validaciones de configuración y claves al principio del intento siguen siendo errores definitivos. Las 54 pruebas de Rust y Clippy pasan tras el cambio; la recuperación del puntero tras una caída de red real sigue pendiente de varios equipos.
+
+El instalador añadió `seamlesscontrol-mesh.service` como unidad de usuario deshabilitada. `systemd-analyze verify` aceptó las tres unidades y `bash -n` aceptó el instalador. La unidad requiere `mesh.env` con el puerto común de los destinos y no se habilitó durante estas pruebas.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.

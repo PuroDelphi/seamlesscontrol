@@ -252,6 +252,11 @@ mod linux {
         reader: Option<thread::JoinHandle<()>>,
     }
 
+    enum MeshSession {
+        Stopped,
+        Retry(Box<dyn Error>, Duration),
+    }
+
     impl MeshLink {
         fn send(&mut self, kind: Kind, epoch: u64, payload: Vec<u8>) -> Result<(), Box<dyn Error>> {
             send_frame(&mut self.writer, kind, epoch, &mut self.sequence, payload)
@@ -360,7 +365,7 @@ mod linux {
         identity: &Identity,
         config: &std::path::Path,
         control: ControlHandle,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Result<MeshSession, Box<dyn Error>> {
         let topology = load_topology(&config.join("topology"))?;
         let peers: Vec<IpAddr> = topology
             .positions()
@@ -412,6 +417,7 @@ mod linux {
             "Malla activa para {} pares. Cruce un borde; Escape devuelve el control.",
             peers.len()
         );
+        let started = Instant::now();
 
         let (feedback_tx, mut feedback_rx) =
             tokio::sync::mpsc::channel::<(IpAddr, Result<Frame, FrameError>)>(32);
@@ -664,7 +670,10 @@ mod linux {
         let _ = clipboard_apply_worker.join();
         control.set_peer("");
         control.set_phase("disconnected");
-        result
+        Ok(match result {
+            Ok(()) => MeshSession::Stopped,
+            Err(error) => MeshSession::Retry(error, started.elapsed()),
+        })
     }
 
     async fn capture_loop(
@@ -1668,7 +1677,28 @@ mod linux {
             let config = config_dir()?;
             let identity = load_or_create_identity(&config.join("identity"))?;
             let local_control = ControlServer::start("connect", &config)?;
-            return mesh_loop(port, &identity, &config, local_control.handle()).await;
+            let control = local_control.handle();
+            let mut delay = Duration::from_secs(1);
+            loop {
+                match mesh_loop(port, &identity, &config, control.clone()).await? {
+                    MeshSession::Stopped => return Ok(()),
+                    MeshSession::Retry(error, uptime) => {
+                        if uptime >= Duration::from_secs(30) {
+                            delay = Duration::from_secs(1);
+                        }
+                        eprintln!(
+                            "Malla interrumpida: {error}. Reintentando en {} s.",
+                            delay.as_secs()
+                        );
+                        control.set_phase("reconnecting");
+                        tokio::select! {
+                            _ = tokio::signal::ctrl_c() => return Ok(()),
+                            _ = tokio::time::sleep(delay) => {}
+                        }
+                        delay = delay.saturating_mul(2).min(Duration::from_secs(30));
+                    }
+                }
+            }
         }
         if !(args.len() == 3
             && matches!(args[1].as_str(), "serve" | "pair" | "connect" | "latency")

@@ -14,8 +14,9 @@ if [[ "$install_dir" == "$HOME/.local/bin" ]]; then
   install -d -m 755 "$unit_dir"
   install -m 644 "$repo_dir/packaging/seamlesscontrol-receiver.service" "$unit_dir/"
   install -m 644 "$repo_dir/packaging/seamlesscontrol-sender.service" "$unit_dir/"
+  install -m 644 "$repo_dir/packaging/seamlesscontrol-mesh.service" "$unit_dir/"
   systemctl --user daemon-reload
-  printf 'Unidades de usuario instaladas, sin habilitar. Configure IP y borde antes de activarlas.\n'
+  printf 'Unidades de usuario instaladas, sin habilitar. Configure las direcciones y el puerto antes de activarlas.\n'
 fi
 
 printf 'Agente instalado en %s/seamlesscontrold\n' "$install_dir"
