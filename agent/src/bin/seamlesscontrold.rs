@@ -17,6 +17,7 @@ mod linux {
         self, ClipboardWatch, spawn_apply_events, spawn_apply_worker,
     };
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
+    use seamlesscontrol_core::discovery::{self, ServiceAdvertisement};
     use seamlesscontrol_core::file_session;
     use seamlesscontrol_core::handoff::HandoffCoordinator;
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
@@ -29,7 +30,7 @@ mod linux {
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
-        load_topology, remember_peer_key, revoke_peer_key, save_topology,
+        load_topology, remember_peer_key, revoke_peer_key, rotate_identity, save_topology,
     };
     use seamlesscontrol_core::topology::{
         Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, edge_entry_point,
@@ -1672,13 +1673,40 @@ mod linux {
             println!("LOCK\t{lock}");
             return Ok(());
         }
+        if (args.len() == 2 && args[1] == "discover")
+            || (args.len() == 3 && args[1] == "discover" && args[2] == "--include-local")
+        {
+            for server in discovery::browse(args.len() == 3).await? {
+                println!(
+                    "FOUND\t{}\t{}\t{}\t{}",
+                    server.name,
+                    server.address.ip(),
+                    server.address.port(),
+                    server.fingerprint
+                );
+            }
+            return Ok(());
+        }
+        if args.len() == 3 && args[1] == "local-address" {
+            let port: u16 = args[2].parse()?;
+            println!("{}", discovery::auto_lan_address(port)?);
+            return Ok(());
+        }
         if args.len() == 4
             && matches!(
                 args[1].as_str(),
-                "send-file" | "receive-file" | "receive-file-ui"
+                "send-file"
+                    | "receive-file"
+                    | "receive-file-ui"
+                    | "receive-file-auto"
+                    | "receive-file-auto-ui"
             )
         {
-            let address: SocketAddr = args[2].parse()?;
+            let address: SocketAddr = if args[1].starts_with("receive-file-auto") {
+                discovery::auto_lan_address(args[2].parse()?)?
+            } else {
+                args[2].parse()?
+            };
             if !local_address(address.ip()) {
                 return Err(
                     "file transfer address must be loopback, link-local or private LAN".into(),
@@ -1703,7 +1731,7 @@ mod linux {
                     &identity,
                     &config.join("peers"),
                     limit,
-                    if args[1] == "receive-file-ui" {
+                    if matches!(args[1].as_str(), "receive-file-ui" | "receive-file-auto-ui") {
                         file_session::panel_approval
                     } else {
                         file_session::terminal_approval
@@ -1830,6 +1858,25 @@ mod linux {
             save_topology(&path, &layout)?;
             return Ok(());
         }
+        if args.len() == 2 && args[1] == "rotate-key" {
+            match control::request("status") {
+                Ok(_) => return Err("stop the local agent before rotating its identity".into()),
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused
+                    ) => {}
+                Err(error) => return Err(error.into()),
+            }
+            let config = config_dir()?;
+            let identity = rotate_identity(&config.join("identity"))?;
+            println!(
+                "Nueva identidad local: {}",
+                key_fingerprint(&identity.public)
+            );
+            println!("Revoque la identidad anterior en cada equipo remoto y empareje de nuevo.");
+            return Ok(());
+        }
         if args.len() == 3 && args[1] == "mesh" {
             let port: u16 = args[2].parse()?;
             if port == 0 {
@@ -1862,15 +1909,22 @@ mod linux {
             }
         }
         if !(args.len() == 3
-            && matches!(args[1].as_str(), "serve" | "pair" | "connect" | "latency")
+            && matches!(
+                args[1].as_str(),
+                "serve" | "serve-auto" | "pair" | "connect" | "latency"
+            )
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
             );
             return Err("invalid arguments".into());
         }
-        let address: SocketAddr = args[2].parse()?;
+        let address: SocketAddr = if args[1] == "serve-auto" {
+            discovery::auto_lan_address(args[2].parse()?)?
+        } else {
+            args[2].parse()?
+        };
         if !local_address(address.ip()) {
             return Err("listen address must be loopback, link-local or private LAN".into());
         }
@@ -1936,6 +1990,13 @@ mod linux {
         let listener = TcpListener::bind(address)?;
         listener.set_nonblocking(true)?;
         let listener = tokio::net::TcpListener::from_std(listener)?;
+        let _advertisement = match ServiceAdvertisement::publish(address, &identity) {
+            Ok(value) => value,
+            Err(error) => {
+                eprintln!("SeamlessControl: anuncio mDNS no disponible: {error}");
+                None
+            }
+        };
         println!("SeamlessControl escucha en {address}");
         let stop = tokio::signal::ctrl_c();
         tokio::pin!(stop);

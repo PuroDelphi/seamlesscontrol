@@ -13,6 +13,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 5. Ejecutar `seamlesscontrold diagnose` en ambos equipos y comparar sus rectángulos lógicos con `hyprctl -j monitors`; el comando debe mostrar también una posición de cursor dentro de un monitor y `LOCK unlocked` antes de probar la entrada.
 6. Con los equipos emparejados y `serve` activo, ejecutar `seamlesscontrold latency <IP-B:47832>` desde A y anotar mínimo, p50, p95 y máximo. La salida mide sólo el viaje cifrado de ida y vuelta, no el cambio de control visible.
 7. Iniciar `serve` y `connect` desde los botones del panel, repetir con terminal y servicio de usuario, y comprobar que el botón **Terminar sesión** sólo aparece para el proceso creado por el panel. Verificar que al terminar no quedan teclado ni botones pulsados ni procesos huérfanos.
+8. Iniciar **Recibir control** sin escribir IP, buscar el destino en **Equipos en la red** desde A, emparejarlo y compartir entrada desde su fila. Verificar que la huella anunciada nunca evita comparar el código de seis cifras. Repetir tras cambiar la IP de B, cerrar el receptor y con mDNS bloqueado: el anuncio debe desaparecer y la entrada manual debe seguir disponible.
 
 ## Circuito básico
 

@@ -57,7 +57,11 @@ pub fn load_or_create_identity(path: &Path) -> io::Result<Identity> {
             }
             let private = bytes[8..40].try_into().expect("fixed identity length");
             let public = bytes[40..72].try_into().expect("fixed identity length");
-            Ok(Identity { private, public })
+            let identity = Identity { private, public };
+            identity.validate().map_err(|_| {
+                io::Error::new(io::ErrorKind::InvalidData, "identity keys do not match")
+            })?;
+            Ok(identity)
         }
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             if let Some(parent) = path.parent() {
@@ -77,6 +81,45 @@ pub fn load_or_create_identity(path: &Path) -> io::Result<Identity> {
         }
         Err(error) => Err(error),
     }
+}
+
+/// Replace an existing identity atomically. Other devices must explicitly
+/// revoke the old public key and pair the new key before connecting again.
+pub fn rotate_identity(path: &Path) -> io::Result<Identity> {
+    fs::symlink_metadata(path)?;
+    load_or_create_identity(path)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| io::Error::other("identity path has no parent"))?;
+    ensure_private_directory(parent)?;
+    let identity = Identity::generate().map_err(io::Error::other)?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_nanos();
+    let temp = parent.join(format!(".identity-{}-{nonce}.tmp", std::process::id()));
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let result = (|| {
+        let mut file = options.open(&temp)?;
+        file.write_all(IDENTITY_MAGIC)?;
+        file.write_all(&identity.private)?;
+        file.write_all(&identity.public)?;
+        file.sync_all()?;
+        fs::rename(&temp, path)?;
+        if let Err(error) = File::open(parent).and_then(|directory| directory.sync_all()) {
+            eprintln!(
+                "SeamlessControl: rotated identity but could not sync its directory: {error}"
+            );
+        }
+        Ok(identity)
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temp);
+    }
+    result
 }
 
 pub fn key_fingerprint(key: &[u8; 32]) -> String {
@@ -350,6 +393,47 @@ mod tests {
             load_or_create_identity(&path).unwrap_err().kind(),
             io::ErrorKind::InvalidData
         );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn rotation_replaces_valid_identity_but_never_repairs_mismatched_keys() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-rotation-{}-{unique}",
+            std::process::id()
+        ));
+        let path = dir.join("identity");
+        assert_eq!(
+            rotate_identity(&path).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
+        let original = load_or_create_identity(&path).unwrap();
+        let rotated = rotate_identity(&path).unwrap();
+        assert_ne!(original.public, rotated.public);
+        assert_eq!(load_or_create_identity(&path).unwrap(), rotated);
+        #[cfg(unix)]
+        assert_eq!(
+            fs::metadata(&path).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+
+        let mut bytes = fs::read(&path).unwrap();
+        bytes[40] ^= 1;
+        fs::write(&path, &bytes).unwrap();
+        assert_eq!(
+            load_or_create_identity(&path).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
+        assert_eq!(
+            rotate_identity(&path).unwrap_err().kind(),
+            io::ErrorKind::InvalidData
+        );
+        assert_eq!(fs::read(&path).unwrap(), bytes);
         fs::remove_dir_all(dir).unwrap();
     }
 

@@ -42,6 +42,26 @@ Panel {
     selectedMachine = ""
   }
 
+  function knownServer(server) {
+    return backend && backend.peers.some(function(peer) {
+      return peer.ip === server.ip && peer.key === server.key
+    })
+  }
+
+  function changedServerKey(server) {
+    return backend && backend.peers.some(function(peer) {
+      return peer.ip === server.ip && peer.key !== server.key
+    })
+  }
+
+  function adjacentServer(server) {
+    if (!backend) return false
+    var local = backend.topology.find(function(slot) { return slot.id === "local" })
+    var remote = backend.topology.find(function(slot) { return slot.id === server.ip })
+    return local && remote
+      && Math.abs(local.column - remote.column) + Math.abs(local.row - remote.row) === 1
+  }
+
   function open() { controller.show() }
   function close() { controller.hide() }
   function toggle() { opened ? close() : open() }
@@ -246,6 +266,84 @@ Panel {
           }
         }
 
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: "EQUIPOS EN LA RED"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Text {
+            Layout.fillWidth: true
+            text: root.backend && root.backend.discoveryError !== ""
+              ? root.backend.discoveryError
+              : root.backend && root.backend.discovered.length > 0
+                ? "Elija un equipo. Compare el código en ambos antes de aprobar."
+                : "Sin receptores encontrados. Abra Recibir control en el otro Omarchy."
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            color: root.muted
+            font.family: root.face
+            font.pixelSize: Style.font.caption
+          }
+          Button {
+            text: "Buscar"
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.installed
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.refreshDiscovery()
+          }
+        }
+
+        Repeater {
+          model: root.backend ? root.backend.discovered.length : 0
+          delegate: RowLayout {
+            id: discoveredRow
+            required property int index
+            readonly property var server: root.backend.discovered[discoveredRow.index]
+            Layout.fillWidth: true
+            spacing: Style.space(8)
+            Text {
+              Layout.fillWidth: true
+              text: discoveredRow.server.name
+              textFormat: Text.PlainText
+              elide: Text.ElideRight
+              color: root.ink
+              font.family: root.face
+              font.pixelSize: Style.font.caption
+            }
+            Button {
+              Layout.preferredWidth: Style.space(108)
+              text: root.changedServerKey(discoveredRow.server) ? "Clave cambió"
+                : root.knownServer(discoveredRow.server)
+                  ? root.adjacentServer(discoveredRow.server) ? "Compartir" : "Ubicar"
+                  : "Emparejar"
+              bordered: true
+              focusable: true
+              enabled: root.backend && root.backend.installed && !root.backend.available
+                && !root.backend.pairingRunning && !root.backend.managedAgentRunning
+                && !root.changedServerKey(discoveredRow.server)
+              foreground: root.ink
+              accent: Color.accent
+              fontFamily: root.face
+              onClicked: {
+                if (!root.backend) return
+                if (root.knownServer(discoveredRow.server)) {
+                  if (root.adjacentServer(discoveredRow.server))
+                    root.backend.startSender(discoveredRow.server.address)
+                  else root.selectedMachine = discoveredRow.server.ip
+                } else root.backend.pair(discoveredRow.server.address)
+              }
+            }
+          }
+        }
+
         RowLayout {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available
@@ -253,7 +351,7 @@ Panel {
           Controls.TextField {
             id: pairAddress
             Layout.fillWidth: true
-            placeholderText: "IP:puerto del destino"
+            placeholderText: "Alternativa manual · IP:puerto"
             color: root.ink
             font.family: root.face
             background: Rectangle {
@@ -389,7 +487,7 @@ Panel {
           Controls.TextField {
             id: listenAddress
             Layout.fillWidth: true
-            placeholderText: "IP local:47832"
+            placeholderText: "Automático · 47832 (o IP:puerto)"
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
@@ -398,11 +496,15 @@ Panel {
             text: "Recibir control"
             bordered: true
             focusable: true
-            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && listenAddress.text.trim() !== ""
+            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: if (root.backend) root.backend.startReceiver(listenAddress.text.trim())
+            onClicked: if (root.backend) {
+              var address = listenAddress.text.trim()
+              if (address === "") root.backend.startReceiverAuto("47832")
+              else root.backend.startReceiver(address)
+            }
           }
         }
 
@@ -583,7 +685,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "En el destino, escuche en otro puerto LAN y elija un directorio. Cada archivo requiere aceptación. El límite predeterminado es 100 MiB."
+          text: "En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Límite predeterminado: 100 MiB."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -594,7 +696,7 @@ Panel {
         Controls.TextField {
           id: fileListenAddress
           Layout.fillWidth: true
-          placeholderText: "IP local:47833"
+          placeholderText: "Automático · 47833 (o IP:puerto)"
           color: root.ink
           font.family: root.face
           background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
@@ -629,13 +731,15 @@ Panel {
           bordered: true
           focusable: true
           enabled: root.backend && (root.backend.receivingFile
-            || (root.backend.installed && fileListenAddress.text.trim() !== "" && fileDirectory.text.trim() !== ""))
+            || (root.backend.installed && fileDirectory.text.trim() !== ""))
           foreground: root.ink
           accent: Color.accent
           fontFamily: root.face
           onClicked: {
             if (!root.backend) return
             if (root.backend.receivingFile) root.backend.stopFileReceiver()
+            else if (fileListenAddress.text.trim() === "")
+              root.backend.startFileReceiverAuto(fileDirectory.text.trim())
             else root.backend.startFileReceiver(fileListenAddress.text.trim(), fileDirectory.text.trim())
           }
         }
@@ -682,7 +786,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "En el origen, indique la dirección del destino y un archivo local."
+          text: "En el origen, elija un equipo emparejado y un archivo local."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -697,6 +801,21 @@ Panel {
           color: root.ink
           font.family: root.face
           background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+        }
+
+        Repeater {
+          model: root.backend ? root.backend.peers.length : 0
+          delegate: Button {
+            required property int index
+            Layout.fillWidth: true
+            text: "Enviar a " + root.backend.peers[index].ip
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: fileSendAddress.text = root.backend.peers[index].ip + ":47833"
+          }
         }
 
         RowLayout {

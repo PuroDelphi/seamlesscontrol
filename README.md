@@ -8,7 +8,15 @@ Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCaptu
 
 ## Probar el agente experimental entre dos Omarchy
 
-En ambos equipos, ejecute `bash packaging/install-agent.sh` para compilar e instalar el binario en `~/.local/bin` (o `XDG_BIN_HOME`). Este directorio debe estar en `PATH` de la sesión gráfica para que el widget pueda consultar el agente. Desde el panel, indique la IP y puerto LAN del destino y pulse **Recibir control** allí. Tras emparejar y situar ambos equipos en casillas contiguas de la cuadrícula, indique esa dirección en el origen y pulse **Compartir entrada**. El panel puede terminar los procesos que haya iniciado. También puede usar terminales o servicios de usuario. En el equipo que recibirá el control, ejecute:
+En ambos equipos, ejecute `bash packaging/install-agent.sh` para compilar e instalar el binario en `~/.local/bin` (o `XDG_BIN_HOME`). Este directorio debe estar en `PATH` de la sesión gráfica para que el widget pueda consultar el agente. En el destino, pulse **Recibir control** dejando vacía la dirección: el agente elige su IP LAN y anuncia el receptor mediante Avahi/mDNS. En el origen, el panel muestra **Equipos en la red**; pulse **Emparejar**, compare el código en ambos paneles y apruebe. Ubique el destino junto al origen en la cuadrícula y pulse **Compartir** en su fila. La búsqueda sólo propone una dirección; no reemplaza la aprobación ni el cifrado. El panel puede terminar los procesos que haya iniciado.
+
+La detección automática necesita `avahi-daemon`, `avahi-publish-service` y `avahi-browse` en los dos Omarchy, con multicast mDNS disponible en la LAN. Si no están disponibles, el panel conserva los campos de IP manual. También puede usar terminales o servicios de usuario. Para iniciar un receptor sin escribir su IP:
+
+```bash
+seamlesscontrold serve-auto 47832
+```
+
+En el origen, `seamlesscontrold discover` muestra nombre, IP, puerto y huella anunciados. Use el panel para emparejar sin copiar la IP. La huella del anuncio mDNS es orientativa: compare el código de seis cifras que aparece durante el emparejamiento en ambos equipos. La alternativa manual en el destino es:
 
 ```bash
 seamlesscontrold serve 192.168.1.20:47832
@@ -20,7 +28,7 @@ Sustituya `192.168.1.20` por la IP LAN de ese equipo. En el equipo que tiene tec
 seamlesscontrold connect 192.168.1.20:47832 right
 ```
 
-También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 192.168.1.20:47832`, o introducir esa dirección en el panel del widget del equipo de origen.
+También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 192.168.1.20:47832`, o introducir esa dirección en el campo manual del panel del equipo de origen.
 
 Después del emparejamiento, coloque ambos equipos en la cuadrícula 2×2 del panel. La misma operación está disponible por terminal:
 
@@ -61,11 +69,13 @@ El portapapeles de **texto UTF-8** se sincroniza durante `connect` y `mesh`, inc
 
 ## Enviar un archivo con confirmación
 
-Después de emparejar los equipos, puede usar la sección **Archivos** del panel Omarchy. En el destino indique su IP LAN con otro puerto (por ejemplo, `192.168.1.20:47833`), elija el directorio y pulse **Esperar un archivo**. En el origen indique esa dirección, elija el archivo y pulse **Enviar archivo**. El destino verá el equipo, nombre, tamaño y SHA-256 y debe pulsar **Aceptar archivo** o **Rechazar**. El panel conserva el estilo del resto del plugin y utiliza el mismo protocolo cifrado que la CLI. Si prefiere terminal, abra **en el destino** otro terminal y el mismo puerto LAN:
+Después de emparejar los equipos, puede usar la sección **Archivos** del panel Omarchy. En el destino deje vacía la dirección, elija el directorio y pulse **Esperar un archivo**: el agente elegirá su IP LAN y el puerto 47833. En el origen pulse **Enviar a** junto al equipo emparejado, elija el archivo y pulse **Enviar archivo**. El destino verá el equipo, nombre, tamaño y SHA-256 y debe pulsar **Aceptar archivo** o **Rechazar**. El panel conserva el estilo del resto del plugin y utiliza el mismo protocolo cifrado que la CLI. Si prefiere terminal, abra **en el destino** otro terminal y el mismo puerto LAN:
 
 ```bash
 seamlesscontrold receive-file 192.168.1.20:47833 ~/Downloads
 ```
+
+La variante `seamlesscontrold receive-file-auto 47833 ~/Downloads` elige la IP local sin escribirla. El origen aún necesita la dirección del destino si usa la CLI; `seamlesscontrold discover` la muestra mientras su receptor de control esté activo.
 
 En el origen ejecute `seamlesscontrold send-file 192.168.1.20:47833 /ruta/al/archivo`. El destino muestra nombre, tamaño y SHA-256 y sólo escribe el archivo si alguien responde exactamente `SI` en ese terminal. Es una transferencia por comando: cada ejecución de `receive-file` acepta una sola conexión. Puede ejecutarse junto al agente de control si utiliza **otro puerto**. El archivo llega por un canal Noise autenticado con las claves ya emparejadas; el destino lo guarda temporalmente y verifica tamaño y SHA-256 antes de publicarlo. Si el origen crece durante el envío, la sesión se cancela y el destino elimina el temporal. Si existe un archivo con el mismo nombre, la transferencia falla sin reemplazarlo. El límite predeterminado es 100 MiB en ambos equipos; `SEAMLESSCONTROL_MAX_FILE_BYTES` permite cambiarlo en cada comando o en el entorno de `omarchy-shell`. Ambos agentes deben tener la misma versión del protocolo de archivos.
 
@@ -73,13 +83,13 @@ Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo est�
 
 ## Widget de Omarchy
 
-El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, permite iniciar y terminar una sesión, emparejar, aprobar, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. Si falta el ejecutable, el panel indica cómo instalarlo y lo detecta automáticamente después. Tras actualizar el código QML, `omarchy restart shell` fuerza la carga de la revisión nueva si la recarga en caliente conserva un componente anterior. El borde se deduce de la casilla vecina; una sesión iniciada por terminal o servicio de usuario se detiene desde ese mismo medio. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
+El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, descubre receptores LAN, permite iniciar y terminar una sesión, emparejar, aprobar, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. Si falta el ejecutable, el panel indica cómo instalarlo y lo detecta automáticamente después. Tras actualizar el código QML, `omarchy restart shell` fuerza la carga de la revisión nueva si la recarga en caliente conserva un componente anterior. El borde se deduce de la casilla vecina; una sesión iniciada por terminal o servicio de usuario se detiene desde ese mismo medio. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Con el agente detenido, `seamlesscontrold rotate-key` reemplaza la identidad local; cada equipo remoto deberá revocar la clave anterior y emparejar de nuevo. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
 
 El contrato del socket local y los comandos del panel están descritos en [docs/IPC.md](./docs/IPC.md).
 
 ## Servicios de usuario
 
-El instalador copia tres unidades de `systemd --user` y las deja deshabilitadas. En cada destino, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.1.20:47832`. Para un solo destino, cree `~/.config/seamlesscontrol/sender.env` en el origen con `SEAMLESSCONTROL_PEER=192.168.1.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Para varios destinos ya emparejados y situados en la cuadrícula, cree `~/.config/seamlesscontrol/mesh.env` en el origen con `SEAMLESSCONTROL_PORT=47832`. Tras comprobar los valores, active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` o `seamlesscontrol-mesh.service`, según corresponda. El origen se reinicia tras una caída de red y reutiliza las claves fijadas. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
+El instalador copia cuatro unidades de `systemd --user` y las deja deshabilitadas. `seamlesscontrol-receiver-auto.service` usa el puerto 47832 y elige la IP LAN sin archivo de entorno. Para la alternativa manual, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.1.20:47832`. Para un solo destino, cree `~/.config/seamlesscontrol/sender.env` en el origen con `SEAMLESSCONTROL_PEER=192.168.1.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Para varios destinos ya emparejados y situados en la cuadrícula, cree `~/.config/seamlesscontrol/mesh.env` en el origen con `SEAMLESSCONTROL_PORT=47832`. Active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` o `seamlesscontrol-mesh.service`, según corresponda. El origen se reinicia tras una caída de red y reutiliza las claves fijadas. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
 
 ## Compilar y probar
 

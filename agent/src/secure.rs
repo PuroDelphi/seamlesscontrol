@@ -3,6 +3,10 @@
 //! sessions require the previously pinned static public key.
 
 use snow::{Builder, HandshakeState, StatelessTransportState};
+use snow::{
+    params::DHChoice,
+    resolvers::{CryptoResolver, DefaultResolver},
+};
 use std::fmt;
 use std::io::{self, Read, Write};
 use std::net::TcpStream;
@@ -90,6 +94,17 @@ impl Identity {
             .try_into()
             .map_err(|_| SecureError::InvalidKey)?;
         Ok(Self { private, public })
+    }
+
+    pub fn validate(&self) -> Result<(), SecureError> {
+        let mut dh = DefaultResolver
+            .resolve_dh(&DHChoice::Curve25519)
+            .ok_or(SecureError::InvalidKey)?;
+        dh.set(&self.private);
+        if dh.pubkey() != self.public {
+            return Err(SecureError::InvalidKey);
+        }
+        Ok(())
     }
 }
 

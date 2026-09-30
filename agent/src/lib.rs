@@ -17,6 +17,8 @@ pub mod clipboard_omarchy;
 #[cfg(target_os = "linux")]
 pub mod control;
 #[cfg(target_os = "linux")]
+pub mod discovery;
+#[cfg(target_os = "linux")]
 pub mod hypr_ipc;
 #[cfg(target_os = "linux")]
 pub mod omarchy;

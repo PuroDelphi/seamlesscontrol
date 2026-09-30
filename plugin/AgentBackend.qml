@@ -28,6 +28,8 @@ Item {
   property bool pairingRunning: false
   property string actionName: ""
   property var peers: []
+  property var discovered: []
+  property string discoveryError: ""
   property var topology: []
   property bool receivingFile: false
   property bool sendingFile: false
@@ -44,6 +46,18 @@ Item {
     lastAgentError = ""
     stoppingManagedAgent = false
     agentProcess.command = ["seamlesscontrold", "serve", address]
+    agentProcess.running = true
+    managedAgentRunning = true
+  }
+
+  function startReceiverAuto(port) {
+    var number = Number(port)
+    if (!installed || agentProcess.running || available || pairingRunning
+        || !/^[0-9]{1,5}$/.test(port) || number < 1 || number > 65535) return
+    error = ""
+    lastAgentError = ""
+    stoppingManagedAgent = false
+    agentProcess.command = ["seamlesscontrold", "serve-auto", String(number)]
     agentProcess.running = true
     managedAgentRunning = true
   }
@@ -87,6 +101,17 @@ Item {
     receivingFile = true
   }
 
+  function startFileReceiverAuto(directory) {
+    if (!installed || receiveFileProcess.running || !directory) return
+    error = ""
+    fileResult = ""
+    fileOffer = null
+    stoppingFileReceiver = false
+    receiveFileProcess.command = ["seamlesscontrold", "receive-file-auto-ui", "47833", directory]
+    receiveFileProcess.running = true
+    receivingFile = true
+  }
+
   function stopFileReceiver() {
     if (!receiveFileProcess.running) return
     stoppingFileReceiver = true
@@ -118,6 +143,11 @@ Item {
   function refreshPeers() {
     if (!installed || peersProcess.running) return
     peersProcess.running = true
+  }
+
+  function refreshDiscovery() {
+    if (!installed || discoveryProcess.running) return
+    discoveryProcess.running = true
   }
 
   function refreshTopology() {
@@ -180,10 +210,12 @@ Item {
         root.error = ""
         root.refresh()
         root.refreshPeers()
+        root.refreshDiscovery()
         root.refreshTopology()
       } else if (!root.installed) {
         root.available = false
         root.peers = []
+        root.discovered = []
         root.topology = []
       }
     }
@@ -249,6 +281,31 @@ Item {
         })
         root.peers = next
       }
+    }
+  }
+
+  Process {
+    id: discoveryProcess
+    command: ["seamlesscontrold", "discover"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = []
+        String(text || "").split("\n").forEach(function(line) {
+          var fields = line.split("\t")
+          if (fields.length === 5 && fields[0] === "FOUND") {
+            var port = Number(fields[3])
+            if (port > 0 && port <= 65535)
+              next.push({ name: fields[1], ip: fields[2], port: port,
+                address: fields[2] + ":" + port, key: fields[4] })
+          }
+        })
+        root.discovered = next
+      }
+    }
+    onExited: function(code) {
+      root.discoveryError = code === 0 ? "" : "Búsqueda local no disponible. Puede usar una IP manual."
+      if (code !== 0) root.discovered = []
     }
   }
 
@@ -379,5 +436,13 @@ Item {
     running: true
     triggeredOnStart: true
     onTriggered: root.refreshTopology()
+  }
+
+  Timer {
+    interval: 10000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: root.refreshDiscovery()
   }
 }

@@ -88,6 +88,14 @@ La transferencia de archivos ahora usa el mismo descriptor para calcular SHA-256
 
 Una vez creado el enlace del archivo final, un error al borrar el nombre temporal se registra localmente y la sesión confirma el archivo publicado. De ese modo el emisor no anuncia un fallo ambiguo cuando el destino ya tiene el archivo. El caso de error de limpieza todavía requiere una simulación específica; la prueba de archivos por loopback conserva la aceptación y el rechazo esperados.
 
+El autodescubrimiento usa DNS-SD mediante Avahi. En este Omarchy, `avahi-daemon` está activo y están instalados `avahi-publish-service` y `avahi-browse`. Un receptor temporal iniciado con `serve-auto <puerto>` eligió `192.168.1.25`, publicó `_seamlesscontrol._tcp` y `discover --include-local` encontró el nombre, la dirección, el puerto y la huella esperados; el anuncio terminó junto al receptor. El parser descarta anuncios con otra versión, direcciones no privadas, puertos inválidos y huellas mal formadas. El panel elige receptores descubiertos sin escribir IP, pero siguen pendientes la detección entre dos equipos, cambios de IP y redes que bloqueen multicast. El anuncio mDNS no autentica: Noise XX y el código aprobado en ambos extremos siguen siendo obligatorios.
+
+`receive-file-auto-ui` se probó con configuración temporal y el puerto 49020: `ss` mostró escucha únicamente en `192.168.1.25:49020`. La transferencia con esa dirección aún requiere otro equipo; la variante manual sigue disponible.
+
+La identidad persistente ahora comprueba que la clave pública corresponde a la privada. `rotate-key` reemplaza atómicamente una identidad válida sólo con el agente detenido; la prueba confirma que una identidad dañada no se repara ni se rota automáticamente. La rotación obliga a revocar la clave anterior en los pares remotos y emparejar de nuevo; aún falta probar ese flujo entre equipos reales.
+
+Una prueba CLI con `XDG_CONFIG_HOME` y `XDG_RUNTIME_DIR` temporales inició un receptor en loopback: `rotate-key` rechazó el cambio mientras estaba activo y conservó el archivo idéntico; tras detenerlo, generó una identidad distinta. No se modificó la identidad real del usuario. El panel 0.15 cargó en `omarchy-shell` sin errores QML; un anuncio local temporal mostró una fila de equipo con nombre legible y botón de emparejamiento en el estilo Japan Night. Se restauró la búsqueda normal que oculta servicios propios y se cerró el receptor temporal. Esto valida la interfaz local, no el descubrimiento entre dos máquinas.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
