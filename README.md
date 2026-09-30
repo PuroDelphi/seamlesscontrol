@@ -137,6 +137,7 @@ CARGO=cargo bash tests/update_installed_agent.sh
 CARGO=cargo bash tests/uninstall_agent.sh
 cargo build --manifest-path agent/Cargo.toml --bin seamlesscontrold
 bash tests/integrated_capture_local.sh --synthetic
+bash tests/integrated_capture_local.sh --escape
 bash tests/integrated_injection_local.sh
 cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold
 SC_IDLE_SECONDS=30 bash tests/idle_receiver.sh

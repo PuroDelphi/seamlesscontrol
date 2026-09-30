@@ -6,10 +6,11 @@ set -euo pipefail
 repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cargo_bin=${CARGO:-cargo}
 "$cargo_bin" build --quiet --manifest-path "$repo_dir/agent/Cargo.toml" --bin seamlesscontrold
-if [[ ${1:-} == --synthetic ]]; then
+mode=${1:-}
+if [[ "$mode" == --synthetic ]]; then
   "$cargo_bin" build --quiet --manifest-path "$repo_dir/agent/Cargo.toml" --bin virtual-input-probe
-elif [[ $# -ne 0 ]]; then
-  printf 'Uso: bash tests/integrated_capture_local.sh [--synthetic]\n' >&2
+elif [[ "$mode" != '' && "$mode" != --escape ]] || (( $# > 1 )); then
+  printf 'Uso: bash tests/integrated_capture_local.sh [--synthetic|--escape]\n' >&2
   exit 2
 fi
 
@@ -83,8 +84,12 @@ for _ in {1..150}; do
   sleep 0.2
 done
 [[ "$client_status" == *$'\tready\t'* || "$client_status" == *$'\tcontrolling\t'* ]]
-printf 'Captura lista: cruce el borde derecho y mueva el ratón durante la prueba.\n'
-if [[ ${1:-} == --synthetic ]]; then
+if [[ "$mode" == --escape ]]; then
+  printf 'Captura lista: cruce el borde derecho, mueva el ratón y pulse Escape para recuperar el control.\n'
+else
+  printf 'Captura lista: cruce el borde derecho y mueva el ratón durante la prueba.\n'
+fi
+if [[ "$mode" == --synthetic ]]; then
   "$repo_dir/agent/target/debug/virtual-input-probe" --edge-test
   sleep 3
 else
@@ -102,7 +107,13 @@ printf '%s\n' "$line"
 begin=$(printf '%s\n' "$line" | sed -n 's/.*begin=\([0-9]*\).*/\1/p')
 motion=$(printf '%s\n' "$line" | sed -n 's/.*motion=\([0-9]*\).*/\1/p')
 ((begin > 0 && motion > 0))
-if [[ ${1:-} != --synthetic ]]; then
+if [[ "$mode" == --escape ]]; then
+  if ! rg -q '^Control local restaurado\.$' "$scratch/client.log"; then
+    printf 'No se observó la liberación por Escape.\n' >&2
+    exit 1
+  fi
+  printf 'Escape liberó la captura y restauró el control local.\n'
+elif [[ "$mode" != --synthetic ]]; then
   keys=$(printf '%s\n' "$line" | sed -n 's/.*keys=\([0-9]*\).*/\1/p')
   buttons=$(printf '%s\n' "$line" | sed -n 's/.*buttons=\([0-9]*\).*/\1/p')
   ((keys > 0 && buttons > 0))
