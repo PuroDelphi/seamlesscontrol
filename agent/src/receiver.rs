@@ -2,13 +2,17 @@
 //! disconnect and malformed-frame behavior can be tested without a desktop.
 
 use crate::clipboard::ClipboardPacket;
-use crate::protocol::{Frame, FrameError, Kind};
+use crate::protocol::{EntryPosition, Frame, FrameError, Kind};
 use crate::state::{ApplyResult, EventError, InputEvent, Receiver};
 use std::fmt;
 use std::io::{self, Read};
 
 pub trait Injector {
     fn inject(&mut self, event: &InputEvent) -> io::Result<()>;
+
+    fn place_cursor(&mut self, _entry: EntryPosition) -> io::Result<()> {
+        Ok(())
+    }
 
     fn clipboard_received(&mut self, _packet: ClipboardPacket) -> io::Result<()> {
         Err(io::Error::new(
@@ -81,8 +85,15 @@ impl<I: Injector> InputReceiver<I> {
 
     pub fn handle(&mut self, frame: &Frame) -> Result<(), ReceiverError> {
         match frame.kind {
-            Kind::Control if frame.payload == b"BEGIN" => {
+            Kind::Control if frame.payload == b"BEGIN" || frame.payload.starts_with(b"BEGIN\t") => {
+                let entry = EntryPosition::parse_begin(&frame.payload)
+                    .map_err(|_| ReceiverError::UnexpectedFrame)?;
                 self.release()?;
+                if let Some(entry) = entry {
+                    self.injector
+                        .place_cursor(entry)
+                        .map_err(ReceiverError::Injection)?;
+                }
                 for event in self.ledger.begin(frame.epoch) {
                     self.injector
                         .inject(&event)
@@ -202,6 +213,7 @@ mod tests {
     use super::*;
     use crate::clipboard::{ClipboardEvent, ClipboardSync};
     use crate::handoff::HandoffCoordinator;
+    use crate::protocol::SwitchRequest;
     use crate::secure::{Identity, Role, SecureChannel};
     use crate::topology::{Edge, Machine, Slot, Topology};
     use std::net::{IpAddr, TcpListener, TcpStream};
@@ -212,6 +224,24 @@ mod tests {
     impl Injector for RecordingInjector {
         fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
             self.0.push(event.clone());
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct PositionedInjector {
+        placements: Vec<EntryPosition>,
+        input: Vec<InputEvent>,
+    }
+
+    impl Injector for PositionedInjector {
+        fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
+            self.input.push(event.clone());
+            Ok(())
+        }
+
+        fn place_cursor(&mut self, entry: EntryPosition) -> io::Result<()> {
+            self.placements.push(entry);
             Ok(())
         }
     }
@@ -578,7 +608,12 @@ mod tests {
                 kind: Kind::Control,
                 epoch: 41,
                 sequence: 1,
-                payload: format!("SWITCH\t{c_ip}").into_bytes(),
+                payload: SwitchRequest {
+                    target: c_ip,
+                    exit_edge: Edge::Bottom,
+                    fraction: 16_384,
+                }
+                .encode(),
             }
             .write_to(&mut channel)
             .unwrap();
@@ -613,13 +648,13 @@ mod tests {
             let (mut channel, _) =
                 SecureChannel::connect(stream, Role::Responder, &c_id, Some(&a_public), |_| false)
                     .unwrap();
-            let mut receiver = InputReceiver::new(RecordingInjector::default());
+            let mut receiver = InputReceiver::new(PositionedInjector::default());
             for _ in 0..4 {
                 receiver
                     .handle(&Frame::read_from(&mut channel).unwrap())
                     .unwrap();
             }
-            receiver.into_injector().0
+            receiver.into_injector()
         });
 
         let b_stream = TcpStream::connect(b_address).unwrap();
@@ -661,7 +696,14 @@ mod tests {
             .unwrap();
         }
         let request = Frame::read_from(&mut b_channel).unwrap();
-        assert_eq!(request.payload, format!("SWITCH\t{c_ip}").into_bytes());
+        assert_eq!(
+            SwitchRequest::parse(&request.payload),
+            Ok(SwitchRequest {
+                target: c_ip,
+                exit_edge: Edge::Bottom,
+                fraction: 16_384,
+            })
+        );
         handoff
             .request(b_ip, request.epoch, Machine::Peer(c_ip))
             .unwrap();
@@ -684,7 +726,15 @@ mod tests {
             Ok(Machine::Peer(c_ip))
         );
         for (sequence, kind, payload) in [
-            (1, Kind::Control, b"BEGIN".to_vec()),
+            (
+                1,
+                Kind::Control,
+                EntryPosition {
+                    edge: Edge::Top,
+                    fraction: 16_384,
+                }
+                .begin_payload(),
+            ),
             (2, Kind::Input, InputEvent::KeyDown(42).encode()),
             (3, Kind::Input, InputEvent::ButtonDown(272).encode()),
             (4, Kind::Control, b"END".to_vec()),
@@ -699,8 +749,16 @@ mod tests {
             .unwrap();
         }
         b_server.join().unwrap();
+        let c_injector = c_server.join().unwrap();
         assert_eq!(
-            c_server.join().unwrap(),
+            c_injector.placements,
+            vec![EntryPosition {
+                edge: Edge::Top,
+                fraction: 16_384,
+            }]
+        );
+        assert_eq!(
+            c_injector.input,
             vec![
                 InputEvent::KeyDown(42),
                 InputEvent::ButtonDown(272),

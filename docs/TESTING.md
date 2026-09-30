@@ -18,6 +18,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 
 1. Ejecutar `serve` en B y `connect ... right` en A. Comprobar que el portal de A solicita el permiso esperado y que se autentica el mismo par.
 2. Llevar el ratón **físico** al borde derecho de A. Moverlo en B, hacer clic, arrastrar, usar la rueda y escribir con letras, modificadores y atajos. Confirmar que esos eventos no actúan también sobre aplicaciones de A.
+   Confirmar que el cursor aparece unos píxeles dentro del borde izquierdo de B y a una altura proporcional a la del cruce en A; repetir con resoluciones distintas y dos monitores escalonados.
 3. Pulsar Escape mientras B tiene el control. Confirmar que A recupera el puntero y que B no conserva teclas ni botones pulsados. Repetir con **Devolver control al origen** en el panel de B y con `seamlesscontrold return`; verificar que A libera el portal y que un nuevo cruce vuelve a funcionar.
 4. Configurar el mapa inverso en B. Activar el control en B, alejar el cursor al menos 16 píxeles del borde hacia A y cruzar ese borde. Confirmar que A recupera el control una sola vez y que una nueva activación sigue siendo posible. Repetir con monitores escalados y uniones internas, que no deben activar la vuelta.
 5. Interrumpir la red mientras se mantiene una tecla y luego un botón. Confirmar que B los libera al vencer el plazo de latido y que A recupera el control.

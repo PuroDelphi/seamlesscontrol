@@ -21,7 +21,9 @@ mod linux {
     use seamlesscontrol_core::handoff::HandoffCoordinator;
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
     use seamlesscontrol_core::omarchy::VirtualInput;
-    use seamlesscontrol_core::protocol::{Frame, FrameError, Kind};
+    use seamlesscontrol_core::protocol::{
+        EntryPosition, Frame, FrameError, Kind, ReturnRequest, SwitchRequest,
+    };
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
     use seamlesscontrol_core::secure::{Identity, Role, SecureChannel, SecureError, SecureWriter};
     use seamlesscontrol_core::state::InputEvent;
@@ -30,7 +32,8 @@ mod linux {
         load_topology, remember_peer_key, revoke_peer_key, save_topology,
     };
     use seamlesscontrol_core::topology::{
-        Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, external_barriers,
+        Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, edge_entry_point,
+        edge_fraction, external_barriers,
     };
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::error::Error;
@@ -44,7 +47,7 @@ mod linux {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
-    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/4";
+    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/5";
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
 
@@ -333,6 +336,22 @@ mod linux {
         Ok(now.max(previous.saturating_add(1)).max(1))
     }
 
+    fn crossing_fraction(ipc: &HyprIpc, edge: LogicalEdge, position: Option<(f32, f32)>) -> u16 {
+        match (ipc.monitor_rects(), position) {
+            (Ok(regions), Some((x, y))) if x.is_finite() && y.is_finite() => {
+                edge_fraction(&regions, edge, x.round() as i32, y.round() as i32)
+                    .unwrap_or(u16::MAX / 2)
+            }
+            _ => u16::MAX / 2,
+        }
+    }
+
+    fn return_position(ipc: &HyprIpc, edge: LogicalEdge, fraction: u16) -> Option<(f64, f64)> {
+        let regions = ipc.monitor_rects().ok()?;
+        let (x, y) = edge_entry_point(&regions, edge, fraction)?;
+        Some((f64::from(x), f64::from(y)))
+    }
+
     fn remember_held(event: &InputEvent, keys: &mut BTreeSet<u32>, buttons: &mut BTreeSet<u32>) {
         match event {
             InputEvent::KeyDown(key) => {
@@ -446,6 +465,7 @@ mod linux {
         let mut keys = BTreeSet::new();
         let mut buttons = BTreeSet::new();
         let mut pending_since: Option<Instant> = None;
+        let mut pending_entry: Option<EntryPosition> = None;
         let result: Result<(), Box<dyn Error>> = async {
             loop {
                 tokio::select! {
@@ -460,7 +480,7 @@ mod linux {
                             if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                                 let _ = mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec());
                                 coordinator.reset_local();
-                                keys.clear(); buttons.clear(); pending_since = None;
+                                keys.clear(); buttons.clear(); pending_since = None; pending_entry = None;
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
@@ -500,6 +520,7 @@ mod linux {
                         }
                         if frame.kind != Kind::Control { return Err("unexpected mesh feedback".into()); }
                         if frame.payload == b"ENDED" {
+                            let entry = pending_entry.take().ok_or("mesh handoff has no entry edge")?;
                             let next = next_epoch(last_epoch)?;
                             let target = coordinator.acknowledge(from, frame.epoch, next)?;
                             pending_since = None;
@@ -507,7 +528,7 @@ mod linux {
                                 Machine::Peer(peer) => {
                                     last_epoch = next;
                                     let link = mesh_link(&mut links, peer)?;
-                                    link.send(Kind::Control, next, b"BEGIN".to_vec())?;
+                                    link.send(Kind::Control, next, entry.begin_payload())?;
                                     for key in &keys { link.send(Kind::Input, next, InputEvent::KeyDown(*key).encode())?; }
                                     for button in &buttons { link.send(Kind::Input, next, InputEvent::ButtonDown(*button).encode())?; }
                                     control.set_peer(&peer.to_string());
@@ -523,22 +544,38 @@ mod linux {
                                     control.set_peer(""); control.set_phase("ready");
                                 }
                             }
-                        } else if frame.payload == b"RETURN" {
+                        } else if frame.payload == b"RETURN" || frame.payload.starts_with(b"RETURN\t") {
                             if coordinator.owner() == Machine::Peer(from) && coordinator.epoch() == Some(frame.epoch) {
+                                if frame.payload != b"RETURN" {
+                                    let request = ReturnRequest::parse(&frame.payload)?;
+                                    if topology.neighbor(Machine::Peer(from), request.exit_edge) != Some(Machine::Local) {
+                                        return Err("mesh return edge does not match topology".into());
+                                    }
+                                    release_position = return_position(&lock_ipc, request.exit_edge.opposite(), request.fraction)
+                                        .or(release_position);
+                                }
                                 mesh_link(&mut links, from)?.send(Kind::Control, frame.epoch, b"END".to_vec())?;
-                                coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear();
+                                coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear();
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
                                 portal_active = false;
                                 control.set_peer(""); control.set_phase("ready");
                             }
-                        } else if let Some(target) = frame.payload.strip_prefix(b"SWITCH\t") {
-                            let target: IpAddr = std::str::from_utf8(target)?.parse()?;
+                        } else if frame.payload.starts_with(b"SWITCH\t") {
+                            let request = SwitchRequest::parse(&frame.payload)?;
+                            let target = request.target;
                             if coordinator.owner() != Machine::Peer(from) || coordinator.epoch() != Some(frame.epoch) {
                                 return Err("stale mesh switch request".into());
                             }
+                            if topology.neighbor(Machine::Peer(from), request.exit_edge) != Some(Machine::Peer(target)) {
+                                return Err("mesh switch edge does not match topology".into());
+                            }
                             coordinator.request(from, frame.epoch, Machine::Peer(target))?;
+                            pending_entry = Some(EntryPosition {
+                                edge: request.exit_edge.opposite(),
+                                fraction: request.fraction,
+                            });
                             if load_peer_key(&config.join("peers"), target)?.is_none() { return Err("mesh target was revoked".into()); }
                             if let std::collections::btree_map::Entry::Vacant(entry) = links.entry(target) {
                                 let address = SocketAddr::new(target, port);
@@ -589,7 +626,11 @@ mod linux {
                         }
                         last_epoch = next_epoch(last_epoch)?;
                         coordinator.activate_local_edge(edge.logical(), peer, last_epoch)?;
-                        mesh_link(&mut links, peer)?.send(Kind::Control, last_epoch, b"BEGIN".to_vec())?;
+                        let entry = EntryPosition {
+                            edge: edge.logical().opposite(),
+                            fraction: crossing_fraction(&lock_ipc, edge.logical(), signal.cursor_position()),
+                        };
+                        mesh_link(&mut links, peer)?.send(Kind::Control, last_epoch, entry.begin_payload())?;
                         control.set_peer(&peer.to_string()); control.set_phase("controlling");
                         println!("Control remoto activo en {peer}.");
                     }
@@ -599,7 +640,7 @@ mod linux {
                             mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
                         }
                         portal_active = false;
-                        coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
+                        coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear(); current_activation = None;
                         control.set_peer(""); control.set_phase("ready");
                     }
                     signal = zones_changed.next() => {
@@ -614,7 +655,7 @@ mod linux {
                             let _ = portal.release(&session, options).await;
                             portal_active = false;
                         }
-                        coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
+                        coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear(); current_activation = None;
                         if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
                         (zone_set, barriers) = install_mesh_barriers(&portal, &session, &topology).await?;
                         if !control.paused() && !locked { portal.enable(&session, Default::default()).await?; capture_enabled = true; }
@@ -629,7 +670,7 @@ mod linux {
                         if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                             if matches!(&event, EiEvent::KeyboardKey(key) if key.key == 1 && key.state == ei::keyboard::KeyState::Press) {
                                 mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
-                                coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear();
+                                coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear();
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
@@ -801,10 +842,19 @@ mod linux {
                             if !locked { clipboard_apply.try_send(packet).map_err(|_| "clipboard apply queue is full")?; }
                             continue;
                         }
-                        if frame.kind != Kind::Control || frame.payload != b"RETURN" {
+                        if frame.kind != Kind::Control
+                            || (frame.payload != b"RETURN" && !frame.payload.starts_with(b"RETURN\t")) {
                             return Err("unexpected feedback from remote peer".into());
                         }
                         if active && frame.epoch == epoch {
+                            if frame.payload != b"RETURN" {
+                                let request = ReturnRequest::parse(&frame.payload)?;
+                                if request.exit_edge.opposite() != edge.logical() {
+                                    return Err("return edge does not match capture edge".into());
+                                }
+                                release_position = return_position(&local_lock, edge.logical(), request.fraction)
+                                    .or(release_position);
+                            }
                             send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                             let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
                             if let Some(position) = release_position { options = options.set_cursor_position(position); }
@@ -827,7 +877,11 @@ mod linux {
                         current_activation = signal.activation_id();
                         active = true;
                         release_position = signal.cursor_position().map(|p| edge.release_position(p));
-                        send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"BEGIN".to_vec())?;
+                        let entry = EntryPosition {
+                            edge: edge.logical().opposite(),
+                            fraction: crossing_fraction(&local_lock, edge.logical(), signal.cursor_position()),
+                        };
+                        send_frame(&mut writer, Kind::Control, epoch, &mut sequence, entry.begin_payload())?;
                         control.set_phase("controlling");
                         println!("Control remoto activo. Escape devuelve el puntero.");
                     }
@@ -927,6 +981,28 @@ mod linux {
     }
 
     impl Injector for OmarchyInjector {
+        fn place_cursor(&mut self, entry: EntryPosition) -> io::Result<()> {
+            if self.lock_ipc.session_lock_state()? != SessionLockState::Unlocked {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "cursor entry blocked by session lock",
+                ));
+            }
+            let regions = self.lock_ipc.monitor_rects()?;
+            let target =
+                edge_entry_point(&regions, entry.edge, entry.fraction).ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "no destination entry edge")
+                })?;
+            let current = self.lock_ipc.cursor_position()?;
+            self.input
+                .motion(
+                    f64::from(target.0) - f64::from(current.0),
+                    f64::from(target.1) - f64::from(current.1),
+                    self.started.elapsed().as_millis() as u32,
+                )
+                .map_err(|error| io::Error::other(error.to_string()))
+        }
+
         fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
             if matches!(event, InputEvent::KeyDown(_) | InputEvent::ButtonDown(_))
                 && self.lock_ipc.session_lock_state()? != SessionLockState::Unlocked
@@ -1181,7 +1257,7 @@ mod linux {
             let mut observed_epoch = None;
             let mut sent_epoch = None;
             let mut observed_motion = 0_u64;
-            let mut detectors: Vec<(IpAddr, EdgeReturnDetector)> = Vec::new();
+            let mut detectors: Vec<(LogicalEdge, IpAddr, EdgeReturnDetector)> = Vec::new();
             let mut monitor_regions: Option<Vec<Rect>> = None;
             let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
@@ -1213,7 +1289,7 @@ mod linux {
                             edge_targets
                                 .iter()
                                 .map(|(edge, target)| {
-                                    (*target, EdgeReturnDetector::new(regions, *edge))
+                                    (*edge, *target, EdgeReturnDetector::new(regions, *edge))
                                 })
                                 .collect()
                         })
@@ -1230,7 +1306,7 @@ mod linux {
                         detectors = edge_targets
                             .iter()
                             .map(|(edge, target)| {
-                                (*target, EdgeReturnDetector::new(&regions, *edge))
+                                (*edge, *target, EdgeReturnDetector::new(&regions, *edge))
                             })
                             .collect();
                         monitor_regions = Some(regions);
@@ -1245,14 +1321,33 @@ mod linux {
                     match (active_epoch, edge_hypr.as_ref()) {
                         (Some(epoch), Some(ipc)) => {
                             ipc.cursor_position().ok().and_then(|(x, y)| {
-                                detectors.iter_mut().find_map(|(target, detector)| {
+                                detectors.iter_mut().find_map(|(edge, target, detector)| {
                                     if !detector.sample(x, y) {
                                         return None;
                                     }
                                     let payload = if *target == peer_ip {
-                                        b"RETURN".to_vec()
+                                        ReturnRequest {
+                                            exit_edge: *edge,
+                                            fraction: monitor_regions
+                                                .as_ref()
+                                                .and_then(|regions| {
+                                                    edge_fraction(regions, *edge, x, y)
+                                                })
+                                                .unwrap_or(u16::MAX / 2),
+                                        }
+                                        .encode()
                                     } else {
-                                        format!("SWITCH\t{target}").into_bytes()
+                                        SwitchRequest {
+                                            target: *target,
+                                            exit_edge: *edge,
+                                            fraction: monitor_regions
+                                                .as_ref()
+                                                .and_then(|regions| {
+                                                    edge_fraction(regions, *edge, x, y)
+                                                })
+                                                .unwrap_or(u16::MAX / 2),
+                                        }
+                                        .encode()
                                     };
                                     Some((epoch, payload))
                                 })

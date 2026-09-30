@@ -192,6 +192,132 @@ impl Edge {
             Self::Bottom => "bottom",
         }
     }
+
+    pub fn opposite(self) -> Self {
+        match self {
+            Self::Left => Self::Right,
+            Self::Right => Self::Left,
+            Self::Top => Self::Bottom,
+            Self::Bottom => Self::Top,
+        }
+    }
+
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "left" => Some(Self::Left),
+            "right" => Some(Self::Right),
+            "top" => Some(Self::Top),
+            "bottom" => Some(Self::Bottom),
+            _ => None,
+        }
+    }
+}
+
+fn ordered_exterior(regions: &[Rect], edge: Edge) -> Vec<BarrierSegment> {
+    let mut segments = external_barriers(regions, edge);
+    segments.sort_unstable_by_key(|segment| match edge {
+        Edge::Left | Edge::Right => (segment.y1, segment.x1),
+        Edge::Top | Edge::Bottom => (segment.x1, segment.y1),
+    });
+    segments
+}
+
+fn edge_span(segment: BarrierSegment, edge: Edge) -> (i32, i32) {
+    match edge {
+        Edge::Left | Edge::Right => (segment.y1, segment.y2),
+        Edge::Top | Edge::Bottom => (segment.x1, segment.x2),
+    }
+}
+
+/// Position along the exposed side of all local monitors, preserving the
+/// crossing height/width when the neighbor has a different resolution.
+pub fn edge_fraction(regions: &[Rect], edge: Edge, x: i32, y: i32) -> Option<u16> {
+    let segments = ordered_exterior(regions, edge);
+    let total: i64 = segments
+        .iter()
+        .map(|segment| {
+            let (start, end) = edge_span(*segment, edge);
+            i64::from(end) - i64::from(start) + 1
+        })
+        .sum();
+    if total == 0 {
+        return None;
+    }
+    let along = match edge {
+        Edge::Left | Edge::Right => y,
+        Edge::Top | Edge::Bottom => x,
+    };
+    let across = match edge {
+        Edge::Left | Edge::Right => x,
+        Edge::Top | Edge::Bottom => y,
+    };
+    let chosen = segments.iter().enumerate().min_by_key(|(_, segment)| {
+        let (start, end) = edge_span(**segment, edge);
+        let along_distance = i64::from(along).saturating_sub(i64::from(end)).max(0)
+            + i64::from(start).saturating_sub(i64::from(along)).max(0);
+        let boundary = match edge {
+            Edge::Left | Edge::Right => segment.x1,
+            Edge::Top | Edge::Bottom => segment.y1,
+        };
+        (
+            along_distance,
+            (i64::from(across) - i64::from(boundary)).abs(),
+        )
+    })?;
+    let before: i64 = segments[..chosen.0]
+        .iter()
+        .map(|segment| {
+            let (start, end) = edge_span(*segment, edge);
+            i64::from(end) - i64::from(start) + 1
+        })
+        .sum();
+    let (start, end) = edge_span(*chosen.1, edge);
+    let offset = i64::from(along.clamp(start, end)) - i64::from(start);
+    let numerator = (before + offset) * i64::from(u16::MAX);
+    Some((numerator / (total - 1).max(1)) as u16)
+}
+
+/// A point just inside the requested destination edge. Returns `None` for
+/// incomplete or unsupported monitor geometry rather than guessing a warp.
+pub fn edge_entry_point(regions: &[Rect], edge: Edge, fraction: u16) -> Option<(i32, i32)> {
+    let segments = ordered_exterior(regions, edge);
+    let total: i64 = segments
+        .iter()
+        .map(|segment| {
+            let (start, end) = edge_span(*segment, edge);
+            i64::from(end) - i64::from(start) + 1
+        })
+        .sum();
+    if total == 0 {
+        return None;
+    }
+    let mut offset = i64::from(fraction) * (total - 1) / i64::from(u16::MAX);
+    for segment in segments {
+        let (start, end) = edge_span(segment, edge);
+        let length = i64::from(end) - i64::from(start) + 1;
+        if offset >= length {
+            offset -= length;
+            continue;
+        }
+        let along = i32::try_from(i64::from(start) + offset).ok()?;
+        let region = regions.iter().find(|region| match edge {
+            Edge::Left => region.x == segment.x1 && along >= region.y && along < region.bottom(),
+            Edge::Right => {
+                region.right() == segment.x1 && along >= region.y && along < region.bottom()
+            }
+            Edge::Top => region.y == segment.y1 && along >= region.x && along < region.right(),
+            Edge::Bottom => {
+                region.bottom() == segment.y1 && along >= region.x && along < region.right()
+            }
+        })?;
+        return Some(match edge {
+            Edge::Left => ((region.x.saturating_add(2)).min(region.right() - 1), along),
+            Edge::Right => ((region.right().saturating_sub(3)).max(region.x), along),
+            Edge::Top => (along, (region.y.saturating_add(2)).min(region.bottom() - 1)),
+            Edge::Bottom => (along, (region.bottom().saturating_sub(3)).max(region.y)),
+        });
+    }
+    None
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
@@ -542,6 +668,37 @@ impl Layout {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn edge_position_preserves_relative_height_across_resolutions() {
+        let source = [Rect::new(0, 0, 1920, 1080).unwrap()];
+        let destination = [Rect::new(0, 0, 1280, 720).unwrap()];
+        let fraction = edge_fraction(&source, Edge::Right, 1920, 270).unwrap();
+        let point = edge_entry_point(&destination, Edge::Left, fraction).unwrap();
+        assert_eq!(point.0, 2);
+        assert!((point.1 - 180).abs() <= 1);
+        assert_eq!(Edge::Right.opposite(), Edge::Left);
+        assert_eq!(Edge::parse("left"), Some(Edge::Left));
+        assert_eq!(Edge::parse("LEFT"), None);
+    }
+
+    #[test]
+    fn entry_point_stays_on_exposed_monitor_edges() {
+        let monitors = [
+            Rect::new(-800, 100, 800, 600).unwrap(),
+            Rect::new(0, 0, 1366, 768).unwrap(),
+        ];
+        for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+            for fraction in [0, 10_000, 32_768, 55_000, u16::MAX] {
+                let (x, y) = edge_entry_point(&monitors, edge, fraction).unwrap();
+                assert!(monitors.iter().any(|region| {
+                    x >= region.x && x < region.right() && y >= region.y && y < region.bottom()
+                }));
+                let recovered = edge_fraction(&monitors, edge, x, y).unwrap();
+                assert!((i32::from(recovered) - i32::from(fraction)).abs() <= 200);
+            }
+        }
+    }
 
     #[test]
     fn two_by_two_layout_routes_edges_and_rejects_corners_without_neighbor() {

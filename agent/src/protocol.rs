@@ -3,10 +3,145 @@
 
 use std::fmt;
 use std::io::{self, Read, Write};
+use std::net::IpAddr;
+
+use crate::topology::Edge;
 
 pub const PROTOCOL_VERSION: u16 = 1;
 pub const MAX_PAYLOAD: usize = 1024 * 1024;
 const HEADER_LEN: usize = 20;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EntryPosition {
+    pub edge: Edge,
+    pub fraction: u16,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SwitchRequest {
+    pub target: IpAddr,
+    pub exit_edge: Edge,
+    pub fraction: u16,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ReturnRequest {
+    pub exit_edge: Edge,
+    pub fraction: u16,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ControlPayloadError;
+
+impl fmt::Display for ControlPayloadError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid edge control payload")
+    }
+}
+
+impl std::error::Error for ControlPayloadError {}
+
+impl EntryPosition {
+    pub fn begin_payload(self) -> Vec<u8> {
+        format!("BEGIN\t{}\t{}", self.edge.as_str(), self.fraction).into_bytes()
+    }
+
+    pub fn parse_begin(payload: &[u8]) -> Result<Option<Self>, ControlPayloadError> {
+        if payload == b"BEGIN" {
+            return Ok(None);
+        }
+        let value = std::str::from_utf8(payload).map_err(|_| ControlPayloadError)?;
+        let mut fields = value.split('\t');
+        if fields.next() != Some("BEGIN") {
+            return Err(ControlPayloadError);
+        }
+        let edge = fields
+            .next()
+            .and_then(Edge::parse)
+            .ok_or(ControlPayloadError)?;
+        let fraction = fields
+            .next()
+            .ok_or(ControlPayloadError)?
+            .parse()
+            .map_err(|_| ControlPayloadError)?;
+        if fields.next().is_some() {
+            return Err(ControlPayloadError);
+        }
+        Ok(Some(Self { edge, fraction }))
+    }
+}
+
+impl SwitchRequest {
+    pub fn encode(self) -> Vec<u8> {
+        format!(
+            "SWITCH\t{}\t{}\t{}",
+            self.target,
+            self.exit_edge.as_str(),
+            self.fraction
+        )
+        .into_bytes()
+    }
+
+    pub fn parse(payload: &[u8]) -> Result<Self, ControlPayloadError> {
+        let value = std::str::from_utf8(payload).map_err(|_| ControlPayloadError)?;
+        let mut fields = value.split('\t');
+        if fields.next() != Some("SWITCH") {
+            return Err(ControlPayloadError);
+        }
+        let target = fields
+            .next()
+            .ok_or(ControlPayloadError)?
+            .parse()
+            .map_err(|_| ControlPayloadError)?;
+        let exit_edge = fields
+            .next()
+            .and_then(Edge::parse)
+            .ok_or(ControlPayloadError)?;
+        let fraction = fields
+            .next()
+            .ok_or(ControlPayloadError)?
+            .parse()
+            .map_err(|_| ControlPayloadError)?;
+        if fields.next().is_some() {
+            return Err(ControlPayloadError);
+        }
+        Ok(Self {
+            target,
+            exit_edge,
+            fraction,
+        })
+    }
+}
+
+impl ReturnRequest {
+    pub fn encode(self) -> Vec<u8> {
+        format!("RETURN\t{}\t{}", self.exit_edge.as_str(), self.fraction).into_bytes()
+    }
+
+    pub fn parse(payload: &[u8]) -> Result<Self, ControlPayloadError> {
+        let value = std::str::from_utf8(payload).map_err(|_| ControlPayloadError)?;
+        let mut fields = value.split('\t');
+        if fields.next() != Some("RETURN") {
+            return Err(ControlPayloadError);
+        }
+        let exit_edge = fields
+            .next()
+            .and_then(Edge::parse)
+            .ok_or(ControlPayloadError)?;
+        let fraction = fields
+            .next()
+            .ok_or(ControlPayloadError)?
+            .parse()
+            .map_err(|_| ControlPayloadError)?;
+        if fields.next().is_some() {
+            return Err(ControlPayloadError);
+        }
+        Ok(Self {
+            exit_edge,
+            fraction,
+        })
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(u8)]
@@ -140,6 +275,35 @@ impl Frame {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn edge_control_payloads_round_trip_and_reject_extra_fields() {
+        let entry = EntryPosition {
+            edge: Edge::Left,
+            fraction: 42_000,
+        };
+        assert_eq!(
+            EntryPosition::parse_begin(&entry.begin_payload()),
+            Ok(Some(entry))
+        );
+        assert_eq!(EntryPosition::parse_begin(b"BEGIN"), Ok(None));
+        assert!(EntryPosition::parse_begin(b"BEGIN\tleft\t42000\textra").is_err());
+        assert!(EntryPosition::parse_begin(b"BEGIN\tLEFT\t42000").is_err());
+        let request = SwitchRequest {
+            target: IpAddr::from([192, 168, 1, 3]),
+            exit_edge: Edge::Bottom,
+            fraction: 1234,
+        };
+        assert_eq!(SwitchRequest::parse(&request.encode()), Ok(request));
+        assert!(SwitchRequest::parse(b"SWITCH\t192.168.1.3\tbottom\t65536").is_err());
+        assert!(SwitchRequest::parse(b"SWITCH\t192.168.1.3\tbottom").is_err());
+        let returning = ReturnRequest {
+            exit_edge: Edge::Left,
+            fraction: 55_000,
+        };
+        assert_eq!(ReturnRequest::parse(&returning.encode()), Ok(returning));
+        assert!(ReturnRequest::parse(b"RETURN\tleft\t65536").is_err());
+    }
 
     #[test]
     fn frame_round_trip() {
