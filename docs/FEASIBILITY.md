@@ -48,6 +48,12 @@ Con `capture-probe --listen` y movimiento generado por `virtual-input-probe --ed
 
 El siguiente experimento debe recibir eventos reales, liberar la captura y repetir el flujo en dos equipos. Ningún dato de entrada fue capturado durante esta comprobación. El agente experimental `seamlesscontrold` ya enlaza portal/EIS, Noise XX y entrada virtual; está compilado y sometido a pruebas locales, pero su flujo de entrada físico y la ejecución entre dos máquinas siguen sin verificar. Véase [la guía de pruebas](./TESTING.md).
 
+## Carga real del plugin en Omarchy
+
+El 29 de septiembre se instaló `seamlesscontrol.control` desde GitHub con `omarchy plugin add ... --enable`, y el agente de esta revisión se compiló e instaló en `~/.local/bin` mediante `packaging/install-agent.sh`. La barra mostró el widget. El IPC `omarchy-shell shell summon seamlesscontrol.control '{}'` abrió su panel y `hide` lo cerró; la nueva instancia de Quickshell no registró errores QML del plugin. La primera prueba reveló que el widget no exponía `opened`, propiedad que usa Omarchy para localizar paneles de la barra; quedó corregida en el código. Tras actualizar el plugin, fue necesario `omarchy restart shell` para que la instancia en ejecución cargara la nueva propiedad.
+
+`seamlesscontrold diagnose` leyó `CURSOR 1046 440`, un monitor lógico `0 0 1366 768` y `LOCK unlocked`. No había sesión del agente ni segundo equipo durante esta prueba; abrir el panel no valida captura, inyección ni transporte de entrada.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
