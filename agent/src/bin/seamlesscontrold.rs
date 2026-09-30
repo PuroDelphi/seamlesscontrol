@@ -14,7 +14,7 @@ mod linux {
     use seamlesscontrol_core::clipboard_omarchy::{self, ClipboardWatch, spawn_apply_worker};
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::file_session;
-    use seamlesscontrol_core::hypr_ipc::HyprIpc;
+    use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{Frame, FrameError, Kind};
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
@@ -180,6 +180,12 @@ mod linux {
         local_id: [u8; 32],
         remote_id: [u8; 32],
     ) -> Result<(), Box<dyn Error>> {
+        let local_lock =
+            HyprIpc::from_env().ok_or("Hyprland IPC is required to guard local capture")?;
+        let mut locked = local_lock
+            .session_lock_state()
+            .unwrap_or(SessionLockState::Undetermined)
+            != SessionLockState::Unlocked;
         let portal = InputCapture::new().await?;
         let (session, _) = portal
             .create_session(
@@ -200,8 +206,10 @@ mod linux {
             .await?;
         let mut activated = portal.receive_activated().await?;
         let mut deactivated = portal.receive_deactivated().await?;
-        portal.enable(&session, Default::default()).await?;
-        control.set_phase("ready");
+        if !locked {
+            portal.enable(&session, Default::default()).await?;
+        }
+        control.set_phase(if locked { "locked" } else { "ready" });
         println!(
             "Captura activa. Cruce el borde elegido; Escape recupera el control, Ctrl+C termina."
         );
@@ -235,7 +243,7 @@ mod linux {
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
         pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        let mut capture_enabled = true;
+        let mut capture_enabled = !locked;
         let mut epoch = 0;
         let mut sequence = 0;
         let mut current_activation = None;
@@ -247,7 +255,8 @@ mod linux {
                     _ = tokio::signal::ctrl_c() => break,
                     _ = pause_tick.tick() => {
                         if control.revoked_active() { break; }
-                        if control.paused() && capture_enabled {
+                        locked = local_lock.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
+                        if (control.paused() || locked) && capture_enabled {
                             if active {
                                 send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
@@ -257,18 +266,22 @@ mod linux {
                             }
                             portal.disable(&session, Default::default()).await?;
                             capture_enabled = false;
-                            control.set_phase("paused");
-                        } else if !control.paused() && !capture_enabled {
+                            control.set_phase(if locked { "locked" } else { "paused" });
+                        } else if !control.paused() && !locked && !capture_enabled {
                             portal.enable(&session, Default::default()).await?;
                             capture_enabled = true;
                             control.set_phase("ready");
+                        } else if locked {
+                            control.set_phase("locked");
+                        } else if control.paused() {
+                            control.set_phase("paused");
                         }
                     }
                     _ = heartbeat.tick() => {
                         send_frame(&mut writer, Kind::Heartbeat, epoch, &mut sequence, Vec::new())?;
                     }
                     Some(event) = clipboard_rx.recv() => {
-                        send_frame(&mut writer, Kind::Clipboard, 0, &mut sequence, event.encode())?;
+                        if !locked { send_frame(&mut writer, Kind::Clipboard, 0, &mut sequence, event.encode())?; }
                     }
                     feedback = feedback_rx.recv() => {
                         let frame = feedback.ok_or("feedback reader stopped")??;
@@ -277,7 +290,7 @@ mod linux {
                             if packet.origin != remote_id {
                                 return Err("clipboard origin does not match peer".into());
                             }
-                            clipboard_apply.try_send(packet).map_err(|_| "clipboard apply queue is full")?;
+                            if !locked { clipboard_apply.try_send(packet).map_err(|_| "clipboard apply queue is full")?; }
                             continue;
                         }
                         if frame.kind != Kind::Control || frame.payload != b"RETURN" {
@@ -289,13 +302,13 @@ mod linux {
                             if let Some(position) = release_position { options = options.set_cursor_position(position); }
                             portal.release(&session, options).await?;
                             active = false;
-                            control.set_phase("ready");
+                            control.set_phase(if locked { "locked" } else { "ready" });
                             println!("El equipo remoto devolvió el control local.");
                         }
                     }
                     signal = activated.next() => {
                         let signal = signal.ok_or("capture activation stream closed")?;
-                        if control.paused() {
+                        if control.paused() || locked {
                             let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
                             if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
                             portal.release(&session, options).await?;
@@ -316,7 +329,7 @@ mod linux {
                             send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                             active = false;
                             current_activation = None;
-                            control.set_phase(if control.paused() { "paused" } else { "ready" });
+                            control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "ready" });
                         }
                     }
                     signal = zones_changed.next() => {
@@ -332,12 +345,12 @@ mod linux {
                             capture_enabled = false;
                         }
                         current_zone_set = install_barriers(&portal, &session, edge).await?;
-                        if !control.paused() {
+                        if !control.paused() && !locked {
                             portal.enable(&session, Default::default()).await?;
                             capture_enabled = true;
                             control.set_phase("ready");
                         } else {
-                            control.set_phase("paused");
+                            control.set_phase(if locked { "locked" } else { "paused" });
                         }
                     }
                     event = events.next() => {
@@ -353,7 +366,7 @@ mod linux {
                                 active = false;
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
-                                control.set_phase("ready");
+                                control.set_phase(if locked { "locked" } else { "ready" });
                                 println!("Control local restaurado.");
                             } else if let Some(event) = input_event(event) {
                                 send_frame(&mut writer, Kind::Input, epoch, &mut sequence, event.encode())?;
@@ -399,10 +412,19 @@ mod linux {
         motion_generation: Arc<AtomicU64>,
         clipboard_apply: tokio::sync::mpsc::Sender<ClipboardPacket>,
         clipboard_remote_id: [u8; 32],
+        lock_ipc: HyprIpc,
     }
 
     impl Injector for OmarchyInjector {
         fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
+            if matches!(event, InputEvent::KeyDown(_) | InputEvent::ButtonDown(_))
+                && self.lock_ipc.session_lock_state()? != SessionLockState::Unlocked
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "remote input blocked by session lock",
+                ));
+            }
             let time_ms = self.started.elapsed().as_millis() as u32;
             self.input
                 .apply(event, time_ms)
@@ -520,7 +542,11 @@ mod linux {
         let return_edge = load_topology(&config.join("topology"))
             .ok()
             .and_then(|topology| topology.edge_to(peer_ip).ok());
-        let hypr = return_edge.and_then(|_| HyprIpc::from_env());
+        let hypr = HyprIpc::from_env().ok_or("Hyprland IPC is required to guard remote input")?;
+        if hypr.session_lock_state()? != SessionLockState::Unlocked {
+            return Err("session is locked or lock state is undetermined".into());
+        }
+        let return_hypr = return_edge.map(|_| hypr.clone());
         let motion_generation = Arc::new(AtomicU64::new(0));
         let input = VirtualInput::connect()?;
         let (mut reader, mut writer) = channel.into_tcp_halves()?;
@@ -547,6 +573,7 @@ mod linux {
             motion_generation: Arc::clone(&motion_generation),
             clipboard_apply: clipboard_apply.clone(),
             clipboard_remote_id: peer.public_key,
+            lock_ipc: hypr.clone(),
         };
         let watcher_running = Arc::new(AtomicBool::new(true));
         let watcher_flag = Arc::clone(&watcher_running);
@@ -560,6 +587,17 @@ mod linux {
             let mut monitor_regions: Option<Vec<Rect>> = None;
             let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
+                if hypr
+                    .session_lock_state()
+                    .unwrap_or(SessionLockState::Undetermined)
+                    != SessionLockState::Unlocked
+                {
+                    eprintln!(
+                        "SeamlessControl: sesión bloqueada o estado desconocido; se corta la entrada remota."
+                    );
+                    let _ = writer.stream_mut().shutdown(Shutdown::Both);
+                    break;
+                }
                 let active_epoch = watcher_control.active_epoch();
                 if active_epoch != observed_epoch {
                     observed_epoch = active_epoch;
@@ -567,7 +605,9 @@ mod linux {
                     observed_motion = motion_generation.load(Ordering::Relaxed);
                     last_geometry_refresh = Instant::now();
                     monitor_regions = if active_epoch.is_some() {
-                        hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
+                        return_hypr
+                            .as_ref()
+                            .and_then(|ipc| ipc.monitor_rects().ok())
                     } else {
                         None
                     };
@@ -580,7 +620,9 @@ mod linux {
                     && last_geometry_refresh.elapsed() >= Duration::from_secs(5)
                 {
                     last_geometry_refresh = Instant::now();
-                    if let Some(regions) = hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
+                    if let Some(regions) = return_hypr
+                        .as_ref()
+                        .and_then(|ipc| ipc.monitor_rects().ok())
                         && monitor_regions.as_ref() != Some(&regions)
                     {
                         detector = return_edge.map(|edge| EdgeReturnDetector::new(&regions, edge));
@@ -591,7 +633,7 @@ mod linux {
                 let motion = motion_generation.load(Ordering::Relaxed);
                 let automatic_return = if sent_epoch.is_none() && motion != observed_motion {
                     observed_motion = motion;
-                    match (active_epoch, detector.as_mut(), hypr.as_ref()) {
+                    match (active_epoch, detector.as_mut(), return_hypr.as_ref()) {
                         (Some(epoch), Some(detector), Some(ipc)) => ipc
                             .cursor_position()
                             .ok()
@@ -786,6 +828,12 @@ mod linux {
                     rect.x, rect.y, rect.width, rect.height
                 );
             }
+            let lock = match ipc.session_lock_state()? {
+                SessionLockState::Locked => "locked",
+                SessionLockState::Unlocked => "unlocked",
+                SessionLockState::Undetermined => "undetermined",
+            };
+            println!("LOCK\t{lock}");
             return Ok(());
         }
         if args.len() == 4

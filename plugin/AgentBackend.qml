@@ -14,6 +14,7 @@ Item {
     controlling: "control remoto",
     connected: "conectado",
     listening: "disponible",
+    locked: "bloqueado",
     paused: "en pausa",
     disconnected: "desconectado"
   })[phase] || phase

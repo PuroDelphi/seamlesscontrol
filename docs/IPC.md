@@ -2,6 +2,10 @@
 
 `seamlesscontrold` crea `control.sock` dentro de `$XDG_RUNTIME_DIR/seamlesscontrol/`. El directorio tiene permisos `0700` y el socket `0600`. Sólo se admite un agente por sesión de usuario por ahora. El widget invoca subcomandos del mismo binario; no abre el socket directamente.
 
+En el receptor, el IPC de Hyprland consulta `solitaryBlockedBy` en los monitores. `LOCK` significa bloqueo de sesión; una respuesta ausente, inválida o sin monitor legible se trata como estado indeterminado. El agente no inicia la inyección en ese estado, lo comprueba antes de cada pulsación remota y cierra una sesión activa al detectarlo, lo que desencadena la liberación de entrada retenida. `diagnose` expone `LOCK` para comprobar esta puerta de seguridad.
+
+En el emisor, la fase `locked` suspende la barrera de captura y la sincronización del portapapeles sin perder la conexión. Si había una captura, envía `END` y libera el portal. Sólo reactiva la barrera cuando Hyprland vuelve a informar un estado desbloqueado; la pausa manual sigue teniendo efecto.
+
 | Comando | Efecto |
 |---|---|
 | `seamlesscontrold status` | Estado en una línea tabulada |

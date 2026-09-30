@@ -9,8 +9,16 @@ use std::time::Duration;
 
 const MAX_REPLY: u64 = 128 * 1024;
 
+#[derive(Clone)]
 pub struct HyprIpc {
     socket: PathBuf,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SessionLockState {
+    Locked,
+    Unlocked,
+    Undetermined,
 }
 
 impl HyprIpc {
@@ -53,6 +61,44 @@ impl HyprIpc {
     pub fn monitor_rects(&self) -> io::Result<Vec<Rect>> {
         parse_monitors(&self.query(b"j/monitors")?)
     }
+
+    pub fn session_lock_state(&self) -> io::Result<SessionLockState> {
+        parse_session_lock(&self.query(b"j/monitors")?)
+    }
+}
+
+/// Mirror Omarchy's ext-session-lock probe. A monitor without a workspace
+/// cannot establish that the session is unlocked.
+pub fn parse_session_lock(raw: &[u8]) -> io::Result<SessionLockState> {
+    let value: Value = serde_json::from_slice(raw).map_err(io::Error::other)?;
+    let monitors = value
+        .as_array()
+        .ok_or_else(|| invalid_data("invalid monitor list"))?;
+    if monitors.is_empty() || monitors.len() > 64 {
+        return Ok(SessionLockState::Undetermined);
+    }
+    let mut readable = false;
+    let mut unknown = false;
+    for monitor in monitors {
+        let Some(blockers) = monitor.get("solitaryBlockedBy").and_then(Value::as_array) else {
+            unknown = true;
+            continue;
+        };
+        if blockers.iter().any(|value| value.as_str() == Some("LOCK")) {
+            return Ok(SessionLockState::Locked);
+        }
+        if !blockers
+            .iter()
+            .any(|value| value.as_str() == Some("WORKSPACE"))
+        {
+            readable = true;
+        }
+    }
+    Ok(if readable && !unknown {
+        SessionLockState::Unlocked
+    } else {
+        SessionLockState::Undetermined
+    })
 }
 
 fn invalid_data(message: &'static str) -> io::Error {
@@ -160,6 +206,57 @@ mod tests {
             .is_err()
         );
         assert!(parse_cursor(br#"{"x":"bad","y":0}"#).is_err());
+    }
+
+    #[test]
+    fn lock_state_fails_closed_and_detects_orphaned_session_lock() {
+        assert_eq!(
+            parse_session_lock(br#"[{"solitaryBlockedBy":["WINDOWED","CANDIDATE"]}]"#).unwrap(),
+            SessionLockState::Unlocked
+        );
+        assert_eq!(
+            parse_session_lock(br#"[{"solitaryBlockedBy":["LOCK"]}]"#).unwrap(),
+            SessionLockState::Locked
+        );
+        assert_eq!(
+            parse_session_lock(br#"[{"solitaryBlockedBy":["WORKSPACE"]}]"#).unwrap(),
+            SessionLockState::Undetermined
+        );
+        assert_eq!(
+            parse_session_lock(br#"[{"name":"old Hyprland"}]"#).unwrap(),
+            SessionLockState::Undetermined
+        );
+        assert_eq!(
+            parse_session_lock(br#"[{"name":"unknown"},{"solitaryBlockedBy":["LOCK"]}]"#).unwrap(),
+            SessionLockState::Locked
+        );
+        assert!(parse_session_lock(b"not json").is_err());
+    }
+
+    #[test]
+    fn lock_probe_reads_compositor_without_shell_command() {
+        let root =
+            std::env::temp_dir().join(format!("seamlesscontrol-lock-ipc-{}", std::process::id()));
+        let _ = std::fs::create_dir_all(&root);
+        let path = root.join("query.sock");
+        let _ = std::fs::remove_file(&path);
+        let listener = UnixListener::bind(&path).unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            stream.read_to_end(&mut request).unwrap();
+            assert_eq!(&request, b"j/monitors");
+            stream
+                .write_all(br#"[{"solitaryBlockedBy":["LOCK"]}]"#)
+                .unwrap();
+        });
+        let ipc = HyprIpc {
+            socket: path.clone(),
+        };
+        assert_eq!(ipc.session_lock_state().unwrap(), SessionLockState::Locked);
+        server.join().unwrap();
+        std::fs::remove_file(path).unwrap();
+        std::fs::remove_dir(root).unwrap();
     }
 
     #[test]

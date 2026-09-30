@@ -10,7 +10,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 2. Registrar `omarchy --version`, `hyprctl version`, `quickshell --version`, versión del portal, monitores (`hyprctl monitors`) y distribución de teclado en ambos.
 3. Confirmar conectividad LAN y que el puerto elegido acepta TCP únicamente desde la LAN. No abrirlo hacia Internet.
 4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos paneles o terminales antes de aprobar en ambos. Por CLI: `seamlesscontrold status` y `seamlesscontrold approve <código>`.
-5. Ejecutar `seamlesscontrold diagnose` en ambos equipos y comparar sus rectángulos lógicos con `hyprctl -j monitors`; el comando debe mostrar también una posición de cursor dentro de un monitor.
+5. Ejecutar `seamlesscontrold diagnose` en ambos equipos y comparar sus rectángulos lógicos con `hyprctl -j monitors`; el comando debe mostrar también una posición de cursor dentro de un monitor y `LOCK unlocked` antes de probar la entrada.
 6. Iniciar `serve` y `connect` desde los botones del panel, repetir con terminal y servicio de usuario, y comprobar que el botón **Terminar sesión** sólo aparece para el proceso creado por el panel. Verificar que al terminar no quedan teclado ni botones pulsados ni procesos huérfanos.
 
 ## Circuito básico
@@ -31,6 +31,8 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 - Monitores múltiples, escala fraccional, distinta resolución y distinto mapa de teclado.
 - En A con dos o más monitores, recorrer las uniones entre monitores sin activar el control remoto; cruzar cada tramo exterior del borde elegido y comprobar la activación. Repetir tras cambiar la disposición y después de desconectar un monitor **sin reiniciar el agente**, para comprobar que la señal `ZonesChanged` recalcula las barreras y devuelve el control local si el cambio sucede durante una captura.
 - Bloqueo, suspensión, reinicio de Hyprland, desconexión de monitor y recuperación.
+- Durante una captura, bloquear B y comprobar que A recupera la sesión y B libera teclas y botones. Mientras B siga bloqueado, un nuevo intento no debe inyectar entrada ni controlar la pantalla de desbloqueo. Repetir con el shell reiniciado mientras Hyprland conserva el bloqueo y con IPC de Hyprland temporalmente inaccesible.
+- Bloquear A mientras controla B: B debe recibir `END`, A debe recuperar el puntero y suspender la captura y el portapapeles. Tras desbloquear A, la barrera debe volver sin nuevo emparejamiento; una pausa manual previa debe mantenerse.
 - Consentimiento del portal en primera conexión y conexiones siguientes.
 
 Anotar en `docs/FEASIBILITY.md` resultados observados, comandos, versiones y límites. Un fallo de captura física o de cesión de foco bloquea la puerta de salida de la fase 0.

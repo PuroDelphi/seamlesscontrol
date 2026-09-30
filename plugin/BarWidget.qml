@@ -37,7 +37,7 @@ BarWidget {
     anchors.centerIn: parent
     text: "󰌘 " + root.stateLabel
     textFormat: Text.PlainText
-    color: backend.available && !backend.paused ? Color.accent
+    color: backend.available && !backend.paused && backend.phase !== "locked" ? Color.accent
       : root.bar ? root.bar.barForeground : Color.foreground
     font.family: root.bar ? root.bar.fontFamily : Style.font.family
     font.pixelSize: Style.font.body
