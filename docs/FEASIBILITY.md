@@ -122,6 +122,8 @@ El receptor de entrada descarta ahora `BEGIN` repetidos o anteriores y `END` de 
 
 El emisor `connect` usa ahora el mismo generador de épocas crecientes que `mesh`. Así, un ajuste hacia atrás del reloj del sistema entre dos cruces no puede producir un `BEGIN` que el receptor descarte como antiguo. La prueba del límite comprueba que el generador crece aunque el valor anterior supere al reloj y que falla si se agota `u64`; el caso con un reloj real reajustado y dos escritorios sigue pendiente.
 
+En la malla, un `ENDED` recibido después de cancelar una cesión con Escape, pausa, retorno o desactivación del portal se ignora si ya no coincide con `pending(from, epoch)`. El origen conserva la sesión en lugar de reiniciarla por ese acuse tardío. La política `HandoffCoordinator` ya prueba que `reset_local()` borra la cesión pendiente; falta observar el orden de acuses durante una cesión física entre varios equipos.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.

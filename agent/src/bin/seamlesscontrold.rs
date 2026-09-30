@@ -570,9 +570,13 @@ mod linux {
                         }
                         if frame.kind != Kind::Control { return Err("unexpected mesh feedback".into()); }
                         if frame.payload == b"ENDED" {
-                            let entry = pending_entry.take().ok_or("mesh handoff has no entry edge")?;
+                            if !coordinator.pending().is_some_and(|pending| pending.from == from && pending.epoch == frame.epoch) {
+                                continue;
+                            }
+                            let entry = pending_entry.ok_or("mesh handoff has no entry edge")?;
                             let next = next_epoch(last_epoch)?;
                             let target = coordinator.acknowledge(from, frame.epoch, next)?;
+                            pending_entry = None;
                             pending_since = None;
                             match target {
                                 Machine::Peer(peer) => {
