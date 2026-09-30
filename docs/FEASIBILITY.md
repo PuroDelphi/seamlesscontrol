@@ -54,6 +54,8 @@ El 29 de septiembre se instaló `seamlesscontrol.control` desde GitHub con `omar
 
 `seamlesscontrold diagnose` leyó `CURSOR 1046 440`, un monitor lógico `0 0 1366 768` y `LOCK unlocked`. No había sesión del agente ni segundo equipo durante esta prueba; abrir el panel no valida captura, inyección ni transporte de entrada.
 
+La revisión 0.14 del widget separa «sin agente» (ejecutable ausente) de «sin sesión» (ejecutable disponible, agente detenido). Se ocultó el binario instalado durante 12 segundos y luego se restauró: el panel cambió a «sin agente», limpió los equipos y la cuadrícula, y volvió a «sin sesión» al detectarlo de nuevo. Durante los segundos anteriores a la siguiente comprobación periódica, Quickshell aún registró intentos fallidos; la cadencia final se redujo a tres segundos. La prueba visual confirmó que ambos estados conservan el estilo del shell.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
