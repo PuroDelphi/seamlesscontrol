@@ -34,5 +34,6 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 - Durante una captura, bloquear B y comprobar que A recupera la sesión y B libera teclas y botones. Mientras B siga bloqueado, un nuevo intento no debe inyectar entrada ni controlar la pantalla de desbloqueo. Repetir con el shell reiniciado mientras Hyprland conserva el bloqueo y con IPC de Hyprland temporalmente inaccesible.
 - Bloquear A mientras controla B: B debe recibir `END`, A debe recuperar el puntero y suspender la captura y el portapapeles. Tras desbloquear A, la barrera debe volver sin nuevo emparejamiento; una pausa manual previa debe mantenerse.
 - Consentimiento del portal en primera conexión y conexiones siguientes.
+- Con tres o cuatro Omarchy, configurar la misma cuadrícula física en todos, comprobar `topology route <IP>` y recorrer los enlaces vecinos, incluido un destino diagonal mediante dos saltos. Verificar que no hay dos dueños de la entrada ni ciclos de retorno. Esta puerta sigue pendiente: el agente actual sólo abre una sesión activa con un par.
 
 Anotar en `docs/FEASIBILITY.md` resultados observados, comandos, versiones y límites. Un fallo de captura física o de cesión de foco bloquea la puerta de salida de la fase 0.

@@ -909,9 +909,22 @@ mod linux {
                     layout.remove_peer(address);
                     save_topology(&path, &layout)?;
                 }
+                [_, command, action, who] if command == "topology" && action == "route" => {
+                    let address: IpAddr = who.parse()?;
+                    for (index, hop) in layout.route_to(address)?.into_iter().enumerate() {
+                        let Machine::Peer(peer) = hop.machine else {
+                            return Err("invalid route through local machine".into());
+                        };
+                        if load_peer_key(&config.join("peers"), peer)?.is_none() {
+                            return Err("route contains an unpaired peer".into());
+                        }
+                        println!("HOP\t{}\t{peer}\t{}", index + 1, hop.edge.as_str());
+                    }
+                    return Ok(());
+                }
                 _ => {
                     return Err(
-                        "usage: topology [set <local|IP> <column> <row> | remove <IP>]".into(),
+                        "usage: topology [set <local|IP> <column> <row> | remove <IP> | route <IP>]".into(),
                     );
                 }
             }

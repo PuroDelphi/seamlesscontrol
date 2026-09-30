@@ -30,7 +30,7 @@ seamlesscontrold topology
 seamlesscontrold connect 192.168.1.20:47832
 ```
 
-La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. Una conexión sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal.
+La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. `topology route <IP>` muestra los saltos por casillas contiguas y comprueba que cada salto tiene un par fijado. **Es un diagnóstico de ruta:** la cesión de entrada entre más de dos equipos todavía no está conectada al transporte. Una conexión sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal.
 
 Para que el destino solicite automáticamente la vuelta al cruzar el borde hacia el origen, configure también su mapa en sentido inverso. Si el origen es `192.168.1.10` y queda a la izquierda del destino, ejecute **en el destino**:
 

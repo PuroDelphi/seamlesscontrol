@@ -58,6 +58,8 @@ XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology set 127.0.0.1 1 0 >/d
 topology=$(XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology)
 [[ "$topology" == *$'SLOT\tlocal\t0\t0'* ]]
 [[ "$topology" == *$'SLOT\t127.0.0.1\t1\t0'* ]]
+route=$(XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology route 127.0.0.1)
+[[ "$route" == $'HOP\t1\t127.0.0.1\tright' ]]
 XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology set local 1 0 >/dev/null
 topology=$(XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology)
 [[ "$topology" == *$'SLOT\tlocal\t1\t0'* ]]

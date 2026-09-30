@@ -1,7 +1,7 @@
 //! Logical desktop geometry. The transport and platform adapters can map
 //! physical pixels to these coordinates before requesting an edge crossing.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 use std::net::IpAddr;
 
@@ -219,6 +219,7 @@ pub enum TopologyError {
     TooManyMachines,
     MissingMachine,
     NotAdjacent,
+    NoRoute,
 }
 
 impl fmt::Display for TopologyError {
@@ -229,6 +230,7 @@ impl fmt::Display for TopologyError {
             Self::TooManyMachines => write!(f, "topology supports at most four machines"),
             Self::MissingMachine => write!(f, "machine is not placed in the topology"),
             Self::NotAdjacent => write!(f, "machines are not adjacent"),
+            Self::NoRoute => write!(f, "no route through placed machines"),
         }
     }
 }
@@ -238,6 +240,12 @@ impl std::error::Error for TopologyError {}
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Topology {
     positions: BTreeMap<Machine, Slot>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RouteHop {
+    pub machine: Machine,
+    pub edge: Edge,
 }
 
 impl Default for Topology {
@@ -302,6 +310,63 @@ impl Topology {
             (0, 1) => Ok(Edge::Bottom),
             _ => Err(TopologyError::NotAdjacent),
         }
+    }
+
+    /// Shortest path through occupied, orthogonally adjacent slots. Every hop
+    /// is a directly authenticated link; transport handoff is handled elsewhere.
+    pub fn route_to(&self, address: IpAddr) -> Result<Vec<RouteHop>, TopologyError> {
+        let target = Machine::Peer(address);
+        if !self.positions.contains_key(&target) {
+            return Err(TopologyError::MissingMachine);
+        }
+        let mut queue = VecDeque::from([Machine::Local]);
+        let mut previous = BTreeMap::<Machine, (Machine, Edge)>::new();
+        while let Some(current) = queue.pop_front() {
+            if current == target {
+                break;
+            }
+            for edge in [Edge::Left, Edge::Right, Edge::Top, Edge::Bottom] {
+                let Some(next) = self.neighbor(current, edge) else {
+                    continue;
+                };
+                if next == Machine::Local || previous.contains_key(&next) {
+                    continue;
+                }
+                previous.insert(next, (current, edge));
+                queue.push_back(next);
+            }
+        }
+        if !previous.contains_key(&target) {
+            return Err(TopologyError::NoRoute);
+        }
+        let mut route = Vec::new();
+        let mut current = target;
+        while current != Machine::Local {
+            let (prior, edge) = previous[&current];
+            route.push(RouteHop {
+                machine: current,
+                edge,
+            });
+            current = prior;
+        }
+        route.reverse();
+        Ok(route)
+    }
+
+    pub fn neighbor(&self, machine: Machine, edge: Edge) -> Option<Machine> {
+        let slot = self.positions.get(&machine)?;
+        let (column, row) = match edge {
+            Edge::Left => (slot.column.checked_sub(1)?, slot.row),
+            Edge::Right => (slot.column.checked_add(1)?, slot.row),
+            Edge::Top => (slot.column, slot.row.checked_sub(1)?),
+            Edge::Bottom => (slot.column, slot.row.checked_add(1)?),
+        };
+        if column >= 2 || row >= 2 {
+            return None;
+        }
+        self.positions.iter().find_map(|(candidate, position)| {
+            (position.column == column && position.row == row).then_some(*candidate)
+        })
     }
 
     pub fn encode(&self) -> String {
@@ -675,6 +740,63 @@ mod tests {
         assert_eq!(topology.edge_to(a).unwrap(), Edge::Left);
         let encoded = topology.encode();
         assert_eq!(Topology::decode(&encoded).unwrap(), topology);
+    }
+
+    #[test]
+    fn routing_uses_occupied_neighbors_and_never_jumps_a_diagonal() {
+        let mut topology = Topology::new();
+        let right: IpAddr = "192.168.1.2".parse().unwrap();
+        let bottom: IpAddr = "192.168.1.3".parse().unwrap();
+        let diagonal: IpAddr = "192.168.1.4".parse().unwrap();
+        topology
+            .place(Machine::Peer(diagonal), Slot::new(1, 1).unwrap())
+            .unwrap();
+        assert_eq!(topology.route_to(diagonal), Err(TopologyError::NoRoute));
+        topology
+            .place(Machine::Peer(right), Slot::new(1, 0).unwrap())
+            .unwrap();
+        assert_eq!(
+            topology.route_to(diagonal).unwrap(),
+            vec![
+                RouteHop {
+                    machine: Machine::Peer(right),
+                    edge: Edge::Right
+                },
+                RouteHop {
+                    machine: Machine::Peer(diagonal),
+                    edge: Edge::Bottom
+                },
+            ]
+        );
+        topology
+            .place(Machine::Peer(bottom), Slot::new(0, 1).unwrap())
+            .unwrap();
+        assert_eq!(
+            topology.route_to(bottom).unwrap(),
+            vec![RouteHop {
+                machine: Machine::Peer(bottom),
+                edge: Edge::Bottom
+            },]
+        );
+        assert_eq!(
+            topology.neighbor(Machine::Peer(right), Edge::Left),
+            Some(Machine::Local)
+        );
+        topology.remove_peer(right);
+        assert_eq!(
+            topology.route_to(diagonal).unwrap(),
+            vec![
+                RouteHop {
+                    machine: Machine::Peer(bottom),
+                    edge: Edge::Bottom
+                },
+                RouteHop {
+                    machine: Machine::Peer(diagonal),
+                    edge: Edge::Right
+                },
+            ]
+        );
+        assert_eq!(topology.edge_to(diagonal), Err(TopologyError::NotAdjacent));
     }
 
     #[test]
