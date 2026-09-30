@@ -58,6 +58,8 @@ El 29 de septiembre se instaló `seamlesscontrol.control` desde GitHub con `omar
 
 La revisión 0.14 del widget separa «sin agente» (ejecutable ausente) de «sin sesión» (ejecutable disponible, agente detenido). Se ocultó el binario instalado durante 12 segundos y luego se restauró: el panel cambió a «sin agente», limpió los equipos y la cuadrícula, y volvió a «sin sesión» al detectarlo de nuevo. Durante los segundos anteriores a la siguiente comprobación periódica, Quickshell aún registró intentos fallidos; la cadencia final se redujo a tres segundos. La prueba visual confirmó que ambos estados conservan el estilo del shell.
 
+El diagnóstico `latency` se probó en `127.0.0.1` con dos identidades temporales: rechazó un equipo sin emparejar y, después de aprobar el par, completó veinte solicitudes y respuestas cifradas con mínimo, p50, p95 y máximo ordenados. La prueba también confirmó la revocación posterior. Estos números de loopback no miden la LAN ni el tiempo de captura e inyección; hay que tomar medidas reales en dos Omarchy.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
