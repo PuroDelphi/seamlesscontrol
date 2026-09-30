@@ -118,6 +118,8 @@ La variante física `bash tests/integrated_capture_local.sh` también pasó en e
 
 La recepción de archivos espera ahora otra conexión si la primera cierra sin completar Noise o presenta una clave distinta a la fijada. Una prueba de loopback abrió primero una conexión incompleta y luego una con identidad distinta; ambas fallaron antes de ofrecer el archivo. El emisor emparejado que llegó después transfirió el contenido completo con confirmación. Pasaron las 65 pruebas de Rust (`cargo test --locked --all-targets`), Clippy y `bash tests/file_loopback.sh`. Esto comprueba la disponibilidad ante intentos previos a la autenticación en loopback; el envío entre dos Omarchy sigue pendiente.
 
+El receptor de entrada descarta ahora `BEGIN` repetidos o anteriores y `END` de otra época. Una prueba mantuvo una tecla pulsada durante esos mensajes, comprobó que sólo el `END` de la época activa la liberó y luego abrió una época posterior con normalidad. Pasaron las 66 pruebas de Rust y Clippy. Falta provocar cruces rápidos y mensajes de cierre durante una captura entre equipos físicos.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.

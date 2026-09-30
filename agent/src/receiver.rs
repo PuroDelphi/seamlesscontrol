@@ -71,6 +71,7 @@ pub struct InputReceiver<I: Injector> {
     ledger: Receiver,
     controlling: bool,
     active_epoch: Option<u64>,
+    last_epoch: Option<u64>,
 }
 
 impl<I: Injector> InputReceiver<I> {
@@ -80,12 +81,16 @@ impl<I: Injector> InputReceiver<I> {
             ledger: Receiver::new(),
             controlling: false,
             active_epoch: None,
+            last_epoch: None,
         }
     }
 
     pub fn handle(&mut self, frame: &Frame) -> Result<(), ReceiverError> {
         match frame.kind {
             Kind::Control if frame.payload == b"BEGIN" || frame.payload.starts_with(b"BEGIN\t") => {
+                if frame.epoch == 0 || self.last_epoch.is_some_and(|last| frame.epoch <= last) {
+                    return Ok(());
+                }
                 let entry = EntryPosition::parse_begin(&frame.payload)
                     .map_err(|_| ReceiverError::UnexpectedFrame)?;
                 self.release()?;
@@ -101,11 +106,18 @@ impl<I: Injector> InputReceiver<I> {
                 }
                 self.controlling = true;
                 self.active_epoch = Some(frame.epoch);
+                self.last_epoch = Some(frame.epoch);
                 self.injector.active_epoch_changed(Some(frame.epoch));
                 self.injector.ownership_changed(true);
                 Ok(())
             }
-            Kind::Control if frame.payload == b"END" => self.release(),
+            Kind::Control if frame.payload == b"END" => {
+                if self.active_epoch == Some(frame.epoch) {
+                    self.release()
+                } else {
+                    Ok(())
+                }
+            }
             Kind::Control if frame.payload == b"RELEASE" => {
                 if self.active_epoch != Some(frame.epoch) {
                     return Err(ReceiverError::UnexpectedFrame);
@@ -305,6 +317,57 @@ mod tests {
                 ReleaseAction::Input(InputEvent::KeyUp(42)),
                 ReleaseAction::Input(InputEvent::ButtonUp(272)),
                 ReleaseAction::Acknowledged(17),
+            ]
+        );
+    }
+
+    #[test]
+    fn stale_control_frames_cannot_release_current_input() {
+        let mut receiver = InputReceiver::new(RecordingInjector::default());
+        let frame = |kind, epoch, sequence, payload: Vec<u8>| Frame {
+            kind,
+            epoch,
+            sequence,
+            payload,
+        };
+        receiver
+            .handle(&frame(Kind::Control, 12, 1, b"BEGIN".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Input, 12, 2, InputEvent::KeyDown(42).encode()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Control, 11, 3, b"BEGIN".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Control, 12, 4, b"BEGIN".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Control, 11, 5, b"END".to_vec()))
+            .unwrap();
+        assert_eq!(receiver.injector.0, vec![InputEvent::KeyDown(42)]);
+        receiver
+            .handle(&frame(Kind::Control, 12, 6, b"END".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Control, 12, 7, b"BEGIN".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Control, 13, 8, b"BEGIN".to_vec()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Input, 13, 9, InputEvent::KeyDown(30).encode()))
+            .unwrap();
+        receiver
+            .handle(&frame(Kind::Control, 13, 10, b"END".to_vec()))
+            .unwrap();
+        assert_eq!(
+            receiver.into_injector().0,
+            vec![
+                InputEvent::KeyDown(42),
+                InputEvent::KeyUp(42),
+                InputEvent::KeyDown(30),
+                InputEvent::KeyUp(30),
             ]
         );
     }
