@@ -2,7 +2,7 @@
 
 El agente experimental compila y supera las pruebas locales, pero **aún no se ha validado entre dos Omarchy** porque sólo hay uno disponible. Esta guía define la primera prueba reproducible y evita confundir simulaciones de loopback con una prueba de entrada física.
 
-La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, reconexión con claves fijadas, persistencia e intercambio de posiciones de la cuadrícula, revocación, limpieza de la posición y rechazo posterior, además del cierre del receptor. `bash tests/reconnect_wait.sh` comprueba el reintento del emisor sin receptor y su salida limpia. `bash tests/file_loopback.sh` comprueba la oferta que usa el panel, la aceptación con verificación del archivo y el rechazo sin escritura. Ninguna abre el portal ni inyecta entrada.
+La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidades separadas, Noise XX, comparación del código, aprobación por IPC, reconexión con claves fijadas, persistencia e intercambio de posiciones de la cuadrícula, revocación, limpieza de la posición y rechazo posterior, además del cierre del receptor. `bash tests/reconnect_wait.sh` comprueba el reintento del emisor sin receptor y su salida limpia. `bash tests/file_loopback.sh` comprueba la oferta que usa el panel, la aceptación con verificación del archivo y el rechazo sin escritura. `bash tests/discovery_lan.sh` comprueba el anuncio Avahi en la LAN, su detección, el filtro del equipo local y su retirada al cerrar el receptor; se omite si Avahi no está disponible. Ninguna abre el portal ni inyecta entrada.
 
 ## Preparación
 

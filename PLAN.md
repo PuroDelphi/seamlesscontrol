@@ -1,6 +1,6 @@
 # SeamlessControl · Plan de producto y desarrollo
 
-> Estado: propuesta de arquitectura · 29 de septiembre de 2026  
+> Estado: prototipo Omarchy en validación · 29 de septiembre de 2026
 > Primera plataforma: **Omarchy ↔ Omarchy** · Expansión posterior: **Windows ↔ Omarchy**  
 > Repositorio público del proyecto: **[PuroDelphi/seamlesscontrol](https://github.com/PuroDelphi/seamlesscontrol)**  
 > [Ver el plan visual](./index.html)
@@ -126,7 +126,7 @@ seamlesscontrol/
 └── tests/                     # integración y escenarios entre equipos
 ```
 
-La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento, pausa, revocación y cuadrícula 2×2. La geometría del agente evita capturar los pasos internos entre monitores locales al instalar barreras y recalcula las barreras ante cambios de zonas anunciados por el portal o de la cuadrícula guardada; falta verificar ambos comportamientos en monitores reales. `packaging/` contiene el instalador y tres unidades de usuario para receptor, emisor y malla; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
+La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento, pausa, revocación y cuadrícula 2×2. La geometría del agente evita capturar los pasos internos entre monitores locales al instalar barreras y recalcula las barreras ante cambios de zonas anunciados por el portal o de la cuadrícula guardada; falta verificar ambos comportamientos en monitores reales. `packaging/` contiene el instalador y cuatro unidades de usuario para receptor manual, receptor con autodescubrimiento, emisor y malla; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
 
 ## Fuentes consultadas
 

@@ -340,6 +340,8 @@ Item {
       root.pairingRunning = false
       if (code !== 0) root.error = "No se pudo emparejar. Revise IP, red y código."
       root.refresh()
+      root.refreshPeers()
+      root.refreshTopology()
     }
   }
 
