@@ -39,6 +39,7 @@ mod linux {
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
     const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/2";
+    const LATENCY_SAMPLES: u64 = 20;
 
     #[derive(Clone, Copy)]
     enum Edge {
@@ -46,6 +47,13 @@ mod linux {
         Right,
         Top,
         Bottom,
+    }
+
+    #[derive(Clone, Copy)]
+    enum ConnectionMode {
+        Pair,
+        Capture(Edge),
+        Latency,
     }
 
     impl Edge {
@@ -506,7 +514,6 @@ mod linux {
         channel
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(120)))?;
-        control.set_peer(&peer_ip.to_string());
         let greeting = Frame::read_from(&mut channel)?;
         if greeting.kind != Kind::Hello || greeting.payload != AGENT_PROTOCOL {
             return Err("incompatible peer protocol".into());
@@ -531,6 +538,36 @@ mod linux {
             println!("Par {peer_ip} emparejado; todavía no se inició la captura.");
             return Ok(());
         }
+        if first.kind == Kind::Control && first.payload == b"PING" {
+            channel
+                .stream_mut()
+                .set_read_timeout(Some(Duration::from_secs(5)))?;
+            channel
+                .stream_mut()
+                .set_write_timeout(Some(Duration::from_secs(5)))?;
+            let mut request = first;
+            for sample in 1..=LATENCY_SAMPLES {
+                if request.kind != Kind::Control
+                    || request.epoch != 0
+                    || request.sequence != sample
+                    || request.payload != b"PING"
+                {
+                    return Err("invalid latency probe sequence".into());
+                }
+                Frame {
+                    kind: Kind::Control,
+                    epoch: 0,
+                    sequence: sample,
+                    payload: b"PONG".to_vec(),
+                }
+                .write_to(&mut channel)?;
+                if sample < LATENCY_SAMPLES {
+                    request = Frame::read_from(&mut channel)?;
+                }
+            }
+            return Ok(());
+        }
+        control.set_peer(&peer_ip.to_string());
         channel
             .stream_mut()
             .set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -715,7 +752,7 @@ mod linux {
 
     async fn connect_once(
         address: SocketAddr,
-        edge: Option<Edge>,
+        mode: ConnectionMode,
         identity: &Identity,
         config: &std::path::Path,
         control: &ControlHandle,
@@ -772,43 +809,75 @@ mod linux {
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(5)))
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
-        if let Some(edge) = edge {
-            println!("Conexión autenticada con {address}.");
-            capture_loop(
-                channel,
-                edge,
-                control.clone(),
-                identity.public,
-                peer.public_key,
-            )
-            .await
-            .map_err(|error| {
-                if error
-                    .downcast_ref::<FrameError>()
-                    .is_some_and(|frame| matches!(frame, FrameError::Io(_)))
-                {
-                    AttemptError::Retry(error)
-                } else {
-                    AttemptError::Stop(error)
+        match mode {
+            ConnectionMode::Capture(edge) => {
+                println!("Conexión autenticada con {address}.");
+                capture_loop(
+                    channel,
+                    edge,
+                    control.clone(),
+                    identity.public,
+                    peer.public_key,
+                )
+                .await
+                .map_err(|error| {
+                    if error
+                        .downcast_ref::<FrameError>()
+                        .is_some_and(|frame| matches!(frame, FrameError::Io(_)))
+                    {
+                        AttemptError::Retry(error)
+                    } else {
+                        AttemptError::Stop(error)
+                    }
+                })
+            }
+            ConnectionMode::Pair => {
+                Frame {
+                    kind: Kind::Control,
+                    epoch: 0,
+                    sequence: 0,
+                    payload: b"PAIR".to_vec(),
                 }
-            })
-        } else {
-            Frame {
-                kind: Kind::Control,
-                epoch: 0,
-                sequence: 0,
-                payload: b"PAIR".to_vec(),
+                .write_to(&mut channel)
+                .map_err(frame_attempt)?;
+                let reply = Frame::read_from(&mut channel).map_err(frame_attempt)?;
+                if reply.kind != Kind::Control || reply.payload != b"PAIRED" {
+                    return Err(AttemptError::Stop(
+                        "the peer did not acknowledge pairing".into(),
+                    ));
+                }
+                println!("Par {address} emparejado sin iniciar la captura.");
+                Ok(())
             }
-            .write_to(&mut channel)
-            .map_err(frame_attempt)?;
-            let reply = Frame::read_from(&mut channel).map_err(frame_attempt)?;
-            if reply.kind != Kind::Control || reply.payload != b"PAIRED" {
-                return Err(AttemptError::Stop(
-                    "the peer did not acknowledge pairing".into(),
-                ));
+            ConnectionMode::Latency => {
+                let mut samples = Vec::with_capacity(LATENCY_SAMPLES as usize);
+                for sequence in 1..=LATENCY_SAMPLES {
+                    let start = Instant::now();
+                    Frame {
+                        kind: Kind::Control,
+                        epoch: 0,
+                        sequence,
+                        payload: b"PING".to_vec(),
+                    }
+                    .write_to(&mut channel)
+                    .map_err(frame_attempt)?;
+                    let reply = Frame::read_from(&mut channel).map_err(frame_attempt)?;
+                    if reply.kind != Kind::Control
+                        || reply.epoch != 0
+                        || reply.sequence != sequence
+                        || reply.payload != b"PONG"
+                    {
+                        return Err(AttemptError::Stop("invalid latency probe reply".into()));
+                    }
+                    samples.push(start.elapsed().as_micros());
+                }
+                samples.sort_unstable();
+                println!(
+                    "LATENCY\t{}\t{}\t{}\t{}\t{}",
+                    LATENCY_SAMPLES, samples[0], samples[9], samples[18], samples[19]
+                );
+                Ok(())
             }
-            println!("Par {address} emparejado sin iniciar la captura.");
-            Ok(())
         }
     }
 
@@ -994,11 +1063,12 @@ mod linux {
             save_topology(&path, &layout)?;
             return Ok(());
         }
-        if !(args.len() == 3 && matches!(args[1].as_str(), "serve" | "pair" | "connect")
+        if !(args.len() == 3
+            && matches!(args[1].as_str(), "serve" | "pair" | "connect" | "latency")
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>"
             );
             return Err("invalid arguments".into());
         }
@@ -1009,23 +1079,32 @@ mod linux {
         let config = config_dir()?;
         let identity = load_or_create_identity(&config.join("identity"))?;
         println!("Identidad local: {}", key_fingerprint(&identity.public));
-        if args[1] == "connect" || args[1] == "pair" {
+        if args[1] == "latency" && load_peer_key(&config.join("peers"), address.ip())?.is_none() {
+            return Err("pair this peer before measuring latency".into());
+        }
+        if matches!(args[1].as_str(), "connect" | "pair" | "latency") {
             let _local_control = ControlServer::start("connect", &config)?;
             let control = _local_control.handle();
-            let edge = if args[1] == "connect" && args.len() == 4 {
-                Some(Edge::parse(&args[3])?)
+            let mode = if args[1] == "connect" && args.len() == 4 {
+                ConnectionMode::Capture(Edge::parse(&args[3])?)
             } else if args[1] == "connect" {
                 let topology = load_topology(&config.join("topology"))?;
-                Some(Edge::from_logical(topology.edge_to(address.ip())?))
+                ConnectionMode::Capture(Edge::from_logical(topology.edge_to(address.ip())?))
+            } else if args[1] == "latency" {
+                ConnectionMode::Latency
             } else {
-                None
+                ConnectionMode::Pair
             };
             let mut delay = Duration::from_secs(1);
             loop {
-                match connect_once(address, edge, &identity, &config, &control).await {
+                match connect_once(address, mode, &identity, &config, &control).await {
                     Ok(()) => return Ok(()),
                     Err(AttemptError::Stop(error)) => return Err(error),
-                    Err(AttemptError::Retry(error)) if edge.is_none() => return Err(error),
+                    Err(AttemptError::Retry(error))
+                        if !matches!(mode, ConnectionMode::Capture(_)) =>
+                    {
+                        return Err(error);
+                    }
                     Err(AttemptError::Retry(error)) => {
                         if control.phase() == "disconnected" {
                             delay = Duration::from_secs(1);

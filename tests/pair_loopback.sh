@@ -30,6 +30,13 @@ for _ in {1..100}; do
 done
 XDG_RUNTIME_DIR="$scratch/server/run" "$agent" status >/dev/null
 
+if XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+  "$agent" latency "$address" >"$scratch/unpaired-latency.log" 2>&1; then
+  printf 'La medición de latencia aceptó un equipo sin emparejar\n' >&2
+  exit 1
+fi
+[[ ! -e "$scratch/client/config/seamlesscontrol/peers/127.0.0.1" ]]
+
 XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
   "$agent" pair "$address" >"$scratch/client.log" 2>&1 &
 client_pid=$!
@@ -70,6 +77,14 @@ XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
   "$agent" pair "$address" >"$scratch/reconnect.log" 2>&1
 reconnect_message=$(<"$scratch/reconnect.log")
 [[ "$reconnect_message" == *'emparejado sin iniciar la captura'* ]]
+
+latency_output=$(XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+  "$agent" latency "$address")
+latency_line=$(printf '%s\n' "$latency_output" | awk -F '\t' '$1 == "LATENCY" { print }')
+IFS=$'\t' read -r label count minimum p50 p95 maximum <<<"$latency_line"
+[[ "$label" == LATENCY && "$count" == 20 ]]
+[[ "$minimum" =~ ^[0-9]+$ && "$p50" =~ ^[0-9]+$ && "$p95" =~ ^[0-9]+$ && "$maximum" =~ ^[0-9]+$ ]]
+(( minimum <= p50 && p50 <= p95 && p95 <= maximum ))
 
 XDG_CONFIG_HOME="$scratch/server/config" "$agent" topology set 127.0.0.1 1 0 >/dev/null
 XDG_CONFIG_HOME="$scratch/server/config" XDG_RUNTIME_DIR="$scratch/server/run" \
