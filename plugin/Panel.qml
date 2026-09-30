@@ -54,6 +54,14 @@ Panel {
     })
   }
 
+  function previousServerIp(server) {
+    if (!backend) return ""
+    var previous = backend.peers.find(function(peer) {
+      return peer.ip !== server.ip && peer.key === server.key
+    })
+    return previous ? previous.ip : ""
+  }
+
   function adjacentServer(server) {
     if (!backend) return false
     var local = backend.topology.find(function(slot) { return slot.id === "local" })
@@ -281,7 +289,7 @@ Panel {
             text: root.backend && root.backend.discoveryError !== ""
               ? root.backend.discoveryError
               : root.backend && root.backend.discovered.length > 0
-                ? "Elija un equipo. Compare el código en ambos antes de aprobar."
+                ? "Compare el código al emparejar. Una IP nueva se verifica con la clave guardada."
                 : "Sin receptores encontrados. Abra Recibir control en el otro Omarchy."
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
@@ -323,7 +331,7 @@ Panel {
               text: root.changedServerKey(discoveredRow.server) ? "Clave cambió"
                 : root.knownServer(discoveredRow.server)
                   ? root.adjacentServer(discoveredRow.server) ? "Compartir" : "Ubicar"
-                  : "Emparejar"
+                  : root.previousServerIp(discoveredRow.server) !== "" ? "Actualizar IP" : "Emparejar"
               bordered: true
               focusable: true
               enabled: root.backend && root.backend.installed && !root.backend.available

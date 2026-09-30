@@ -30,7 +30,8 @@ mod linux {
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
-        load_topology, remember_peer_key, revoke_peer_key, rotate_identity, save_topology,
+        load_topology, relocate_peer_key, remember_peer_key, revoke_peer_key, rotate_identity,
+        save_topology,
     };
     use seamlesscontrol_core::topology::{
         Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, edge_entry_point,
@@ -1139,12 +1140,26 @@ mod linux {
     ) -> Result<(), Box<dyn Error>> {
         let peers = config.join("peers");
         let pinned = load_peer_key(&peers, peer_ip)?;
+        let known = if pinned.is_none() {
+            list_peer_keys(&peers)?
+        } else {
+            Vec::new()
+        };
+        let mut previous_ip = None;
         stream.set_nodelay(true)?;
         stream.set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
         stream.set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
         let (mut channel, peer) =
             SecureChannel::connect(stream, Role::Responder, identity, pinned.as_ref(), |peer| {
-                !is_revoked(&peers, &peer.public_key).unwrap_or(true) && control.confirm_pair(peer)
+                if is_revoked(&peers, &peer.public_key).unwrap_or(true) {
+                    return false;
+                }
+                if let Some((old, _)) = known.iter().find(|(_, key)| *key == peer.public_key) {
+                    previous_ip = Some(*old);
+                    true
+                } else {
+                    control.confirm_pair(peer)
+                }
             })?;
         if is_revoked(&peers, &peer.public_key)? {
             return Err("peer identity has been revoked".into());
@@ -1166,7 +1181,11 @@ mod linux {
             payload: AGENT_PROTOCOL.to_vec(),
         }
         .write_to(&mut channel)?;
-        remember_peer_key(&peers, peer_ip, &peer.public_key)?;
+        if let Some(old) = previous_ip {
+            relocate_peer_key(&peers, old, peer_ip, &peer.public_key)?;
+        } else {
+            remember_peer_key(&peers, peer_ip, &peer.public_key)?;
+        }
         let mut first = Frame::read_from(&mut channel)?;
         if first.kind == Kind::Control && first.payload == b"PAIR" {
             Frame {
@@ -1505,6 +1524,12 @@ mod linux {
         let peers = config.join("peers");
         let pinned =
             load_peer_key(&peers, address.ip()).map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        let known = if pinned.is_none() {
+            list_peer_keys(&peers).map_err(|e| AttemptError::Stop(Box::new(e)))?
+        } else {
+            Vec::new()
+        };
+        let mut previous_ip = None;
         let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         stream
@@ -1518,7 +1543,15 @@ mod linux {
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         let (mut channel, peer) =
             SecureChannel::connect(stream, Role::Initiator, identity, pinned.as_ref(), |peer| {
-                !is_revoked(&peers, &peer.public_key).unwrap_or(true) && control.confirm_pair(peer)
+                if is_revoked(&peers, &peer.public_key).unwrap_or(true) {
+                    return false;
+                }
+                if let Some((old, _)) = known.iter().find(|(_, key)| *key == peer.public_key) {
+                    previous_ip = Some(*old);
+                    true
+                } else {
+                    control.confirm_pair(peer)
+                }
             })
             .map_err(|error| match error {
                 SecureError::Io(_) => AttemptError::Retry(Box::new(error)),
@@ -1548,8 +1581,13 @@ mod linux {
         if greeting.kind != Kind::Hello || greeting.payload != AGENT_PROTOCOL {
             return Err(AttemptError::Stop("incompatible peer protocol".into()));
         }
-        remember_peer_key(&peers, address.ip(), &peer.public_key)
-            .map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        if let Some(old) = previous_ip {
+            relocate_peer_key(&peers, old, address.ip(), &peer.public_key)
+                .map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        } else {
+            remember_peer_key(&peers, address.ip(), &peer.public_key)
+                .map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        }
         channel
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(5)))

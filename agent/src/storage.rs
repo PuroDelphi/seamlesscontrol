@@ -274,6 +274,43 @@ pub fn list_peer_keys(dir: &Path) -> io::Result<Vec<(IpAddr, [u8; 32])>> {
     Ok(peers)
 }
 
+/// Move a trusted identity to a new address only after an authenticated
+/// handshake proved possession of its pinned key. Keep the old pin until the
+/// topology has been written, so interrupted updates do not lose trust.
+pub fn relocate_peer_key(dir: &Path, old: IpAddr, new: IpAddr, key: &[u8; 32]) -> io::Result<()> {
+    if old == new {
+        return remember_peer_key(dir, new, key);
+    }
+    if load_peer_key(dir, old)? != Some(*key) || is_revoked(dir, key)? {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "old peer pin is absent or revoked",
+        ));
+    }
+    if load_peer_key(dir, new)?.is_some() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "new address already has a peer pin",
+        ));
+    }
+    let topology_path = dir
+        .parent()
+        .ok_or_else(|| io::Error::other("peers directory has no parent"))?
+        .join("topology");
+    let mut topology = load_topology(&topology_path)?;
+    let changed = topology
+        .rename_peer(old, new)
+        .map_err(|error| io::Error::new(io::ErrorKind::AlreadyExists, error))?;
+    remember_peer_key(dir, new, key)?;
+    if changed && let Err(error) = save_topology(&topology_path, &topology) {
+        let _ = fs::remove_file(peer_path(dir, new));
+        return Err(error);
+    }
+    fs::remove_file(peer_path(dir, old))?;
+    File::open(dir)?.sync_all()?;
+    Ok(())
+}
+
 pub fn remember_peer_key(dir: &Path, address: IpAddr, key: &[u8; 32]) -> io::Result<()> {
     if is_revoked(dir, key)? {
         return Err(io::Error::new(
@@ -370,6 +407,7 @@ pub fn save_topology(path: &Path, topology: &Topology) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::topology::{Machine, Slot};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
@@ -458,6 +496,56 @@ mod tests {
             io::ErrorKind::PermissionDenied
         );
         fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn authenticated_peer_address_change_preserves_slot_and_rejects_conflicts() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "seamlesscontrol-roaming-{}-{unique}",
+            std::process::id()
+        ));
+        let peers = root.join("peers");
+        let old: IpAddr = "192.168.1.10".parse().unwrap();
+        let new: IpAddr = "192.168.1.20".parse().unwrap();
+        let occupied: IpAddr = "192.168.1.30".parse().unwrap();
+        let key = [7; 32];
+        remember_peer_key(&peers, old, &key).unwrap();
+        remember_peer_key(&peers, occupied, &[8; 32]).unwrap();
+        let mut layout = Topology::new();
+        layout
+            .place(Machine::Peer(old), Slot::new(1, 0).unwrap())
+            .unwrap();
+        save_topology(&root.join("topology"), &layout).unwrap();
+
+        assert_eq!(
+            relocate_peer_key(&peers, old, occupied, &key)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::AlreadyExists
+        );
+        assert_eq!(load_peer_key(&peers, old).unwrap(), Some(key));
+        assert_eq!(load_peer_key(&peers, occupied).unwrap(), Some([8; 32]));
+        assert_eq!(load_topology(&root.join("topology")).unwrap(), layout);
+
+        assert_eq!(
+            relocate_peer_key(&peers, old, new, &[9; 32])
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        assert_eq!(load_peer_key(&peers, new).unwrap(), None);
+
+        relocate_peer_key(&peers, old, new, &key).unwrap();
+        assert_eq!(load_peer_key(&peers, old).unwrap(), None);
+        assert_eq!(load_peer_key(&peers, new).unwrap(), Some(key));
+        let changed = load_topology(&root.join("topology")).unwrap();
+        assert_eq!(changed.edge_to(new).unwrap(), crate::topology::Edge::Right);
+        assert!(changed.edge_to(old).is_err());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

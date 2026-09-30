@@ -417,6 +417,20 @@ impl Topology {
         self.positions.remove(&Machine::Peer(address));
     }
 
+    pub fn rename_peer(&mut self, old: IpAddr, new: IpAddr) -> Result<bool, TopologyError> {
+        if old == new {
+            return Ok(false);
+        }
+        if self.positions.contains_key(&Machine::Peer(new)) {
+            return Err(TopologyError::Occupied);
+        }
+        let Some(slot) = self.positions.remove(&Machine::Peer(old)) else {
+            return Ok(false);
+        };
+        self.positions.insert(Machine::Peer(new), slot);
+        Ok(true)
+    }
+
     pub fn edge_to(&self, address: IpAddr) -> Result<Edge, TopologyError> {
         let local = self
             .positions
