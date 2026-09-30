@@ -10,8 +10,12 @@ mod linux {
         ei,
         event::{DeviceCapability, EiEvent},
     };
-    use seamlesscontrol_core::clipboard::{ClipboardPacket, ClipboardSync};
-    use seamlesscontrol_core::clipboard_omarchy::{self, ClipboardWatch, spawn_apply_worker};
+    use seamlesscontrol_core::clipboard::{
+        ClipboardEvent, ClipboardPacket, ClipboardSync, MeshClipboard,
+    };
+    use seamlesscontrol_core::clipboard_omarchy::{
+        self, ClipboardWatch, spawn_apply_events, spawn_apply_worker,
+    };
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::file_session;
     use seamlesscontrol_core::handoff::HandoffCoordinator;
@@ -243,6 +247,7 @@ mod linux {
 
     struct MeshLink {
         writer: SecureWriter<TcpStream>,
+        peer_key: [u8; 32],
         sequence: u64,
         reader: Option<thread::JoinHandle<()>>,
     }
@@ -310,6 +315,7 @@ mod linux {
         });
         let mut link = MeshLink {
             writer,
+            peer_key: peer.public_key,
             sequence: 0,
             reader: Some(reader),
         };
@@ -409,6 +415,18 @@ mod linux {
 
         let (feedback_tx, mut feedback_rx) =
             tokio::sync::mpsc::channel::<(IpAddr, Result<Frame, FrameError>)>(32);
+        let mut clipboard_mesh = MeshClipboard::new(identity.public);
+        let (clipboard_apply, clipboard_apply_worker) = spawn_apply_events();
+        let (clipboard_tx, mut clipboard_rx) = tokio::sync::mpsc::channel::<ClipboardEvent>(8);
+        let clipboard_watch = match ClipboardWatch::start_events(move |event| {
+            let _ = clipboard_tx.blocking_send(event);
+        }) {
+            Ok(watch) => Some(watch),
+            Err(error) => {
+                eprintln!("SeamlessControl: observación del portapapeles no disponible: {error}");
+                None
+            }
+        };
         let mut links = BTreeMap::<IpAddr, MeshLink>::new();
         let mut coordinator = HandoffCoordinator::new(topology.clone());
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
@@ -453,9 +471,27 @@ mod linux {
                     _ = heartbeat.tick() => {
                         for link in links.values_mut() { link.send(Kind::Heartbeat, 0, Vec::new())?; }
                     }
+                    Some(event) = clipboard_rx.recv() => {
+                        if !locked && let Some(packet) = clipboard_mesh.local_changed(event)? {
+                            for link in links.values_mut() {
+                                link.send(Kind::Clipboard, 0, packet.encode())?;
+                            }
+                        }
+                    }
                     feedback = feedback_rx.recv() => {
                         let (from, frame) = feedback.ok_or("mesh feedback channel closed")?;
                         let frame = frame?;
+                        if frame.kind == Kind::Clipboard {
+                            let expected = mesh_link(&mut links, from)?.peer_key;
+                            let packet = ClipboardPacket::decode(&frame.payload)?;
+                            if !locked && let Some(relay) = clipboard_mesh.peer_changed(expected, packet)? {
+                                clipboard_apply.try_send(relay.event.clone()).map_err(|_| "mesh clipboard apply queue is full")?;
+                                for link in links.values_mut() {
+                                    link.send(Kind::Clipboard, 0, relay.encode())?;
+                                }
+                            }
+                            continue;
+                        }
                         if frame.kind != Kind::Control { return Err("unexpected mesh feedback".into()); }
                         if frame.payload == b"ENDED" {
                             let next = next_epoch(last_epoch)?;
@@ -500,7 +536,10 @@ mod linux {
                             if load_peer_key(&config.join("peers"), target)?.is_none() { return Err("mesh target was revoked".into()); }
                             if let std::collections::btree_map::Entry::Vacant(entry) = links.entry(target) {
                                 let address = SocketAddr::new(target, port);
-                                let link = connect_mesh_peer(address, identity, config, feedback_tx.clone())?;
+                                let mut link = connect_mesh_peer(address, identity, config, feedback_tx.clone())?;
+                                if let Some(packet) = clipboard_mesh.latest() {
+                                    link.send(Kind::Clipboard, 0, packet.encode())?;
+                                }
                                 entry.insert(link);
                             }
                             mesh_link(&mut links, from)?.send(Kind::Control, frame.epoch, b"RELEASE".to_vec())?;
@@ -527,7 +566,7 @@ mod linux {
                         release_position = signal.cursor_position().map(|p| edge.release_position(p));
                         if load_peer_key(&config.join("peers"), peer)?.is_none() { return Err("mesh peer was revoked".into()); }
                         if let std::collections::btree_map::Entry::Vacant(entry) = links.entry(peer) {
-                            let link = match connect_mesh_peer(SocketAddr::new(peer, port), identity, config, feedback_tx.clone()) {
+                            let mut link = match connect_mesh_peer(SocketAddr::new(peer, port), identity, config, feedback_tx.clone()) {
                                 Ok(link) => link,
                                 Err(error) => {
                                     let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
@@ -537,6 +576,9 @@ mod linux {
                                     return Err(error);
                                 }
                             };
+                            if let Some(packet) = clipboard_mesh.latest() {
+                                link.send(Kind::Clipboard, 0, packet.encode())?;
+                            }
                             entry.insert(link);
                         }
                         last_epoch = next_epoch(last_epoch)?;
@@ -605,6 +647,10 @@ mod linux {
             let _ = portal.release(&session, options).await;
         }
         let _ = portal.disable(&session, Default::default()).await;
+        drop(clipboard_rx);
+        if let Some(watch) = clipboard_watch {
+            watch.stop();
+        }
         drop(feedback_rx);
         for link in links.values_mut() {
             let _ = link.writer.stream_mut().shutdown(Shutdown::Both);
@@ -614,6 +660,8 @@ mod linux {
                 let _ = reader.join();
             }
         }
+        drop(clipboard_apply);
+        let _ = clipboard_apply_worker.join();
         control.set_peer("");
         control.set_phase("disconnected");
         result
@@ -1235,9 +1283,6 @@ mod linux {
                     }
                 }
                 while let Ok(event) = clipboard_rx.try_recv() {
-                    if mesh_source {
-                        continue;
-                    }
                     if send_frame(
                         &mut writer,
                         Kind::Clipboard,

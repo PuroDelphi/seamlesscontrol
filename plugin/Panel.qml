@@ -460,7 +460,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: "Malla experimental: empareje y ubique todos los equipos; cada destino debe estar escuchando en el mismo puerto. El portapapeles funciona por ahora sólo en sesiones de dos equipos."
+          text: "Malla experimental: empareje y ubique todos los equipos; cada destino debe estar escuchando en el mismo puerto. El origen distribuye el portapapeles de texto entre los destinos conectados."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted

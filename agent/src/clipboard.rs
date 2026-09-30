@@ -1,5 +1,6 @@
 //! Small text-only clipboard messages shared by both platform adapters.
 
+use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
 pub const MAX_TEXT_BYTES: usize = 256 * 1024;
@@ -134,6 +135,92 @@ pub struct ClipboardSync {
     last_local: Option<ClipboardEvent>,
 }
 
+/// Clipboard ordering at the physical origin of a multi-peer mesh. Every
+/// outbound packet is re-originated by the authenticated hub, so receivers
+/// still verify the identity of the peer on their own Noise channel.
+pub struct MeshClipboard {
+    hub_id: [u8; 32],
+    clock: u64,
+    last_event: Option<ClipboardEvent>,
+    latest: Option<ClipboardPacket>,
+    peer_revisions: BTreeMap<[u8; 32], u64>,
+}
+
+impl MeshClipboard {
+    pub fn new(hub_id: [u8; 32]) -> Self {
+        Self {
+            hub_id,
+            clock: 0,
+            last_event: None,
+            latest: None,
+            peer_revisions: BTreeMap::new(),
+        }
+    }
+
+    pub fn latest(&self) -> Option<&ClipboardPacket> {
+        self.latest.as_ref()
+    }
+
+    pub fn local_changed(&mut self, event: ClipboardEvent) -> io::Result<Option<ClipboardPacket>> {
+        if event == ClipboardEvent::Ignore || self.last_event.as_ref() == Some(&event) {
+            return Ok(None);
+        }
+        self.publish(event)
+    }
+
+    pub fn peer_changed(
+        &mut self,
+        expected_peer: [u8; 32],
+        packet: ClipboardPacket,
+    ) -> io::Result<Option<ClipboardPacket>> {
+        if packet.origin != expected_peer || packet.origin == self.hub_id {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "mesh clipboard origin does not match authenticated peer",
+            ));
+        }
+        let last = self.peer_revisions.entry(expected_peer).or_default();
+        if packet.revision <= *last {
+            return Ok(None);
+        }
+        *last = packet.revision;
+        self.clock = self.clock.max(packet.revision);
+        if self.last_event.as_ref() == Some(&packet.event) {
+            return Ok(None);
+        }
+        self.publish(packet.event)
+    }
+
+    fn publish(&mut self, event: ClipboardEvent) -> io::Result<Option<ClipboardPacket>> {
+        match &event {
+            ClipboardEvent::Text(bytes)
+                if bytes.len() > MAX_TEXT_BYTES || std::str::from_utf8(bytes).is_err() =>
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid mesh clipboard text",
+                ));
+            }
+            ClipboardEvent::Ignore => return Ok(None),
+            _ => {}
+        }
+        self.clock = self.clock.checked_add(1).ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "mesh clipboard revision exhausted",
+            )
+        })?;
+        let packet = ClipboardPacket {
+            revision: self.clock,
+            origin: self.hub_id,
+            event: event.clone(),
+        };
+        self.last_event = Some(event);
+        self.latest = Some(packet.clone());
+        Ok(Some(packet))
+    }
+}
+
 impl ClipboardSync {
     pub fn new(local_id: [u8; 32], remote_id: [u8; 32]) -> Self {
         Self {
@@ -187,6 +274,92 @@ impl ClipboardSync {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mesh_hub_republishes_authenticated_changes_to_all_peers() {
+        let hub = [1; 32];
+        let peer_b = [2; 32];
+        let peer_c = [3; 32];
+        let mut mesh = MeshClipboard::new(hub);
+        let first = mesh
+            .local_changed(ClipboardEvent::Text(b"from A".to_vec()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(first.origin, hub);
+        assert_eq!(mesh.latest(), Some(&first));
+
+        let b_change = ClipboardPacket {
+            revision: 1,
+            origin: peer_b,
+            event: ClipboardEvent::Text(b"from B".to_vec()),
+        };
+        let relay = mesh
+            .peer_changed(peer_b, b_change.clone())
+            .unwrap()
+            .unwrap();
+        assert_eq!(relay.origin, hub);
+        assert!(relay.revision > first.revision);
+        assert_eq!(relay.event, b_change.event);
+        assert!(mesh.peer_changed(peer_b, b_change).unwrap().is_none());
+        assert!(
+            mesh.local_changed(ClipboardEvent::Text(b"from B".to_vec()))
+                .unwrap()
+                .is_none()
+        );
+
+        let c_change = ClipboardPacket {
+            revision: 8,
+            origin: peer_c,
+            event: ClipboardEvent::Clear,
+        };
+        let relay = mesh.peer_changed(peer_c, c_change).unwrap().unwrap();
+        assert_eq!(relay.event, ClipboardEvent::Clear);
+        assert_eq!(relay.revision, 9);
+        assert_eq!(mesh.latest(), Some(&relay));
+    }
+
+    #[test]
+    fn mesh_hub_rejects_forged_clipboard_origin() {
+        let mut mesh = MeshClipboard::new([1; 32]);
+        let forged = ClipboardPacket {
+            revision: 1,
+            origin: [3; 32],
+            event: ClipboardEvent::Text(b"forged".to_vec()),
+        };
+        assert!(mesh.peer_changed([2; 32], forged).is_err());
+        assert!(mesh.latest().is_none());
+        assert!(
+            mesh.local_changed(ClipboardEvent::Text(vec![b'x'; MAX_TEXT_BYTES + 1]))
+                .is_err()
+        );
+        assert!(mesh.latest().is_none());
+    }
+
+    #[test]
+    fn mesh_relay_converges_without_echoing_to_the_sender() {
+        let hub_id = [1; 32];
+        let b_id = [2; 32];
+        let c_id = [3; 32];
+        let mut hub = MeshClipboard::new(hub_id);
+        let mut b = ClipboardSync::new(b_id, hub_id);
+        let mut c = ClipboardSync::new(c_id, hub_id);
+
+        let b_event = ClipboardEvent::Text("B → todos".as_bytes().to_vec());
+        let from_b = b.local_changed(&b_event).unwrap();
+        let relay = hub.peer_changed(b_id, from_b).unwrap().unwrap();
+        assert!(!b.remote_needs_apply(&relay).unwrap());
+        assert!(c.remote_needs_apply(&relay).unwrap());
+        c.remote_applied(&relay);
+        assert!(c.local_changed(&b_event).is_none());
+
+        let c_event = ClipboardEvent::Text("C → todos".as_bytes().to_vec());
+        let from_c = c.local_changed(&c_event).unwrap();
+        let relay = hub.peer_changed(c_id, from_c).unwrap().unwrap();
+        assert!(b.remote_needs_apply(&relay).unwrap());
+        b.remote_applied(&relay);
+        assert!(!c.remote_needs_apply(&relay).unwrap());
+        assert!(hub.local_changed(c_event).unwrap().is_none());
+    }
 
     #[test]
     fn text_clear_and_empty_round_trip() {

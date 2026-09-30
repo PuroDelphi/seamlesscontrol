@@ -105,6 +105,18 @@ pub fn spawn_apply_worker(
     (sender, worker)
 }
 
+pub fn spawn_apply_events() -> (mpsc::Sender<ClipboardEvent>, JoinHandle<()>) {
+    let (sender, mut receiver) = mpsc::channel::<ClipboardEvent>(8);
+    let worker = thread::spawn(move || {
+        while let Some(event) = receiver.blocking_recv() {
+            if let Err(error) = apply(&event) {
+                eprintln!("SeamlessControl: no se pudo aplicar el portapapeles: {error}");
+            }
+        }
+    });
+    (sender, worker)
+}
+
 pub struct ClipboardWatch {
     child: Arc<Mutex<Child>>,
     worker: Option<JoinHandle<()>>,
@@ -114,6 +126,18 @@ impl ClipboardWatch {
     pub fn start(
         sync: Arc<Mutex<ClipboardSync>>,
         mut forward: impl FnMut(ClipboardPacket) + Send + 'static,
+    ) -> io::Result<Self> {
+        Self::start_events(move |event| {
+            let Ok(mut state) = sync.lock() else { return };
+            if let Some(packet) = state.local_changed(&event) {
+                drop(state);
+                forward(packet);
+            }
+        })
+    }
+
+    pub fn start_events(
+        mut forward: impl FnMut(ClipboardEvent) + Send + 'static,
     ) -> io::Result<Self> {
         let executable = std::env::current_exe()?;
         let mut child = Command::new("wl-paste")
@@ -132,13 +156,7 @@ impl ClipboardWatch {
         let worker = thread::spawn(move || {
             loop {
                 match ClipboardEvent::read_framed(&mut output) {
-                    Ok(Some(event)) => {
-                        let Ok(mut state) = sync.lock() else { break };
-                        if let Some(packet) = state.local_changed(&event) {
-                            drop(state);
-                            forward(packet);
-                        }
-                    }
+                    Ok(Some(event)) => forward(event),
                     Ok(None) => break,
                     Err(error) => {
                         eprintln!("SeamlessControl: error observando portapapeles: {error}");
