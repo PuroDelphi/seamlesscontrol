@@ -104,8 +104,15 @@ pub fn send_once(
         FileMessage::Reject => return Err("destination rejected the file".into()),
         _ => return Err("destination did not decide on the file".into()),
     }
-    while let Some(chunk) = sender.next_chunk()? {
-        send_frame(&mut channel, &mut sent, FileMessage::Chunk(chunk))?;
+    loop {
+        match sender.next_chunk() {
+            Ok(Some(chunk)) => send_frame(&mut channel, &mut sent, FileMessage::Chunk(chunk))?,
+            Ok(None) => break,
+            Err(error) => {
+                let _ = send_frame(&mut channel, &mut sent, FileMessage::Cancel);
+                return Err(error.into());
+            }
+        }
     }
     send_frame(&mut channel, &mut sent, FileMessage::End)?;
     if receive_frame(&mut channel, &mut received)? != FileMessage::Complete {
@@ -321,6 +328,61 @@ mod tests {
                 assert!(!downloads.join("example.txt").exists());
             }
         }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn growing_source_cancels_encrypted_transfer_without_publishing() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-growing-session-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let downloads = dir.join("downloads");
+        fs::create_dir_all(&downloads).unwrap();
+        let source = dir.join("growing.txt");
+        fs::write(&source, b"initial").unwrap();
+        let sender_id = Identity::generate().unwrap();
+        let receiver_id = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let sender_peers = dir.join("sender-peers");
+        let receiver_peers = dir.join("receiver-peers");
+        remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let worker = thread::spawn({
+            let source = source.clone();
+            let downloads = downloads.clone();
+            move || {
+                receive_with_listener(
+                    listener,
+                    &downloads,
+                    &receiver_id,
+                    &receiver_peers,
+                    DEFAULT_MAX_FILE_BYTES,
+                    &mut |_offer, _peer| {
+                        let mut file = fs::OpenOptions::new().append(true).open(&source)?;
+                        file.write_all(b" new data")?;
+                        Ok(true)
+                    },
+                )
+                .map_err(|error| error.to_string())
+            }
+        });
+        assert!(
+            send_once(
+                address,
+                &source,
+                &sender_id,
+                &sender_peers,
+                DEFAULT_MAX_FILE_BYTES,
+            )
+            .is_err()
+        );
+        assert!(worker.join().unwrap().unwrap().is_none());
+        assert!(!downloads.join("growing.txt").exists());
+        assert_eq!(fs::read_dir(&downloads).unwrap().count(), 0);
         fs::remove_dir_all(dir).unwrap();
     }
 }

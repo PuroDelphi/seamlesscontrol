@@ -79,14 +79,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         event = events.next() => {
                             match event {
                                 Some(Ok(EiEvent::SeatAdded(seat))) => {
+                                    println!("EIS anunció un asiento.");
                                     seat.seat.bind_capabilities(
                                         DeviceCapability::Pointer
+                                            | DeviceCapability::PointerAbsolute
                                             | DeviceCapability::Keyboard
                                             | DeviceCapability::Scroll
                                             | DeviceCapability::Button,
                                     );
                                     context.flush()?;
                                 }
+                                Some(Ok(EiEvent::DeviceAdded(_))) => println!("EIS anunció un dispositivo."),
+                                Some(Ok(EiEvent::DeviceStartEmulating(_))) => println!("EIS inició la captura de un dispositivo."),
+                                Some(Ok(EiEvent::DevicePaused(_))) => println!("EIS pausó un dispositivo."),
                                 Some(Ok(_)) => {}
                                 Some(Err(error)) => return Err(error.into()),
                                 None => return Err("EIS terminó antes de activar la barrera".into()),
@@ -117,15 +122,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let event = event?;
                         match event {
                             EiEvent::SeatAdded(seat) => {
+                                println!("EIS anunció un asiento tras la activación.");
                                 seat.seat.bind_capabilities(
                                     DeviceCapability::Pointer
+                                        | DeviceCapability::PointerAbsolute
                                         | DeviceCapability::Keyboard
                                         | DeviceCapability::Scroll
                                         | DeviceCapability::Button,
                                 );
                                 context.flush()?;
                             }
+                            EiEvent::DeviceAdded(_) => println!("EIS anunció un dispositivo tras la activación."),
+                            EiEvent::DeviceStartEmulating(_) => println!("EIS inició la captura de un dispositivo."),
+                            EiEvent::DevicePaused(_) => println!("EIS pausó un dispositivo."),
                             EiEvent::PointerMotion(_)
+                            | EiEvent::PointerMotionAbsolute(_)
                             | EiEvent::KeyboardKey(_)
                             | EiEvent::Button(_)
                             | EiEvent::ScrollDelta(_) => {

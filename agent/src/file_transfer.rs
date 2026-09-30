@@ -3,7 +3,7 @@
 
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Seek, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -21,13 +21,17 @@ pub struct FileOffer {
 
 impl FileOffer {
     pub fn from_path(path: &Path, limit: u64) -> io::Result<Self> {
+        let mut file = File::open(path)?;
+        Self::from_open_file(path, &mut file, limit)
+    }
+
+    fn from_open_file(path: &Path, file: &mut File, limit: u64) -> io::Result<Self> {
         let name = path
             .file_name()
             .and_then(|name| name.to_str())
             .ok_or_else(|| invalid("file name is not UTF-8"))?
             .to_owned();
         validate_name(&name)?;
-        let file = File::open(path)?;
         let metadata = file.metadata()?;
         if !metadata.is_file() || metadata.len() > limit {
             return Err(invalid(
@@ -42,6 +46,7 @@ impl FileOffer {
         if copied != metadata.len() {
             return Err(invalid("file changed while calculating its hash"));
         }
+        file.rewind()?;
         Ok(Self {
             name,
             size: copied,
@@ -132,8 +137,8 @@ pub struct FileSender {
 
 impl FileSender {
     pub fn open(path: &Path, limit: u64) -> io::Result<Self> {
-        let offer = FileOffer::from_path(path, limit)?;
-        let file = File::open(path)?;
+        let mut file = File::open(path)?;
+        let offer = FileOffer::from_open_file(path, &mut file, limit)?;
         Ok(Self {
             file,
             offer,
@@ -143,6 +148,9 @@ impl FileSender {
 
     pub fn next_chunk(&mut self) -> io::Result<Option<Vec<u8>>> {
         if self.sent == self.offer.size {
+            if self.file.metadata()?.len() != self.offer.size {
+                return Err(invalid("source file size changed during transfer"));
+            }
             return Ok(None);
         }
         let remaining = (self.offer.size - self.sent).min(MAX_CHUNK_BYTES as u64) as usize;
@@ -365,6 +373,20 @@ mod tests {
         let mut receiver = FileReceiver::accept(offer, &dir, 2).unwrap();
         assert!(receiver.write_chunk(b"three").is_err());
         drop(receiver);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn sender_detects_source_growth_after_offer() {
+        let dir = scratch("source-growth");
+        let source = dir.join("growing.txt");
+        fs::write(&source, b"initial").unwrap();
+        let mut sender = FileSender::open(&source, DEFAULT_MAX_FILE_BYTES).unwrap();
+        assert_eq!(sender.offer.size, 7);
+        let mut append = OpenOptions::new().append(true).open(&source).unwrap();
+        append.write_all(b" new data").unwrap();
+        assert_eq!(sender.next_chunk().unwrap(), Some(b"initial".to_vec()));
+        assert!(sender.next_chunk().is_err());
         fs::remove_dir_all(dir).unwrap();
     }
 }
