@@ -12,6 +12,7 @@ BarWidget {
   readonly property string stateLabel: backend.fileOffer ? "archivo pendiente"
     : backend.receivingFile ? "esperando archivo"
     : backend.sendingFile ? "enviando archivo"
+    : !backend.installed ? "sin agente"
     : !backend.available ? "sin sesión"
     : backend.paused ? "pausa"
     : backend.phase === "controlling" ? "remoto"

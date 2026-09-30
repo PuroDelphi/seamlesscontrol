@@ -3,6 +3,7 @@ import Quickshell.Io
 
 Item {
   id: root
+  property bool installed: false
   property bool available: false
   property string role: ""
   property string phase: ""
@@ -37,7 +38,7 @@ Item {
   property string lastAgentError: ""
 
   function startReceiver(address) {
-    if (agentProcess.running || available || pairingRunning || !address) return
+    if (!installed || agentProcess.running || available || pairingRunning || !address) return
     error = ""
     lastAgentError = ""
     stoppingManagedAgent = false
@@ -47,7 +48,7 @@ Item {
   }
 
   function startSender(address) {
-    if (agentProcess.running || available || pairingRunning || !address) return
+    if (!installed || agentProcess.running || available || pairingRunning || !address) return
     error = ""
     lastAgentError = ""
     stoppingManagedAgent = false
@@ -63,7 +64,7 @@ Item {
   }
 
   function startFileReceiver(address, directory) {
-    if (receiveFileProcess.running || !address || !directory) return
+    if (!installed || receiveFileProcess.running || !address || !directory) return
     error = ""
     fileResult = ""
     fileOffer = null
@@ -88,7 +89,7 @@ Item {
   }
 
   function sendFile(address, path) {
-    if (sendFileProcess.running || !address || !path) return
+    if (!installed || sendFileProcess.running || !address || !path) return
     error = ""
     fileResult = ""
     sendFileProcess.command = ["seamlesscontrold", "send-file", address, path]
@@ -97,22 +98,22 @@ Item {
   }
 
   function refresh() {
-    if (statusProcess.running) return
+    if (!installed || statusProcess.running) return
     statusProcess.running = true
   }
 
   function refreshPeers() {
-    if (peersProcess.running) return
+    if (!installed || peersProcess.running) return
     peersProcess.running = true
   }
 
   function refreshTopology() {
-    if (topologyProcess.running) return
+    if (!installed || topologyProcess.running) return
     topologyProcess.running = true
   }
 
   function placeMachine(machine, column, row) {
-    if (topologyAction.running || !machine) return
+    if (!installed || topologyAction.running || !machine) return
     error = ""
     topologyAction.command = ["seamlesscontrold", "topology", "set", machine, String(column), String(row)]
     topologyAction.running = true
@@ -142,7 +143,7 @@ Item {
   }
 
   function pair(address) {
-    if (pairProcess.running || available || !address) return
+    if (!installed || pairProcess.running || available || !address) return
     error = ""
     pairingRunning = true
     pairProcess.command = ["seamlesscontrold", "pair", address]
@@ -150,10 +151,29 @@ Item {
   }
 
   function revoke(address) {
-    if (actionProcess.running || !address) return
+    if (!installed || actionProcess.running || !address) return
     actionName = "revocar"
     actionProcess.command = ["seamlesscontrold", "revoke", address]
     actionProcess.running = true
+  }
+
+  Process {
+    id: executableProbe
+    command: ["sh", "-c", "command -v seamlesscontrold >/dev/null"]
+    onExited: function(code) {
+      var wasInstalled = root.installed
+      root.installed = code === 0
+      if (root.installed && !wasInstalled) {
+        root.error = ""
+        root.refresh()
+        root.refreshPeers()
+        root.refreshTopology()
+      } else if (!root.installed) {
+        root.available = false
+        root.peers = []
+        root.topology = []
+      }
+    }
   }
 
   Process {
@@ -163,6 +183,7 @@ Item {
       waitForEnd: true
       onStreamFinished: {
         var line = String(text || "").replace(/\r?\n$/, "")
+        if (line === "") return
         var fields = line.split("\t")
         if (fields.length !== 7 || fields[0] !== "STATUS") {
           root.available = false
@@ -313,6 +334,14 @@ Item {
       root.sendingFile = false
       if (code !== 0) root.error = "No se entregó el archivo. Revise el par, la red y la aceptación del destino."
     }
+  }
+
+  Timer {
+    interval: 10000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: if (!executableProbe.running) executableProbe.running = true
   }
 
   Timer {

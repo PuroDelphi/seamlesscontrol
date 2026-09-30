@@ -95,8 +95,8 @@ Panel {
         PanelHero {
           Layout.fillWidth: true
           title: "SeamlessControl"
-          meta: "OMARCHY  ·  " + (root.backend && root.backend.available
-            ? root.backend.phaseText.toUpperCase() : "SIN SESIÓN")
+          meta: "OMARCHY  ·  " + (root.backend && !root.backend.installed ? "SIN AGENTE"
+            : root.backend && root.backend.available ? root.backend.phaseText.toUpperCase() : "SIN SESIÓN")
           foreground: root.ink
           fontFamily: root.face
           iconComponent: Component {
@@ -267,7 +267,7 @@ Panel {
             text: root.backend && root.backend.pairingRunning ? "Conectando…" : "Emparejar"
             bordered: true
             focusable: true
-            enabled: root.backend && !root.backend.pairingRunning && pairAddress.text !== ""
+            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && pairAddress.text !== ""
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
@@ -365,7 +365,9 @@ Panel {
             ? "Agente " + (root.backend.role === "serve" ? "receptor" : "emisor")
               + (root.backend.peer !== "" ? " · " + root.backend.peer : "")
               + (root.backend.paused ? " · en pausa" : "")
-            : "El agente no está ejecutándose. Compile e inícielo en un terminal para comenzar."
+            : root.backend && !root.backend.installed
+              ? "Falta el agente. Ejecute bash packaging/install-agent.sh desde el repositorio; el panel lo detectará automáticamente."
+              : "No hay sesión activa. Iníciela desde este panel o desde un terminal."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.ink
@@ -396,7 +398,7 @@ Panel {
             text: "Recibir control"
             bordered: true
             focusable: true
-            enabled: root.backend && !root.backend.pairingRunning && listenAddress.text.trim() !== ""
+            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && listenAddress.text.trim() !== ""
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
@@ -420,7 +422,7 @@ Panel {
             text: "Compartir entrada"
             bordered: true
             focusable: true
-            enabled: root.backend && !root.backend.pairingRunning && connectAddress.text.trim() !== ""
+            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && connectAddress.text.trim() !== ""
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
@@ -589,7 +591,7 @@ Panel {
           bordered: true
           focusable: true
           enabled: root.backend && (root.backend.receivingFile
-            || (fileListenAddress.text.trim() !== "" && fileDirectory.text.trim() !== ""))
+            || (root.backend.installed && fileListenAddress.text.trim() !== "" && fileDirectory.text.trim() !== ""))
           foreground: root.ink
           accent: Color.accent
           fontFamily: root.face
@@ -686,7 +688,7 @@ Panel {
           text: root.backend && root.backend.sendingFile ? "Enviando…" : "Enviar archivo"
           bordered: true
           focusable: true
-          enabled: root.backend && !root.backend.sendingFile
+          enabled: root.backend && root.backend.installed && !root.backend.sendingFile
             && fileSendAddress.text.trim() !== "" && fileSourcePath.text.trim() !== ""
           foreground: root.ink
           accent: Color.accent
