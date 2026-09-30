@@ -96,6 +96,8 @@ El bucle de `serve-auto` ahora conserva el control local mientras no haya ruta L
 
 La selección de IP automática usa ahora la ruta hacia el grupo multicast mDNS en vez de una ruta unicast de Internet. En esta máquina, `ip -4 route get 224.0.0.251` indicó `wlo1` y `192.168.1.25`, aunque también existen interfaces de Tailscale y Docker. Esta elección favorece la interfaz por la que se descubre el servicio; falta probarla con una VPN que cambie la ruta predeterminada.
 
+Se midió el consumo en reposo con un receptor `serve-auto` de release, identidad y directorios temporales, sin conexiones entrantes, durante 30 segundos. El agente acumuló 2 ticks de CPU a 100 Hz (0,02 s de CPU, aproximadamente 0,07 % de un núcleo), mantuvo RSS de 5.212 KiB y 11 descriptores. Su proceso hijo `avahi-publish-service` acumuló 0 ticks observables, mantuvo 3.096 KiB de RSS y 8 descriptores. El daemon Avahi compartido no se incluye. `tests/idle_receiver.sh` reproduce la medición; una ejecución de un segundo también pasó. Es una sola muestra local, no una medida de captura activa ni del sistema completo.
+
 La prueba reproducible `bash tests/discovery_lan.sh` pasó en esta máquina: comprobó dirección y huella anunciadas, que la búsqueda normal no muestra el anuncio propio y que Avahi lo retira al detener el receptor. El panel ahora actualiza la lista de pares y la cuadrícula en cuanto termina el emparejamiento, sin esperar al sondeo periódico.
 
 `receive-file-auto-ui` se probó con configuración temporal y el puerto 49020: `ss` mostró escucha únicamente en `192.168.1.25:49020`. La transferencia con esa dirección aún requiere otro equipo; la variante manual sigue disponible.

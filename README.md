@@ -107,9 +107,11 @@ CARGO=cargo bash tests/reconnect_wait.sh
 CARGO=cargo bash tests/file_loopback.sh
 CARGO=cargo bash tests/discovery_lan.sh
 CARGO=cargo bash tests/roaming_loopback.sh
+cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold
+SC_IDLE_SECONDS=30 bash tests/idle_receiver.sh
 ```
 
-La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe permitirlo. En un Omarchy con sesión gráfica se pueden ejecutar los probes:
+La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe permitirlo. El medidor de reposo inicia un receptor con identidad y directorios temporales, informa ticks de CPU, RSS y descriptores, y lo detiene al terminar; requiere un binario release compilado. No incluye el consumo del daemon Avahi compartido. En un Omarchy con sesión gráfica se pueden ejecutar los probes:
 
 ```bash
 cargo run --manifest-path agent/Cargo.toml --bin virtual-input-probe
