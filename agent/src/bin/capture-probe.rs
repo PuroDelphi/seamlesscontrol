@@ -68,9 +68,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!(
                 "Captura habilitada durante 20 s. Mueva el puntero al borde derecho para probarla."
             );
-            let activation =
-                tokio::time::timeout(std::time::Duration::from_secs(20), activations.next()).await;
-            if let Ok(Some(activation)) = activation {
+            // Bind the EIS seat as soon as it is announced. Waiting until
+            // after the barrier activates can discard the first real input.
+            let activation = tokio::time::timeout(std::time::Duration::from_secs(20), async {
+                loop {
+                    tokio::select! {
+                        signal = activations.next() => {
+                            return Ok::<_, Box<dyn std::error::Error>>(signal);
+                        }
+                        event = events.next() => {
+                            match event {
+                                Some(Ok(EiEvent::SeatAdded(seat))) => {
+                                    seat.seat.bind_capabilities(
+                                        DeviceCapability::Pointer
+                                            | DeviceCapability::Keyboard
+                                            | DeviceCapability::Scroll
+                                            | DeviceCapability::Button,
+                                    );
+                                    context.flush()?;
+                                }
+                                Some(Ok(_)) => {}
+                                Some(Err(error)) => return Err(error.into()),
+                                None => return Err("EIS terminó antes de activar la barrera".into()),
+                            }
+                        }
+                    }
+                }
+            })
+            .await;
+            let activation = match activation {
+                Ok(Ok(Some(signal))) => Some(signal),
+                Ok(Ok(None)) => return Err("el portal cerró la señal de activación".into()),
+                Ok(Err(error)) => return Err(error),
+                Err(_) => None,
+            };
+            if let Some(activation) = activation {
                 let x = activation
                     .cursor_position()
                     .map(|pos| pos.0 as f64 - 1.0)
