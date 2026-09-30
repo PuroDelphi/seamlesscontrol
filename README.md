@@ -4,7 +4,7 @@ Plugin nuevo para Omarchy que busca compartir un teclado y ratón entre equipos.
 
 ## Estado actual
 
-Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega movimiento relativo del ratón físico por EIS al cruzarla. Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. Una prueba local del agente integrado confirmó captura EIS, canal Noise XX y recepción autenticada de movimiento, teclado y clic físicos; el receptor de esa prueba sólo contó eventos, sin inyectarlos. **El recorrido entre dos equipos todavía no se ha probado.** No hay una versión lista para uso cotidiano.
+Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega movimiento relativo del ratón físico por EIS al cruzarla. Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. Una prueba local del agente integrado confirmó captura EIS, canal Noise XX y recepción autenticada de movimiento, teclado y clic físicos; el receptor de esa prueba sólo contó eventos, sin inyectarlos. Otra prueba local comprobó que el receptor normal descifra e inyecta un movimiento pequeño y devuelve el cursor a su posición. **El recorrido entre dos equipos todavía no se ha probado.** No hay una versión lista para uso cotidiano.
 
 ## Instalar en cada Omarchy
 
@@ -135,11 +135,12 @@ CARGO=cargo bash tests/update_installed_agent.sh
 CARGO=cargo bash tests/uninstall_agent.sh
 cargo build --manifest-path agent/Cargo.toml --bin seamlesscontrold
 bash tests/integrated_capture_local.sh --synthetic
+bash tests/integrated_injection_local.sh
 cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold
 SC_IDLE_SECONDS=30 bash tests/idle_receiver.sh
 ```
 
-La prueba criptográfica usa sockets en `127.0.0.1`; el entorno de pruebas debe permitirlo. El medidor de reposo inicia un receptor con identidad y directorios temporales, informa ticks de CPU, RSS y descriptores, y lo detiene al terminar; requiere un binario release compilado. No incluye el consumo del daemon Avahi compartido. En un Omarchy con sesión gráfica se pueden ejecutar los probes:
+Las pruebas criptográficas usan sockets en `127.0.0.1`; el entorno debe permitirlo. Las dos pruebas `integrated_*_local.sh` requieren una sesión Omarchy sin otro agente activo. La primera abre el portal de captura y usa un receptor que sólo cuenta eventos. La segunda usa el receptor normal, sin abrir el portal, y verifica un movimiento virtual de cuatro píxeles y su restauración. El medidor de reposo inicia un receptor con identidad y directorios temporales, informa ticks de CPU, RSS y descriptores, y lo detiene al terminar; requiere un binario release compilado. No incluye el consumo del daemon Avahi compartido. En un Omarchy con sesión gráfica se pueden ejecutar los probes:
 
 ```bash
 cargo run --manifest-path agent/Cargo.toml --bin virtual-input-probe

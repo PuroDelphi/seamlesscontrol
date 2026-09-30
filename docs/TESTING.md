@@ -6,6 +6,8 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 
 `bash tests/integrated_capture_local.sh --synthetic` sí abre el portal en una sesión Omarchy real. Empareja dos identidades temporales por loopback, activa la captura del agente y mueve un puntero virtual al borde derecho. El receptor de depuración cuenta los tipos de eventos descifrados sin crear dispositivos ni guardar teclas o desplazamientos. Sin `--synthetic`, deja veinte segundos para cruzar el borde con el ratón físico. Ambas variantes requieren que no haya un agente activo usando el socket de control de esta sesión; no sustituyen la inyección ni la prueba entre dos equipos.
 
+`bash tests/integrated_injection_local.sh` prueba por separado la inyección del receptor normal en este Omarchy: empareja dos identidades temporales, envía `BEGIN`, movimiento +4 y −4 píxeles y `END` por Noise XX, y compara la posición del cursor antes, durante y después mediante IPC de Hyprland. No abre el portal de captura ni envía teclas o clics. Requiere que no haya otro agente usando el socket de control y tampoco sustituye un flujo de extremo a extremo entre dos equipos.
+
 ## Preparación
 
 1. Instalar la misma revisión en ambos Omarchy con los dos comandos de instalación del README; el segundo compila el binario de release e instala las dependencias que falten.

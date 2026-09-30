@@ -114,10 +114,12 @@ La prueba `bash tests/update_installed_agent.sh` pasó con un receptor y una ide
 
 La variante física `bash tests/integrated_capture_local.sh` también pasó en el mismo Omarchy, tras cruzar el borde derecho y mover el ratón físico, pulsar una tecla y hacer clic. La salida fue `OBSERVED begin=1 motion=443 keys=64 buttons=34 scroll=0 clipboard=1`. Los números son recuentos de eventos descifrados, no teclas, botones ni trayectorias almacenadas. Una primera ejecución produjo `begin=1 motion=946 keys=68 buttons=24`, pero el script terminó con fallo porque sólo esperaba el estado `ready` y el agente ya había pasado a `controlling`; la segunda ejecución aceptó ambos estados y terminó correctamente. La rueda, la inyección visible en un segundo equipo, la vuelta y la latencia completa siguen pendientes.
 
+`bash tests/integrated_injection_local.sh` pasó con el receptor normal del agente y dos identidades temporales en este Omarchy. El emisor de prueba no abrió `InputCapture`: después de Noise XX y la reserva `CLAIM/READY`, envió `BEGIN`, movimiento virtual +4 y −4 píxeles y `END`. El IPC de Hyprland mostró `before=569,666`, `shifted=573,666` y `restored=569,666`. Esta observación confirma la ruta autenticada hasta el puntero virtual y la restauración local; todavía no enlaza captura e inyección en dos escritorios distintos ni verifica teclado, botón o colocación al entrar por un borde.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
 2. Probar liberación mediante el atajo local en el agente integrado; la prueba local ya recibió movimiento, teclado y clic físicos y liberó el cursor al cerrar la captura, pero todavía falta el atajo Escape durante esa sesión.
-3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones.
+3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones; la inyección de movimiento en el receptor normal sólo se verificó en el Omarchy local.
 4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
 5. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha verificado su flujo físico extremo a extremo.
