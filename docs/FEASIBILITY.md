@@ -116,6 +116,8 @@ La variante física `bash tests/integrated_capture_local.sh` también pasó en e
 
 `bash tests/integrated_injection_local.sh` pasó con el receptor normal del agente y dos identidades temporales en este Omarchy. El emisor de prueba no abrió `InputCapture`: después de Noise XX y la reserva `CLAIM/READY`, envió `BEGIN`, movimiento virtual +4 y −4 píxeles y `END`. El IPC de Hyprland mostró `before=569,666`, `shifted=573,666` y `restored=569,666`. Una segunda época incluyó la posición de entrada por el borde izquierdo: el cálculo predijo `(2,383)`, el cursor llegó a `(2,383)`, avanzó a `(6,383)` y volvió a `(569,666)`. Esto confirma la ruta autenticada hasta el puntero virtual, la colocación en un borde y la restauración local; todavía no enlaza captura e inyección en dos escritorios distintos ni verifica teclado o botón inyectados.
 
+La recepción de archivos espera ahora otra conexión si la primera cierra sin completar Noise o presenta una clave distinta a la fijada. Una prueba de loopback abrió primero una conexión incompleta y luego una con identidad distinta; ambas fallaron antes de ofrecer el archivo. El emisor emparejado que llegó después transfirió el contenido completo con confirmación. Pasaron las 65 pruebas de Rust (`cargo test --locked --all-targets`), Clippy y `bash tests/file_loopback.sh`. Esto comprueba la disponibilidad ante intentos previos a la autenticación en loopback; el envío entre dos Omarchy sigue pendiente.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.

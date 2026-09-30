@@ -15,6 +15,7 @@ use std::time::Duration;
 
 const GREETING: &[u8] = b"seamlesscontrol-file/1";
 const FILE_TIMEOUT: Duration = Duration::from_secs(300);
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 
 fn send_frame(
     channel: &mut SecureChannel<TcpStream>,
@@ -144,14 +145,31 @@ fn receive_with_listener(
     limit: u64,
     approve: &mut impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
-    let (stream, peer_address) = listener.accept()?;
-    let pinned = pinned_key(peers, peer_address.ip())?;
-    stream.set_read_timeout(Some(FILE_TIMEOUT))?;
-    stream.set_write_timeout(Some(FILE_TIMEOUT))?;
-    stream.set_nodelay(true)?;
-    let (mut channel, _) =
-        SecureChannel::connect(stream, Role::Responder, identity, Some(&pinned), |_| false)?;
-    exchange_greeting(&mut channel, Role::Responder)?;
+    let (mut channel, peer_address) = loop {
+        let (stream, peer_address) = listener.accept()?;
+        let Some(pinned) = load_peer_key(peers, peer_address.ip())? else {
+            eprintln!(
+                "SeamlessControl: se ignoró una conexión de archivo no emparejada desde {peer_address}"
+            );
+            continue;
+        };
+        stream.set_read_timeout(Some(HANDSHAKE_TIMEOUT))?;
+        stream.set_write_timeout(Some(HANDSHAKE_TIMEOUT))?;
+        stream.set_nodelay(true)?;
+        let Ok((mut channel, _)) =
+            SecureChannel::connect(stream, Role::Responder, identity, Some(&pinned), |_| false)
+        else {
+            eprintln!("SeamlessControl: falló la autenticación del archivo desde {peer_address}");
+            continue;
+        };
+        if exchange_greeting(&mut channel, Role::Responder).is_err() {
+            eprintln!("SeamlessControl: protocolo de archivo incompatible desde {peer_address}");
+            continue;
+        }
+        channel.stream_mut().set_read_timeout(Some(FILE_TIMEOUT))?;
+        channel.stream_mut().set_write_timeout(Some(FILE_TIMEOUT))?;
+        break (channel, peer_address);
+    };
     let mut sent = 0;
     let mut received = 0;
     let FileMessage::Offer(offer) = receive_frame(&mut channel, &mut received)? else {
@@ -328,6 +346,64 @@ mod tests {
                 assert!(!downloads.join("example.txt").exists());
             }
         }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn unauthenticated_connection_does_not_consume_file_receiver() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-file-unauthenticated-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let downloads = dir.join("downloads");
+        fs::create_dir_all(&downloads).unwrap();
+        let source = dir.join("example.txt");
+        fs::write(&source, b"authenticated contents").unwrap();
+        let sender_id = Identity::generate().unwrap();
+        let impostor_id = Identity::generate().unwrap();
+        let receiver_id = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let sender_peers = dir.join("sender-peers");
+        let receiver_peers = dir.join("receiver-peers");
+        let impostor_peers = dir.join("impostor-peers");
+        remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
+        remember_peer_key(&impostor_peers, ip, &receiver_id.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let worker = thread::spawn(move || {
+            receive_with_listener(
+                listener,
+                &downloads,
+                &receiver_id,
+                &receiver_peers,
+                DEFAULT_MAX_FILE_BYTES,
+                &mut |_, _| Ok(true),
+            )
+            .map_err(|error| error.to_string())
+        });
+        drop(TcpStream::connect(address).unwrap());
+        assert!(
+            send_once(
+                address,
+                &source,
+                &impostor_id,
+                &impostor_peers,
+                DEFAULT_MAX_FILE_BYTES,
+            )
+            .is_err()
+        );
+        send_once(
+            address,
+            &source,
+            &sender_id,
+            &sender_peers,
+            DEFAULT_MAX_FILE_BYTES,
+        )
+        .unwrap();
+        let saved = worker.join().unwrap().unwrap().unwrap();
+        assert_eq!(fs::read(saved).unwrap(), fs::read(&source).unwrap());
         fs::remove_dir_all(dir).unwrap();
     }
 
