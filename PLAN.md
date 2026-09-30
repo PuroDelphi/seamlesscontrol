@@ -126,7 +126,7 @@ seamlesscontrol/
 └── tests/                     # integración y escenarios entre equipos
 ```
 
-La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento, pausa, revocación y cuadrícula 2×2. La geometría del agente evita capturar los pasos internos entre monitores locales al instalar barreras y recalcula las barreras ante cambios de zonas anunciados por el portal; falta verificar ambos comportamientos en monitores reales. `packaging/` contiene el instalador y dos unidades de usuario para receptor/emisor; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
+La carpeta `agent/` contiene un prototipo ejecutable; `manifest.json` y `plugin/` contienen un widget instalable con estado, emparejamiento, pausa, revocación y cuadrícula 2×2. La geometría del agente evita capturar los pasos internos entre monitores locales al instalar barreras y recalcula las barreras ante cambios de zonas anunciados por el portal o de la cuadrícula guardada; falta verificar ambos comportamientos en monitores reales. `packaging/` contiene el instalador y tres unidades de usuario para receptor, emisor y malla; las pruebas entre equipos siguen en el plan. `~/Work/seamlesscontrol/` es la carpeta local de este proyecto y el repositorio público indicado por el usuario es `https://github.com/PuroDelphi/seamlesscontrol`.
 
 ## Fuentes consultadas
 

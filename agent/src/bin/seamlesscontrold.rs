@@ -63,8 +63,20 @@ mod linux {
     enum ConnectionMode {
         Pair,
         Capture(Edge),
+        CaptureMapped(Edge),
         Latency,
     }
+
+    #[derive(Debug)]
+    struct TopologyChanged;
+
+    impl std::fmt::Display for TopologyChanged {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "topology changed; rebuilding capture")
+        }
+    }
+
+    impl Error for TopologyChanged {}
 
     impl Edge {
         fn from_logical(edge: LogicalEdge) -> Self {
@@ -455,6 +467,7 @@ mod linux {
         let mut links = BTreeMap::<IpAddr, MeshLink>::new();
         let mut coordinator = HandoffCoordinator::new(topology.clone());
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
+        let mut topology_check = tokio::time::interval(Duration::from_secs(1));
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
         pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut capture_enabled = !locked;
@@ -470,6 +483,11 @@ mod linux {
             loop {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => break,
+                    _ = topology_check.tick() => {
+                        if load_topology(&config.join("topology"))? != topology {
+                            return Err("mesh topology changed; rebuilding capture".into());
+                        }
+                    }
                     _ = pause_tick.tick() => {
                         if control.revoked_active() { return Err("active mesh peer was revoked".into()); }
                         locked = lock_ipc.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
@@ -728,6 +746,7 @@ mod linux {
         control: ControlHandle,
         local_id: [u8; 32],
         remote_id: [u8; 32],
+        topology_watch: Option<(&std::path::Path, IpAddr)>,
     ) -> Result<(), Box<dyn Error>> {
         let local_lock =
             HyprIpc::from_env().ok_or("Hyprland IPC is required to guard local capture")?;
@@ -790,6 +809,7 @@ mod linux {
         };
 
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
+        let mut topology_check = tokio::time::interval(Duration::from_secs(1));
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
         pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut capture_enabled = !locked;
@@ -802,6 +822,12 @@ mod linux {
             loop {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => break,
+                    _ = topology_check.tick(), if topology_watch.is_some() => {
+                        let (path, peer) = topology_watch.expect("guarded topology watch");
+                        if load_topology(path)?.edge_to(peer).ok() != Some(edge.logical()) {
+                            return Err(TopologyChanged.into());
+                        }
+                    }
                     _ = pause_tick.tick() => {
                         if control.revoked_active() { break; }
                         locked = local_lock.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
@@ -1499,7 +1525,7 @@ mod linux {
             .set_write_timeout(Some(Duration::from_secs(5)))
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         match mode {
-            ConnectionMode::Capture(edge) => {
+            ConnectionMode::Capture(edge) | ConnectionMode::CaptureMapped(edge) => {
                 Frame {
                     kind: Kind::Control,
                     epoch: 0,
@@ -1520,18 +1546,22 @@ mod linux {
                     return Err(AttemptError::Stop("invalid capture claim reply".into()));
                 }
                 println!("Conexión autenticada con {address}.");
+                let topology_path = config.join("topology");
                 capture_loop(
                     channel,
                     edge,
                     control.clone(),
                     identity.public,
                     peer.public_key,
+                    matches!(mode, ConnectionMode::CaptureMapped(_))
+                        .then_some((topology_path.as_path(), address.ip())),
                 )
                 .await
                 .map_err(|error| {
                     if error
                         .downcast_ref::<FrameError>()
                         .is_some_and(|frame| matches!(frame, FrameError::Io(_)))
+                        || error.downcast_ref::<TopologyChanged>().is_some()
                     {
                         AttemptError::Retry(error)
                     } else {
@@ -1824,11 +1854,11 @@ mod linux {
         if matches!(args[1].as_str(), "connect" | "pair" | "latency") {
             let _local_control = ControlServer::start("connect", &config)?;
             let control = _local_control.handle();
-            let mode = if args[1] == "connect" && args.len() == 4 {
+            let mut mode = if args[1] == "connect" && args.len() == 4 {
                 ConnectionMode::Capture(Edge::parse(&args[3])?)
             } else if args[1] == "connect" {
                 let topology = load_topology(&config.join("topology"))?;
-                ConnectionMode::Capture(Edge::from_logical(topology.edge_to(address.ip())?))
+                ConnectionMode::CaptureMapped(Edge::from_logical(topology.edge_to(address.ip())?))
             } else if args[1] == "latency" {
                 ConnectionMode::Latency
             } else {
@@ -1836,11 +1866,20 @@ mod linux {
             };
             let mut delay = Duration::from_secs(1);
             loop {
+                if matches!(mode, ConnectionMode::CaptureMapped(_)) {
+                    let topology = load_topology(&config.join("topology"))?;
+                    mode = ConnectionMode::CaptureMapped(Edge::from_logical(
+                        topology.edge_to(address.ip())?,
+                    ));
+                }
                 match connect_once(address, mode, &identity, &config, &control).await {
                     Ok(()) => return Ok(()),
                     Err(AttemptError::Stop(error)) => return Err(error),
                     Err(AttemptError::Retry(error))
-                        if !matches!(mode, ConnectionMode::Capture(_)) =>
+                        if !matches!(
+                            mode,
+                            ConnectionMode::Capture(_) | ConnectionMode::CaptureMapped(_)
+                        ) =>
                     {
                         return Err(error);
                     }

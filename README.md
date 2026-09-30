@@ -30,7 +30,7 @@ seamlesscontrold topology
 seamlesscontrold connect 192.168.1.20:47832
 ```
 
-La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. `topology route <IP>` muestra los saltos por casillas contiguas y comprueba que cada salto tiene un par fijado. Una conexión `connect` sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal.
+La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. `topology route <IP>` muestra los saltos por casillas contiguas y comprueba que cada salto tiene un par fijado. Una conexión `connect` sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal. Si se cambia la cuadrícula durante `mesh` o durante ese `connect` deducido, el agente libera la captura activa y la reconstruye con la disposición nueva; `connect` con un borde explícito conserva el borde elegido.
 
 ### Malla experimental de hasta cuatro Omarchy
 
