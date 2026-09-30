@@ -430,6 +430,44 @@ Panel {
           }
         }
 
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: meshPort
+            Layout.fillWidth: true
+            text: "47832"
+            placeholderText: "Puerto común de los destinos"
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+          }
+          Button {
+            text: "Compartir en malla"
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning
+              && /^[0-9]{1,5}$/.test(meshPort.text.trim())
+              && Number(meshPort.text.trim()) > 0 && Number(meshPort.text.trim()) <= 65535
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.startMesh(meshPort.text.trim())
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
+          text: "Malla experimental: empareje y ubique todos los equipos; cada destino debe estar escuchando en el mismo puerto. El portapapeles funciona por ahora sólo en sesiones de dos equipos."
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
         Button {
           Layout.fillWidth: true
           visible: root.backend && root.backend.managedAgentRunning

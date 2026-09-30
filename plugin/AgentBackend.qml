@@ -13,6 +13,7 @@ Item {
     pairing: "emparejando",
     ready: "listo",
     controlling: "control remoto",
+    handoff: "cediendo control",
     connected: "conectado",
     listening: "disponible",
     locked: "bloqueado",
@@ -53,6 +54,18 @@ Item {
     lastAgentError = ""
     stoppingManagedAgent = false
     agentProcess.command = ["seamlesscontrold", "connect", address]
+    agentProcess.running = true
+    managedAgentRunning = true
+  }
+
+  function startMesh(port) {
+    var number = Number(port)
+    if (!installed || agentProcess.running || available || pairingRunning
+        || !/^[0-9]{1,5}$/.test(port) || number < 1 || number > 65535) return
+    error = ""
+    lastAgentError = ""
+    stoppingManagedAgent = false
+    agentProcess.command = ["seamlesscontrold", "mesh", String(number)]
     agentProcess.running = true
     managedAgentRunning = true
   }

@@ -2,8 +2,8 @@
 mod linux {
     use ashpd::desktop::Session;
     use ashpd::desktop::input_capture::{
-        Barrier, BarrierID, BarrierPosition, Capabilities, CreateSessionOptions, InputCapture,
-        ReleaseOptions,
+        ActivatedBarrier, Barrier, BarrierID, BarrierPosition, Capabilities, CreateSessionOptions,
+        InputCapture, ReleaseOptions,
     };
     use futures_util::StreamExt;
     use reis::{
@@ -14,11 +14,12 @@ mod linux {
     use seamlesscontrol_core::clipboard_omarchy::{self, ClipboardWatch, spawn_apply_worker};
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::file_session;
+    use seamlesscontrol_core::handoff::HandoffCoordinator;
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{Frame, FrameError, Kind};
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
-    use seamlesscontrol_core::secure::{Identity, Role, SecureChannel, SecureError};
+    use seamlesscontrol_core::secure::{Identity, Role, SecureChannel, SecureError, SecureWriter};
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
@@ -27,7 +28,7 @@ mod linux {
     use seamlesscontrol_core::topology::{
         Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, external_barriers,
     };
-    use std::collections::HashMap;
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::error::Error;
     use std::io::{self, Write};
     use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
@@ -39,7 +40,7 @@ mod linux {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
-    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/3";
+    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/4";
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
 
@@ -181,6 +182,441 @@ mod linux {
             return Err("the compositor rejected one or more selected edges".into());
         }
         Ok(zones.zone_set())
+    }
+
+    async fn install_mesh_barriers(
+        portal: &InputCapture,
+        session: &Session<InputCapture>,
+        topology: &seamlesscontrol_core::topology::Topology,
+    ) -> Result<(u32, BTreeMap<u32, (IpAddr, Edge)>), Box<dyn Error>> {
+        let zones = portal
+            .zones(session, Default::default())
+            .await?
+            .response()?;
+        let regions: Vec<Rect> = zones
+            .regions()
+            .iter()
+            .map(|region| {
+                Rect::new(
+                    region.x_offset(),
+                    region.y_offset(),
+                    i32::try_from(region.width())?,
+                    i32::try_from(region.height())?,
+                )
+                .ok_or("invalid monitor region")
+                .map_err(Into::into)
+            })
+            .collect::<Result<_, Box<dyn Error>>>()?;
+        let mut barriers = Vec::new();
+        let mut targets = BTreeMap::new();
+        for edge in [
+            LogicalEdge::Left,
+            LogicalEdge::Right,
+            LogicalEdge::Top,
+            LogicalEdge::Bottom,
+        ] {
+            let Some(Machine::Peer(peer)) = topology.neighbor(Machine::Local, edge) else {
+                continue;
+            };
+            for segment in external_barriers(&regions, edge) {
+                let number = u32::try_from(barriers.len() + 1)?;
+                let id = BarrierID::new(number).ok_or("invalid barrier ID")?;
+                barriers.push(Barrier::new(
+                    id,
+                    BarrierPosition::new(segment.x1, segment.y1, segment.x2, segment.y2),
+                ));
+                targets.insert(number, (peer, Edge::from_logical(edge)));
+            }
+        }
+        if barriers.is_empty() {
+            return Err("the topology has no exposed edge to a neighboring peer".into());
+        }
+        let response = portal
+            .set_pointer_barriers(session, &barriers, zones.zone_set(), Default::default())
+            .await?
+            .response()?;
+        if !response.failed_barriers().is_empty() {
+            return Err("the compositor rejected one or more mesh edges".into());
+        }
+        Ok((zones.zone_set(), targets))
+    }
+
+    struct MeshLink {
+        writer: SecureWriter<TcpStream>,
+        sequence: u64,
+        reader: Option<thread::JoinHandle<()>>,
+    }
+
+    impl MeshLink {
+        fn send(&mut self, kind: Kind, epoch: u64, payload: Vec<u8>) -> Result<(), Box<dyn Error>> {
+            send_frame(&mut self.writer, kind, epoch, &mut self.sequence, payload)
+        }
+    }
+
+    fn connect_mesh_peer(
+        address: SocketAddr,
+        identity: &Identity,
+        config: &std::path::Path,
+        feedback: tokio::sync::mpsc::Sender<(IpAddr, Result<Frame, FrameError>)>,
+    ) -> Result<MeshLink, Box<dyn Error>> {
+        let peers = config.join("peers");
+        let pinned = load_peer_key(&peers, address.ip())?
+            .ok_or("every mesh peer must be paired before capture")?;
+        let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))?;
+        stream.set_nodelay(true)?;
+        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+        stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+        let (mut channel, peer) =
+            SecureChannel::connect(stream, Role::Initiator, identity, Some(&pinned), |_| false)?;
+        if is_revoked(&peers, &peer.public_key)? {
+            return Err("mesh peer identity has been revoked".into());
+        }
+        Frame {
+            kind: Kind::Hello,
+            epoch: 0,
+            sequence: 0,
+            payload: AGENT_PROTOCOL.to_vec(),
+        }
+        .write_to(&mut channel)?;
+        let greeting = Frame::read_from(&mut channel)?;
+        if greeting.kind != Kind::Hello || greeting.payload != AGENT_PROTOCOL {
+            return Err("incompatible mesh peer protocol".into());
+        }
+        Frame {
+            kind: Kind::Control,
+            epoch: 0,
+            sequence: 0,
+            payload: b"CLAIM-MESH".to_vec(),
+        }
+        .write_to(&mut channel)?;
+        let response = Frame::read_from(&mut channel)?;
+        if response.kind != Kind::Control || response.payload != b"READY" {
+            return Err("mesh peer did not grant exclusive input claim".into());
+        }
+        channel.stream_mut().set_read_timeout(None)?;
+        channel
+            .stream_mut()
+            .set_write_timeout(Some(Duration::from_secs(5)))?;
+        let (mut reader, writer) = channel.into_tcp_halves()?;
+        let peer_ip = address.ip();
+        let reader = thread::spawn(move || {
+            loop {
+                let frame = Frame::read_from(&mut reader);
+                let done = frame.is_err();
+                if feedback.blocking_send((peer_ip, frame)).is_err() || done {
+                    break;
+                }
+            }
+        });
+        let mut link = MeshLink {
+            writer,
+            sequence: 0,
+            reader: Some(reader),
+        };
+        link.send(Kind::Heartbeat, 0, Vec::new())?;
+        Ok(link)
+    }
+
+    fn next_epoch(previous: u64) -> Result<u64, Box<dyn Error>> {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64;
+        Ok(now.max(previous.saturating_add(1)).max(1))
+    }
+
+    fn remember_held(event: &InputEvent, keys: &mut BTreeSet<u32>, buttons: &mut BTreeSet<u32>) {
+        match event {
+            InputEvent::KeyDown(key) => {
+                keys.insert(*key);
+            }
+            InputEvent::KeyUp(key) => {
+                keys.remove(key);
+            }
+            InputEvent::ButtonDown(button) => {
+                buttons.insert(*button);
+            }
+            InputEvent::ButtonUp(button) => {
+                buttons.remove(button);
+            }
+            _ => {}
+        }
+    }
+
+    fn mesh_link(
+        links: &mut BTreeMap<IpAddr, MeshLink>,
+        peer: IpAddr,
+    ) -> Result<&mut MeshLink, Box<dyn Error>> {
+        links
+            .get_mut(&peer)
+            .ok_or_else(|| "mesh peer is not connected".into())
+    }
+
+    async fn mesh_loop(
+        port: u16,
+        identity: &Identity,
+        config: &std::path::Path,
+        control: ControlHandle,
+    ) -> Result<(), Box<dyn Error>> {
+        let topology = load_topology(&config.join("topology"))?;
+        let peers: Vec<IpAddr> = topology
+            .positions()
+            .filter_map(|(machine, _)| match machine {
+                Machine::Peer(peer) => Some(peer),
+                Machine::Local => None,
+            })
+            .collect();
+        if peers.is_empty() {
+            return Err("place at least one paired peer in the topology".into());
+        }
+        for peer in &peers {
+            if !local_address(*peer) || load_peer_key(&config.join("peers"), *peer)?.is_none() {
+                return Err(format!("mesh peer {peer} must have a paired LAN identity").into());
+            }
+        }
+        let lock_ipc =
+            HyprIpc::from_env().ok_or("Hyprland IPC is required to guard mesh capture")?;
+        let mut locked = lock_ipc
+            .session_lock_state()
+            .unwrap_or(SessionLockState::Undetermined)
+            != SessionLockState::Unlocked;
+        let portal = InputCapture::new().await?;
+        let (session, _) = portal
+            .create_session(
+                None,
+                CreateSessionOptions::default()
+                    .set_capabilities(Capabilities::Keyboard | Capabilities::Pointer),
+            )
+            .await?;
+        let mut zones_changed = portal.receive_zones_changed().await?;
+        let (mut zone_set, mut barriers) =
+            install_mesh_barriers(&portal, &session, &topology).await?;
+        let eis = portal.connect_to_eis(&session, Default::default()).await?;
+        let stream = UnixStream::from(eis);
+        stream.set_nonblocking(true)?;
+        let context = ei::Context::new(stream)?;
+        context.flush()?;
+        let (_connection, mut events) = context
+            .handshake_tokio("seamlesscontrol", ei::handshake::ContextType::Receiver)
+            .await?;
+        let mut activated = portal.receive_activated().await?;
+        let mut deactivated = portal.receive_deactivated().await?;
+        if !locked {
+            portal.enable(&session, Default::default()).await?;
+        }
+        control.set_phase(if locked { "locked" } else { "ready" });
+        println!(
+            "Malla activa para {} pares. Cruce un borde; Escape devuelve el control.",
+            peers.len()
+        );
+
+        let (feedback_tx, mut feedback_rx) =
+            tokio::sync::mpsc::channel::<(IpAddr, Result<Frame, FrameError>)>(32);
+        let mut links = BTreeMap::<IpAddr, MeshLink>::new();
+        let mut coordinator = HandoffCoordinator::new(topology.clone());
+        let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
+        let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
+        pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut capture_enabled = !locked;
+        let mut current_activation = None;
+        let mut release_position = None;
+        let mut portal_active = false;
+        let mut last_epoch = 0_u64;
+        let mut keys = BTreeSet::new();
+        let mut buttons = BTreeSet::new();
+        let mut pending_since: Option<Instant> = None;
+        let result: Result<(), Box<dyn Error>> = async {
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => break,
+                    _ = pause_tick.tick() => {
+                        if control.revoked_active() { return Err("active mesh peer was revoked".into()); }
+                        locked = lock_ipc.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
+                        if pending_since.is_some_and(|since| since.elapsed() > Duration::from_secs(2)) {
+                            return Err("mesh handoff acknowledgement timed out".into());
+                        }
+                        if control.paused() || locked {
+                            if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
+                                let _ = mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec());
+                                coordinator.reset_local();
+                                keys.clear(); buttons.clear(); pending_since = None;
+                                let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                                portal.release(&session, options).await?;
+                                portal_active = false;
+                            }
+                            if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
+                            control.set_phase(if locked { "locked" } else { "paused" });
+                        } else if !capture_enabled {
+                            portal.enable(&session, Default::default()).await?;
+                            capture_enabled = true;
+                            control.set_phase("ready");
+                        }
+                    }
+                    _ = heartbeat.tick() => {
+                        for link in links.values_mut() { link.send(Kind::Heartbeat, 0, Vec::new())?; }
+                    }
+                    feedback = feedback_rx.recv() => {
+                        let (from, frame) = feedback.ok_or("mesh feedback channel closed")?;
+                        let frame = frame?;
+                        if frame.kind != Kind::Control { return Err("unexpected mesh feedback".into()); }
+                        if frame.payload == b"ENDED" {
+                            let next = next_epoch(last_epoch)?;
+                            let target = coordinator.acknowledge(from, frame.epoch, next)?;
+                            pending_since = None;
+                            match target {
+                                Machine::Peer(peer) => {
+                                    last_epoch = next;
+                                    let link = mesh_link(&mut links, peer)?;
+                                    link.send(Kind::Control, next, b"BEGIN".to_vec())?;
+                                    for key in &keys { link.send(Kind::Input, next, InputEvent::KeyDown(*key).encode())?; }
+                                    for button in &buttons { link.send(Kind::Input, next, InputEvent::ButtonDown(*button).encode())?; }
+                                    control.set_peer(&peer.to_string());
+                                    control.set_phase("controlling");
+                                    println!("Control transferido a {peer}.");
+                                }
+                                Machine::Local => {
+                                    keys.clear(); buttons.clear();
+                                    let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                    if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                                    portal.release(&session, options).await?;
+                                    portal_active = false;
+                                    control.set_peer(""); control.set_phase("ready");
+                                }
+                            }
+                        } else if frame.payload == b"RETURN" {
+                            if coordinator.owner() == Machine::Peer(from) && coordinator.epoch() == Some(frame.epoch) {
+                                mesh_link(&mut links, from)?.send(Kind::Control, frame.epoch, b"END".to_vec())?;
+                                coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear();
+                                let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                                portal.release(&session, options).await?;
+                                portal_active = false;
+                                control.set_peer(""); control.set_phase("ready");
+                            }
+                        } else if let Some(target) = frame.payload.strip_prefix(b"SWITCH\t") {
+                            let target: IpAddr = std::str::from_utf8(target)?.parse()?;
+                            if coordinator.owner() != Machine::Peer(from) || coordinator.epoch() != Some(frame.epoch) {
+                                return Err("stale mesh switch request".into());
+                            }
+                            coordinator.request(from, frame.epoch, Machine::Peer(target))?;
+                            if load_peer_key(&config.join("peers"), target)?.is_none() { return Err("mesh target was revoked".into()); }
+                            if let std::collections::btree_map::Entry::Vacant(entry) = links.entry(target) {
+                                let address = SocketAddr::new(target, port);
+                                let link = connect_mesh_peer(address, identity, config, feedback_tx.clone())?;
+                                entry.insert(link);
+                            }
+                            mesh_link(&mut links, from)?.send(Kind::Control, frame.epoch, b"RELEASE".to_vec())?;
+                            pending_since = Some(Instant::now());
+                            control.set_phase("handoff");
+                        } else { return Err("unknown mesh feedback control".into()); }
+                    }
+                    signal = activated.next() => {
+                        let signal = signal.ok_or("capture activation stream closed")?;
+                        let target = match signal.barrier_id() {
+                            Some(ActivatedBarrier::Barrier(id)) => barriers.get(&id.get()).copied(),
+                            _ => None,
+                        };
+                        let Some((peer, edge)) = target else {
+                            portal.release(&session, ReleaseOptions::default().set_activation_id(signal.activation_id())).await?;
+                            continue;
+                        };
+                        if !capture_enabled || coordinator.owner() != Machine::Local {
+                            portal.release(&session, ReleaseOptions::default().set_activation_id(signal.activation_id())).await?;
+                            continue;
+                        }
+                        portal_active = true;
+                        current_activation = signal.activation_id();
+                        release_position = signal.cursor_position().map(|p| edge.release_position(p));
+                        if load_peer_key(&config.join("peers"), peer)?.is_none() { return Err("mesh peer was revoked".into()); }
+                        if let std::collections::btree_map::Entry::Vacant(entry) = links.entry(peer) {
+                            let link = match connect_mesh_peer(SocketAddr::new(peer, port), identity, config, feedback_tx.clone()) {
+                                Ok(link) => link,
+                                Err(error) => {
+                                    let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
+                                    if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
+                                    let _ = portal.release(&session, options).await;
+                                    portal_active = false;
+                                    return Err(error);
+                                }
+                            };
+                            entry.insert(link);
+                        }
+                        last_epoch = next_epoch(last_epoch)?;
+                        coordinator.activate_local_edge(edge.logical(), peer, last_epoch)?;
+                        mesh_link(&mut links, peer)?.send(Kind::Control, last_epoch, b"BEGIN".to_vec())?;
+                        control.set_peer(&peer.to_string()); control.set_phase("controlling");
+                        println!("Control remoto activo en {peer}.");
+                    }
+                    signal = deactivated.next() => {
+                        if signal.is_none() { return Err("capture deactivation stream closed".into()); }
+                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
+                            mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
+                        }
+                        coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
+                        portal_active = false;
+                        control.set_peer(""); control.set_phase("ready");
+                    }
+                    signal = zones_changed.next() => {
+                        let signal = signal.ok_or("capture zones stream closed")?;
+                        if signal.zone_set().is_some_and(|id| id != zone_set) { continue; }
+                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
+                            mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
+                        }
+                        coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
+                        portal_active = false;
+                        if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
+                        (zone_set, barriers) = install_mesh_barriers(&portal, &session, &topology).await?;
+                        if !control.paused() && !locked { portal.enable(&session, Default::default()).await?; capture_enabled = true; }
+                        control.set_peer(""); control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "ready" });
+                    }
+                    event = events.next() => {
+                        let event = event.ok_or("EIS event stream closed")??;
+                        if let EiEvent::SeatAdded(seat) = &event {
+                            seat.seat.bind_capabilities(DeviceCapability::Pointer | DeviceCapability::Keyboard | DeviceCapability::Scroll | DeviceCapability::Button);
+                            context.flush()?;
+                        }
+                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
+                            if matches!(&event, EiEvent::KeyboardKey(key) if key.key == 1 && key.state == ei::keyboard::KeyState::Press) {
+                                mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
+                                coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear();
+                                let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                                portal.release(&session, options).await?;
+                                portal_active = false;
+                                control.set_peer(""); control.set_phase("ready");
+                            } else if let Some(event) = input_event(event) {
+                                remember_held(&event, &mut keys, &mut buttons);
+                                if pending_since.is_none() { mesh_link(&mut links, peer)?.send(Kind::Input, epoch, event.encode())?; }
+                            }
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }.await;
+        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch())
+            && let Ok(link) = mesh_link(&mut links, peer)
+        {
+            let _ = link.send(Kind::Control, epoch, b"END".to_vec());
+        }
+        if portal_active {
+            let mut options = ReleaseOptions::default().set_activation_id(current_activation);
+            if let Some(position) = release_position {
+                options = options.set_cursor_position(position);
+            }
+            let _ = portal.release(&session, options).await;
+        }
+        let _ = portal.disable(&session, Default::default()).await;
+        drop(feedback_rx);
+        for link in links.values_mut() {
+            let _ = link.writer.stream_mut().shutdown(Shutdown::Both);
+        }
+        for (_, mut link) in links {
+            if let Some(reader) = link.reader.take() {
+                let _ = reader.join();
+            }
+        }
+        control.set_peer("");
+        control.set_phase("disconnected");
+        result
     }
 
     async fn capture_loop(
@@ -576,10 +1012,11 @@ mod linux {
             }
             return Ok(());
         }
+        let mesh_source = first.payload == b"CLAIM-MESH";
         if first.kind != Kind::Control
             || first.epoch != 0
             || first.sequence != 0
-            || first.payload != b"CLAIM"
+            || (first.payload != b"CLAIM" && !mesh_source)
         {
             return Err("capture claim required before remote input".into());
         }
@@ -606,19 +1043,42 @@ mod linux {
         first = Frame::read_from(&mut channel)?;
         channel
             .stream_mut()
-            .set_read_timeout(Some(Duration::from_secs(5)))?;
+            .set_read_timeout(Some(Duration::from_secs(if mesh_source { 15 } else { 5 })))?;
         channel
             .stream_mut()
             .set_write_timeout(Some(Duration::from_secs(5)))?;
         println!("Conexión autenticada con {peer_ip}. Esperando control...");
-        let return_edge = load_topology(&config.join("topology"))
-            .ok()
-            .and_then(|topology| topology.edge_to(peer_ip).ok());
+        let topology = load_topology(&config.join("topology")).ok();
+        let edge_targets: Vec<(LogicalEdge, IpAddr)> = if mesh_source {
+            topology
+                .as_ref()
+                .map(|layout| {
+                    [
+                        LogicalEdge::Left,
+                        LogicalEdge::Right,
+                        LogicalEdge::Top,
+                        LogicalEdge::Bottom,
+                    ]
+                    .into_iter()
+                    .filter_map(|edge| match layout.neighbor(Machine::Local, edge) {
+                        Some(Machine::Peer(target)) => Some((edge, target)),
+                        _ => None,
+                    })
+                    .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            topology
+                .as_ref()
+                .and_then(|layout| layout.edge_to(peer_ip).ok())
+                .map(|edge| vec![(edge, peer_ip)])
+                .unwrap_or_default()
+        };
         let hypr = HyprIpc::from_env().ok_or("Hyprland IPC is required to guard remote input")?;
         if hypr.session_lock_state()? != SessionLockState::Unlocked {
             return Err("session is locked or lock state is undetermined".into());
         }
-        let return_hypr = return_edge.map(|_| hypr.clone());
+        let edge_hypr = (!edge_targets.is_empty()).then(|| hypr.clone());
         let motion_generation = Arc::new(AtomicU64::new(0));
         let input = VirtualInput::connect()?;
         let (mut reader, mut writer) = channel.into_tcp_halves()?;
@@ -657,7 +1117,7 @@ mod linux {
             let mut observed_epoch = None;
             let mut sent_epoch = None;
             let mut observed_motion = 0_u64;
-            let mut detector: Option<EdgeReturnDetector> = None;
+            let mut detectors: Vec<(IpAddr, EdgeReturnDetector)> = Vec::new();
             let mut monitor_regions: Option<Vec<Rect>> = None;
             let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
@@ -679,46 +1139,67 @@ mod linux {
                     observed_motion = motion_generation.load(Ordering::Relaxed);
                     last_geometry_refresh = Instant::now();
                     monitor_regions = if active_epoch.is_some() {
-                        return_hypr
-                            .as_ref()
-                            .and_then(|ipc| ipc.monitor_rects().ok())
+                        edge_hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
                     } else {
                         None
                     };
-                    detector = match (&monitor_regions, return_edge) {
-                        (Some(regions), Some(edge)) => Some(EdgeReturnDetector::new(regions, edge)),
-                        _ => None,
-                    };
+                    detectors = monitor_regions
+                        .as_ref()
+                        .map(|regions| {
+                            edge_targets
+                                .iter()
+                                .map(|(edge, target)| {
+                                    (*target, EdgeReturnDetector::new(regions, *edge))
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
                 } else if active_epoch.is_some()
                     && sent_epoch.is_none()
                     && last_geometry_refresh.elapsed() >= Duration::from_secs(5)
                 {
                     last_geometry_refresh = Instant::now();
-                    if let Some(regions) = return_hypr
-                        .as_ref()
-                        .and_then(|ipc| ipc.monitor_rects().ok())
+                    if let Some(regions) =
+                        edge_hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
                         && monitor_regions.as_ref() != Some(&regions)
                     {
-                        detector = return_edge.map(|edge| EdgeReturnDetector::new(&regions, edge));
+                        detectors = edge_targets
+                            .iter()
+                            .map(|(edge, target)| {
+                                (*target, EdgeReturnDetector::new(&regions, *edge))
+                            })
+                            .collect();
                         monitor_regions = Some(regions);
                     }
                 }
-                let manual_return = watcher_control.take_return_request();
+                let manual_return = watcher_control
+                    .take_return_request()
+                    .map(|epoch| (epoch, b"RETURN".to_vec()));
                 let motion = motion_generation.load(Ordering::Relaxed);
                 let automatic_return = if sent_epoch.is_none() && motion != observed_motion {
                     observed_motion = motion;
-                    match (active_epoch, detector.as_mut(), return_hypr.as_ref()) {
-                        (Some(epoch), Some(detector), Some(ipc)) => ipc
-                            .cursor_position()
-                            .ok()
-                            .filter(|&(x, y)| detector.sample(x, y))
-                            .map(|_| epoch),
+                    match (active_epoch, edge_hypr.as_ref()) {
+                        (Some(epoch), Some(ipc)) => {
+                            ipc.cursor_position().ok().and_then(|(x, y)| {
+                                detectors.iter_mut().find_map(|(target, detector)| {
+                                    if !detector.sample(x, y) {
+                                        return None;
+                                    }
+                                    let payload = if *target == peer_ip {
+                                        b"RETURN".to_vec()
+                                    } else {
+                                        format!("SWITCH\t{target}").into_bytes()
+                                    };
+                                    Some((epoch, payload))
+                                })
+                            })
+                        }
                         _ => None,
                     }
                 } else {
                     None
                 };
-                if let Some(active_epoch) = manual_return.or(automatic_return)
+                if let Some((active_epoch, payload)) = manual_return.or(automatic_return)
                     && sent_epoch != Some(active_epoch)
                 {
                     let Some(next) = sequence.checked_add(1) else {
@@ -729,7 +1210,7 @@ mod linux {
                         kind: Kind::Control,
                         epoch: active_epoch,
                         sequence,
-                        payload: b"RETURN".to_vec(),
+                        payload,
                     })
                     .write_to(&mut writer)
                     .is_err()
@@ -754,6 +1235,9 @@ mod linux {
                     }
                 }
                 while let Ok(event) = clipboard_rx.try_recv() {
+                    if mesh_source {
+                        continue;
+                    }
                     if send_frame(
                         &mut writer,
                         Kind::Clipboard,
@@ -1131,12 +1615,22 @@ mod linux {
             save_topology(&path, &layout)?;
             return Ok(());
         }
+        if args.len() == 3 && args[1] == "mesh" {
+            let port: u16 = args[2].parse()?;
+            if port == 0 {
+                return Err("mesh port must be nonzero".into());
+            }
+            let config = config_dir()?;
+            let identity = load_or_create_identity(&config.join("identity"))?;
+            let local_control = ControlServer::start("connect", &config)?;
+            return mesh_loop(port, &identity, &config, local_control.handle()).await;
+        }
         if !(args.len() == 3
             && matches!(args[1].as_str(), "serve" | "pair" | "connect" | "latency")
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>"
             );
             return Err("invalid arguments".into());
         }
@@ -1363,7 +1857,7 @@ mod linux {
                 kind: Kind::Control,
                 epoch: 0,
                 sequence: 0,
-                payload: b"CLAIM".to_vec(),
+                payload: b"CLAIM-MESH".to_vec(),
             }
             .write_to(&mut channel)
             .unwrap();
