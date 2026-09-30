@@ -375,7 +375,8 @@ mod linux {
 
     fn next_epoch(previous: u64) -> Result<u64, Box<dyn Error>> {
         let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64;
-        Ok(now.max(previous.saturating_add(1)).max(1))
+        let after_previous = previous.checked_add(1).ok_or("input epoch exhausted")?;
+        Ok(now.max(after_previous).max(1))
     }
 
     fn crossing_fraction(ipc: &HyprIpc, edge: LogicalEdge, position: Option<(f32, f32)>) -> u16 {
@@ -930,7 +931,7 @@ mod linux {
                             portal.release(&session, options).await?;
                             continue;
                         }
-                        epoch = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64;
+                        epoch = next_epoch(epoch)?;
                         sequence = 0;
                         current_activation = signal.activation_id();
                         active = true;
@@ -2311,6 +2312,13 @@ mod linux {
     mod tests {
         use super::*;
         use std::net::Ipv4Addr;
+
+        #[test]
+        fn input_epoch_remains_monotonic_when_clock_is_behind() {
+            assert_eq!(next_epoch(u64::MAX - 1).unwrap(), u64::MAX);
+            assert!(next_epoch(u64::MAX).is_err());
+            assert!(next_epoch(0).unwrap() > 0);
+        }
 
         async fn wait_for_listener(address: SocketAddr, open: bool) {
             for _ in 0..100 {

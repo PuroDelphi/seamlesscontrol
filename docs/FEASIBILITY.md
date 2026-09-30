@@ -120,6 +120,8 @@ La recepción de archivos espera ahora otra conexión si la primera cierra sin c
 
 El receptor de entrada descarta ahora `BEGIN` repetidos o anteriores y `END` de otra época. Una prueba mantuvo una tecla pulsada durante esos mensajes, comprobó que sólo el `END` de la época activa la liberó y luego abrió una época posterior con normalidad. Pasaron las 66 pruebas de Rust y Clippy. Falta provocar cruces rápidos y mensajes de cierre durante una captura entre equipos físicos.
 
+El emisor `connect` usa ahora el mismo generador de épocas crecientes que `mesh`. Así, un ajuste hacia atrás del reloj del sistema entre dos cruces no puede producir un `BEGIN` que el receptor descarte como antiguo. La prueba del límite comprueba que el generador crece aunque el valor anterior supere al reloj y que falla si se agota `u64`; el caso con un reloj real reajustado y dos escritorios sigue pendiente.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
