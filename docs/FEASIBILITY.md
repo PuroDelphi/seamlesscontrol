@@ -106,6 +106,8 @@ La identidad persistente ahora comprueba que la clave pública corresponde a la 
 
 Una prueba CLI con `XDG_CONFIG_HOME` y `XDG_RUNTIME_DIR` temporales inició un receptor en loopback: `rotate-key` rechazó el cambio mientras estaba activo y conservó el archivo idéntico; tras detenerlo, generó una identidad distinta. No se modificó la identidad real del usuario. El panel 0.15 cargó en `omarchy-shell` sin errores QML; un anuncio local temporal mostró una fila de equipo con nombre legible y botón de emparejamiento en el estilo Japan Night. Se restauró la búsqueda normal que oculta servicios propios y se cerró el receptor temporal. Esto valida la interfaz local, no el descubrimiento entre dos máquinas.
 
+La prueba `bash tests/update_installed_agent.sh` pasó con un receptor y una identidad temporales: el instalador escribió un archivo nuevo y lo reemplazó por renombrado, el proceso anterior siguió atendiendo `status`, no quedó archivo temporal y la identidad permaneció idéntica tras detener y volver a iniciar el receptor. Todavía falta actualizar una sesión real entre dos equipos y verificar que ambos ejecutan la misma revisión antes de reanudar el control.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.

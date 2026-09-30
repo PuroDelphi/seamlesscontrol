@@ -7,7 +7,11 @@ install_dir=${XDG_BIN_HOME:-"$HOME/.local/bin"}
 
 "$cargo_bin" build --release --manifest-path "$repo_dir/agent/Cargo.toml" --bin seamlesscontrold
 install -d -m 755 "$install_dir"
-install -m 755 "$repo_dir/agent/target/release/seamlesscontrold" "$install_dir/seamlesscontrold"
+temp_bin=$(mktemp "$install_dir/.seamlesscontrold.XXXXXXXX")
+trap 'rm -f -- "$temp_bin"' EXIT
+install -m 755 "$repo_dir/agent/target/release/seamlesscontrold" "$temp_bin"
+mv -f -- "$temp_bin" "$install_dir/seamlesscontrold"
+trap - EXIT
 
 if [[ "$install_dir" == "$HOME/.local/bin" ]]; then
   unit_dir="$HOME/.config/systemd/user"

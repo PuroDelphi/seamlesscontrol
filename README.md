@@ -95,6 +95,8 @@ El contrato del socket local y los comandos del panel están descritos en [docs/
 
 El instalador copia cuatro unidades de `systemd --user` y las deja deshabilitadas. `seamlesscontrol-receiver-auto.service` usa el puerto 47832 y elige la IP LAN sin archivo de entorno. Para la alternativa manual, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.1.20:47832`. Para un solo destino, cree `~/.config/seamlesscontrol/sender.env` en el origen con `SEAMLESSCONTROL_PEER=192.168.1.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Para varios destinos ya emparejados y situados en la cuadrícula, cree `~/.config/seamlesscontrol/mesh.env` en el origen con `SEAMLESSCONTROL_PORT=47832`. Active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` o `seamlesscontrol-mesh.service`, según corresponda. El origen se reinicia tras una caída de red y reutiliza las claves fijadas. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
 
+Para actualizar, traiga la nueva revisión del repositorio y repita `bash packaging/install-agent.sh` en ambos equipos. El instalador reemplaza el ejecutable de forma atómica y conserva `~/.config/seamlesscontrol/`. Un agente que ya estaba en ejecución sigue usando la revisión anterior hasta que se detenga y vuelva a iniciar desde el panel, terminal o servicio de usuario; haga ese reinicio en ambos extremos antes de usar un protocolo nuevo.
+
 ## Compilar y probar
 
 Con Rust estable y Cargo instalados:
@@ -107,6 +109,7 @@ CARGO=cargo bash tests/reconnect_wait.sh
 CARGO=cargo bash tests/file_loopback.sh
 CARGO=cargo bash tests/discovery_lan.sh
 CARGO=cargo bash tests/roaming_loopback.sh
+CARGO=cargo bash tests/update_installed_agent.sh
 cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold
 SC_IDLE_SECONDS=30 bash tests/idle_receiver.sh
 ```
