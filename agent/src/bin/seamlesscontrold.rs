@@ -39,8 +39,9 @@ mod linux {
     };
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::error::Error;
+    use std::future::Future;
     use std::io::{self, Write};
-    use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
+    use std::net::{IpAddr, Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -1687,6 +1688,164 @@ mod linux {
         }
     }
 
+    enum ReceiverMode {
+        Manual(SocketAddr),
+        Automatic,
+    }
+
+    async fn serve_receiver<P, S>(
+        mode: ReceiverMode,
+        mut probe: P,
+        refresh: Duration,
+        identity: Identity,
+        config: PathBuf,
+        control: ControlHandle,
+        stop: S,
+    ) -> Result<(), Box<dyn Error>>
+    where
+        P: FnMut() -> io::Result<SocketAddr>,
+        S: Future<Output = ()>,
+    {
+        let automatic = matches!(mode, ReceiverMode::Automatic);
+        let mut address = match mode {
+            ReceiverMode::Manual(address) => Some(address),
+            ReceiverMode::Automatic => None,
+        };
+        let mut stop = std::pin::pin!(stop);
+        loop {
+            let selected = match address.take().map(Ok).unwrap_or_else(&mut probe) {
+                Ok(value) => value,
+                Err(error) if automatic => {
+                    control.set_phase("reconnecting");
+                    eprintln!("SeamlessControl: esperando dirección LAN: {error}");
+                    tokio::select! {
+                        _ = &mut stop => return Ok(()),
+                        _ = tokio::time::sleep(refresh) => continue,
+                    }
+                }
+                Err(error) => return Err(error.into()),
+            };
+            let listener = match TcpListener::bind(selected) {
+                Ok(listener) => listener,
+                Err(error) if automatic && error.kind() == io::ErrorKind::AddrNotAvailable => {
+                    control.set_phase("reconnecting");
+                    eprintln!("SeamlessControl: esperando IP local {selected}: {error}");
+                    tokio::select! {
+                        _ = &mut stop => return Ok(()),
+                        _ = tokio::time::sleep(refresh) => continue,
+                    }
+                }
+                Err(error) => return Err(error.into()),
+            };
+            listener.set_nonblocking(true)?;
+            let listener = tokio::net::TcpListener::from_std(listener)?;
+            let advertisement = match ServiceAdvertisement::publish(selected, &identity) {
+                Ok(value) => value,
+                Err(error) => {
+                    eprintln!("SeamlessControl: anuncio mDNS no disponible: {error}");
+                    None
+                }
+            };
+            control.set_phase("listening");
+            println!("SeamlessControl escucha en {selected}");
+            let connections = Arc::new(Mutex::new(HashMap::<u64, TcpStream>::new()));
+            let limit = Arc::new(tokio::sync::Semaphore::new(MAX_INBOUND_CONNECTIONS));
+            let mut workers = tokio::task::JoinSet::new();
+            let mut next_connection_id = 0_u64;
+            let mut check = tokio::time::interval(refresh);
+            check.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            check.tick().await;
+            let mut stopping = false;
+            loop {
+                tokio::select! {
+                    _ = &mut stop => {
+                        stopping = true;
+                        break;
+                    }
+                    _ = check.tick(), if automatic => {
+                        match probe() {
+                            Ok(current) if current == selected => {}
+                            Ok(current) => {
+                                eprintln!("SeamlessControl: IP LAN cambió: {selected} → {current}");
+                                address = Some(current);
+                                break;
+                            }
+                            Err(error) => {
+                                eprintln!("SeamlessControl: dirección LAN no disponible: {error}");
+                                address = None;
+                                break;
+                            }
+                        }
+                    }
+                    completed = workers.join_next(), if !workers.is_empty() => {
+                        if let Some(Err(error)) = completed {
+                            eprintln!("Error en un trabajador de red: {error}");
+                        }
+                    }
+                    incoming = listener.accept() => {
+                        let (stream, address) = match incoming {
+                            Ok(value) => value,
+                            Err(error) => {
+                                eprintln!("Error al aceptar conexión: {error}");
+                                continue;
+                            }
+                        };
+                        let ip = address.ip();
+                        if !local_address(ip) {
+                            eprintln!("Se rechazó una conexión fuera de la red local: {ip}");
+                            continue;
+                        }
+                        let permit = match Arc::clone(&limit).try_acquire_owned() {
+                            Ok(permit) => permit,
+                            Err(_) => {
+                                eprintln!("Demasiadas conexiones entrantes; se rechazó {ip}");
+                                continue;
+                            }
+                        };
+                        let stream = stream.into_std()?;
+                        stream.set_nonblocking(false)?;
+                        let shutdown = stream.try_clone()?;
+                        next_connection_id = next_connection_id
+                            .checked_add(1)
+                            .ok_or("connection identifier exhausted")?;
+                        let id = next_connection_id;
+                        connections.lock().expect("connection registry lock").insert(id, shutdown);
+                        let registry = Arc::clone(&connections);
+                        let identity = identity.clone();
+                        let config = config.clone();
+                        let connection_control = control.clone();
+                        workers.spawn_blocking(move || {
+                            let _permit = permit;
+                            let result = serve_connection(stream, ip, &identity, &config, &connection_control);
+                            registry.lock().expect("connection registry lock").remove(&id);
+                            if let Err(error) = result {
+                                eprintln!("Conexión con {ip} terminada: {error}");
+                            }
+                        });
+                    }
+                }
+            }
+            control.cancel_pair();
+            if let Ok(open) = connections.lock() {
+                for stream in open.values() {
+                    let _ = stream.shutdown(Shutdown::Both);
+                }
+            }
+            while let Some(result) = workers.join_next().await {
+                if let Err(error) = result {
+                    eprintln!("Error al cerrar un trabajador de red: {error}");
+                }
+            }
+            drop(advertisement);
+            drop(listener);
+            control.set_peer("");
+            if stopping {
+                return Ok(());
+            }
+            control.set_phase("reconnecting");
+        }
+    }
+
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
         if args.len() == 2 && args[1] == "clipboard-helper" {
@@ -1959,11 +2118,15 @@ mod linux {
             return Err("invalid arguments".into());
         }
         let address: SocketAddr = if args[1] == "serve-auto" {
-            discovery::auto_lan_address(args[2].parse()?)?
+            let port: u16 = args[2].parse()?;
+            if port == 0 {
+                return Err("serve-auto port must be nonzero".into());
+            }
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), port)
         } else {
             args[2].parse()?
         };
-        if !local_address(address.ip()) {
+        if args[1] != "serve-auto" && !local_address(address.ip()) {
             return Err("listen address must be loopback, link-local or private LAN".into());
         }
         let config = config_dir()?;
@@ -2025,94 +2188,114 @@ mod linux {
         }
         let _local_control = ControlServer::start("serve", &config)?;
         let control = _local_control.handle();
-        let listener = TcpListener::bind(address)?;
-        listener.set_nonblocking(true)?;
-        let listener = tokio::net::TcpListener::from_std(listener)?;
-        let _advertisement = match ServiceAdvertisement::publish(address, &identity) {
-            Ok(value) => value,
-            Err(error) => {
-                eprintln!("SeamlessControl: anuncio mDNS no disponible: {error}");
-                None
-            }
+        let stop = async {
+            let _ = tokio::signal::ctrl_c().await;
         };
-        println!("SeamlessControl escucha en {address}");
-        let stop = tokio::signal::ctrl_c();
-        tokio::pin!(stop);
-        let connections = Arc::new(Mutex::new(HashMap::<u64, TcpStream>::new()));
-        let limit = Arc::new(tokio::sync::Semaphore::new(MAX_INBOUND_CONNECTIONS));
-        let mut workers = tokio::task::JoinSet::new();
-        let mut next_connection_id = 0_u64;
-        loop {
-            tokio::select! {
-                _ = &mut stop => {
-                    control.cancel_pair();
-                    if let Ok(open) = connections.lock() {
-                        for stream in open.values() {
-                            let _ = stream.shutdown(Shutdown::Both);
-                        }
-                    }
-                    break;
-                }
-                completed = workers.join_next(), if !workers.is_empty() => {
-                    if let Some(Err(error)) = completed {
-                        eprintln!("Error en un trabajador de red: {error}");
-                    }
-                }
-                incoming = listener.accept() => {
-                    let (stream, address) = match incoming {
-                        Ok(value) => value,
-                        Err(error) => {
-                            eprintln!("Error al aceptar conexión: {error}");
-                            continue;
-                        }
-                    };
-                    let ip = address.ip();
-                    if !local_address(ip) {
-                        eprintln!("Se rechazó una conexión fuera de la red local: {ip}");
-                        continue;
-                    }
-                    let permit = match Arc::clone(&limit).try_acquire_owned() {
-                        Ok(permit) => permit,
-                        Err(_) => {
-                            eprintln!("Demasiadas conexiones entrantes; se rechazó {ip}");
-                            continue;
-                        }
-                    };
-                    let stream = stream.into_std()?;
-                    stream.set_nonblocking(false)?;
-                    let shutdown = stream.try_clone()?;
-                    next_connection_id = next_connection_id
-                        .checked_add(1)
-                        .ok_or("connection identifier exhausted")?;
-                    let id = next_connection_id;
-                    connections.lock().expect("connection registry lock").insert(id, shutdown);
-                    let registry = Arc::clone(&connections);
-                    let identity = identity.clone();
-                    let config = config.clone();
-                    let connection_control = control.clone();
-                    workers.spawn_blocking(move || {
-                        let _permit = permit;
-                        let result = serve_connection(stream, ip, &identity, &config, &connection_control);
-                        registry.lock().expect("connection registry lock").remove(&id);
-                        if let Err(error) = result {
-                            eprintln!("Conexión con {ip} terminada: {error}");
-                        }
-                    });
-                }
-            }
+        if args[1] == "serve-auto" {
+            let port = address.port();
+            serve_receiver(
+                ReceiverMode::Automatic,
+                move || discovery::auto_lan_address(port),
+                Duration::from_secs(3),
+                identity,
+                config,
+                control,
+                stop,
+            )
+            .await
+        } else {
+            serve_receiver(
+                ReceiverMode::Manual(address),
+                move || Ok(address),
+                Duration::from_secs(3),
+                identity,
+                config,
+                control,
+                stop,
+            )
+            .await
         }
-        while let Some(result) = workers.join_next().await {
-            if let Err(error) = result {
-                eprintln!("Error al cerrar un trabajador de red: {error}");
-            }
-        }
-        Ok(())
     }
 
     #[cfg(test)]
     mod tests {
         use super::*;
         use std::net::Ipv4Addr;
+
+        async fn wait_for_listener(address: SocketAddr, open: bool) {
+            for _ in 0..100 {
+                if TcpStream::connect(address).is_ok() == open {
+                    return;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+            panic!("listener at {address} did not become {open}");
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn automatic_receiver_rebinds_after_address_loss_and_change() {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let scratch = std::env::temp_dir().join(format!(
+                "seamlesscontrol-rebind-{}-{unique}",
+                std::process::id()
+            ));
+            let config = scratch.join("config");
+            let control_server =
+                ControlServer::start_at(scratch.join("run/control.sock"), "serve", &config)
+                    .unwrap();
+            let port = TcpListener::bind("127.0.0.1:0")
+                .unwrap()
+                .local_addr()
+                .unwrap()
+                .port();
+            let first: SocketAddr = (Ipv4Addr::new(127, 0, 0, 1), port).into();
+            let second: SocketAddr = (Ipv4Addr::new(127, 0, 0, 2), port).into();
+            TcpListener::bind(second).unwrap();
+            let current = Arc::new(Mutex::new(None));
+            let read_current = Arc::clone(&current);
+            let control = control_server.handle();
+            let (stop_tx, stop_rx) = tokio::sync::oneshot::channel::<()>();
+            let server = serve_receiver(
+                ReceiverMode::Automatic,
+                move || {
+                    read_current
+                        .lock()
+                        .unwrap()
+                        .ok_or_else(|| io::Error::from(io::ErrorKind::AddrNotAvailable))
+                },
+                Duration::from_millis(40),
+                Identity::generate().unwrap(),
+                config,
+                control.clone(),
+                async {
+                    let _ = stop_rx.await;
+                },
+            );
+            let driver = async {
+                tokio::time::sleep(Duration::from_millis(80)).await;
+                assert_eq!(control.phase(), "reconnecting");
+                *current.lock().unwrap() = Some(first);
+                wait_for_listener(first, true).await;
+                *current.lock().unwrap() = None;
+                wait_for_listener(first, false).await;
+                *current.lock().unwrap() = Some(second);
+                wait_for_listener(second, true).await;
+                wait_for_listener(first, false).await;
+                stop_tx.send(()).unwrap();
+            };
+            let (result, ()) = tokio::time::timeout(Duration::from_secs(5), async {
+                tokio::join!(server, driver)
+            })
+            .await
+            .unwrap();
+            result.unwrap();
+            wait_for_listener(second, false).await;
+            drop(control_server);
+            std::fs::remove_dir_all(scratch).unwrap();
+        }
 
         #[test]
         fn authenticated_input_claim_is_exclusive_and_released_on_disconnect() {

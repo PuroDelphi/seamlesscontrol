@@ -92,6 +92,8 @@ El autodescubrimiento usa DNS-SD mediante Avahi. En este Omarchy, `avahi-daemon`
 
 Un proxy de loopback simuló el cambio simultáneo de IP de emisor y receptor. `bash tests/roaming_loopback.sh` volvió a conectar dos identidades ya emparejadas sin aprobación humana, confirmó que ambas claves seguían siendo las originales, retiró los pines de IP anteriores y conservó las posiciones de la cuadrícula. La migración requiere la clave autenticada por Noise; una dirección con otra clave fijada se rechaza en la prueba de almacenamiento. Falta observar este caso tras un cambio real de DHCP entre dos Omarchy.
 
+El bucle de `serve-auto` ahora conserva el control local mientras no haya ruta LAN, revisa la dirección cada tres segundos y sustituye escucha y anuncio mDNS al cambiar. Una prueba del receptor con dos direcciones de loopback simuladas comprobó arranque sin IP, pérdida de la primera, reescucha en la segunda y cierre limpio. Falta repetirlo con un cambio real de DHCP y otro equipo observando los anuncios.
+
 La prueba reproducible `bash tests/discovery_lan.sh` pasó en esta máquina: comprobó dirección y huella anunciadas, que la búsqueda normal no muestra el anuncio propio y que Avahi lo retira al detener el receptor. El panel ahora actualiza la lista de pares y la cuadrícula en cuanto termina el emparejamiento, sin esperar al sondeo periódico.
 
 `receive-file-auto-ui` se probó con configuración temporal y el puerto 49020: `ss` mostró escucha únicamente en `192.168.1.25:49020`. La transferencia con esa dirección aún requiere otro equipo; la variante manual sigue disponible.
