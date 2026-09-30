@@ -87,7 +87,9 @@ Esta prueba requiere dos sesiones Omarchy reales en la misma LAN. Hoy sólo est�
 
 ## Widget de Omarchy
 
-El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, descubre receptores LAN, permite iniciar y terminar una sesión, emparejar, aprobar, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. Si falta el ejecutable, el panel indica cómo instalarlo y lo detecta automáticamente después. Tras actualizar el código QML, `omarchy restart shell` fuerza la carga de la revisión nueva si la recarga en caliente conserva un componente anterior. El borde se deduce de la casilla vecina; una sesión iniciada por terminal o servicio de usuario se detiene desde ese mismo medio. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Con el agente detenido, `seamlesscontrold rotate-key` reemplaza la identidad local; cada equipo remoto deberá revocar la clave anterior y emparejar de nuevo. Para desinstalar el widget, use `omarchy plugin remove seamlesscontrol.control`; el binario puede eliminarse de `~/.local/bin` y las claves persistentes quedan en `~/.config/seamlesscontrol/` hasta que el usuario decida borrarlas.
+El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, descubre receptores LAN, permite iniciar y terminar una sesión, emparejar, aprobar, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Se puede instalar con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol --enable`. Si falta el ejecutable, el panel indica cómo instalarlo y lo detecta automáticamente después. Tras actualizar el código QML, `omarchy restart shell` fuerza la carga de la revisión nueva si la recarga en caliente conserva un componente anterior. El borde se deduce de la casilla vecina; una sesión iniciada por terminal o servicio de usuario se detiene desde ese mismo medio. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Con el agente detenido, `seamlesscontrold rotate-key` reemplaza la identidad local; cada equipo remoto deberá revocar la clave anterior y emparejar de nuevo.
+
+Para retirar SeamlessControl, detenga la sesión del panel o terminal y ejecute `bash packaging/uninstall-agent.sh`. El script deshabilita y detiene las cuatro unidades de usuario instaladas, elimina sus archivos y el binario, y conserva `~/.config/seamlesscontrol/` con identidad, pares y cuadrícula. Después ejecute `omarchy plugin remove seamlesscontrol.control` para retirar el widget. Si un agente sigue activo fuera de esas unidades, el script deja el binario y pide cerrar esa sesión antes de repetir. Borre la configuración privada sólo si también quiere descartar definitivamente esa identidad.
 
 El contrato del socket local y los comandos del panel están descritos en [docs/IPC.md](./docs/IPC.md).
 
@@ -110,6 +112,7 @@ CARGO=cargo bash tests/file_loopback.sh
 CARGO=cargo bash tests/discovery_lan.sh
 CARGO=cargo bash tests/roaming_loopback.sh
 CARGO=cargo bash tests/update_installed_agent.sh
+CARGO=cargo bash tests/uninstall_agent.sh
 cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold
 SC_IDLE_SECONDS=30 bash tests/idle_receiver.sh
 ```

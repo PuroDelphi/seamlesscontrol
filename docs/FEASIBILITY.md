@@ -108,6 +108,8 @@ Una prueba CLI con `XDG_CONFIG_HOME` y `XDG_RUNTIME_DIR` temporales inició un r
 
 La prueba `bash tests/update_installed_agent.sh` pasó con un receptor y una identidad temporales: el instalador escribió un archivo nuevo y lo reemplazó por renombrado, el proceso anterior siguió atendiendo `status`, no quedó archivo temporal y la identidad permaneció idéntica tras detener y volver a iniciar el receptor. Todavía falta actualizar una sesión real entre dos equipos y verificar que ambos ejecutan la misma revisión antes de reanudar el control.
 
+`bash tests/uninstall_agent.sh` pasó con HOME temporal y `systemctl` simulado: el desinstalador se negó a quitar el binario mientras un receptor seguía activo, retiró las cuatro unidades y el ejecutable tras detenerlo, y preservó los bytes de la identidad y el marcador del widget. No se desinstaló el plugin real de esta sesión; sigue pendiente probar la retirada completa y reinstalación en un segundo Omarchy.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
