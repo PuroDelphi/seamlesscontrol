@@ -201,8 +201,10 @@ pub fn run_receiver_with_first_until<R: Read, I: Injector>(
 mod tests {
     use super::*;
     use crate::clipboard::{ClipboardEvent, ClipboardSync};
+    use crate::handoff::HandoffCoordinator;
     use crate::secure::{Identity, Role, SecureChannel};
-    use std::net::{TcpListener, TcpStream};
+    use crate::topology::{Edge, Machine, Slot, Topology};
+    use std::net::{IpAddr, TcpListener, TcpStream};
     use std::thread;
 
     #[derive(Default)]
@@ -540,6 +542,171 @@ mod tests {
         assert_eq!(
             server.join().unwrap(),
             vec![InputEvent::KeyDown(42), InputEvent::KeyUp(42)]
+        );
+    }
+
+    #[test]
+    fn encrypted_three_machine_handoff_releases_before_next_begin() {
+        let b_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let c_listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let b_address = b_listener.local_addr().unwrap();
+        let c_address = c_listener.local_addr().unwrap();
+        let a_id = Identity::generate().unwrap();
+        let b_id = Identity::generate().unwrap();
+        let c_id = Identity::generate().unwrap();
+        let a_public = a_id.public;
+        let b_public = b_id.public;
+        let c_public = c_id.public;
+        let b_ip = IpAddr::from([192, 168, 1, 2]);
+        let c_ip = IpAddr::from([192, 168, 1, 3]);
+
+        let b_server = thread::spawn(move || {
+            let (stream, _) = b_listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .unwrap();
+            let (mut channel, _) =
+                SecureChannel::connect(stream, Role::Responder, &b_id, Some(&a_public), |_| false)
+                    .unwrap();
+            let mut receiver = InputReceiver::new(ReleaseInjector::default());
+            for _ in 0..3 {
+                receiver
+                    .handle(&Frame::read_from(&mut channel).unwrap())
+                    .unwrap();
+            }
+            Frame {
+                kind: Kind::Control,
+                epoch: 41,
+                sequence: 1,
+                payload: format!("SWITCH\t{c_ip}").into_bytes(),
+            }
+            .write_to(&mut channel)
+            .unwrap();
+            receiver
+                .handle(&Frame::read_from(&mut channel).unwrap())
+                .unwrap();
+            let actions = receiver.into_injector().0;
+            assert_eq!(
+                actions,
+                vec![
+                    ReleaseAction::Input(InputEvent::KeyDown(42)),
+                    ReleaseAction::Input(InputEvent::ButtonDown(272)),
+                    ReleaseAction::Input(InputEvent::KeyUp(42)),
+                    ReleaseAction::Input(InputEvent::ButtonUp(272)),
+                    ReleaseAction::Acknowledged(41),
+                ]
+            );
+            Frame {
+                kind: Kind::Control,
+                epoch: 41,
+                sequence: 2,
+                payload: b"ENDED".to_vec(),
+            }
+            .write_to(&mut channel)
+            .unwrap();
+        });
+        let c_server = thread::spawn(move || {
+            let (stream, _) = c_listener.accept().unwrap();
+            stream
+                .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+                .unwrap();
+            let (mut channel, _) =
+                SecureChannel::connect(stream, Role::Responder, &c_id, Some(&a_public), |_| false)
+                    .unwrap();
+            let mut receiver = InputReceiver::new(RecordingInjector::default());
+            for _ in 0..4 {
+                receiver
+                    .handle(&Frame::read_from(&mut channel).unwrap())
+                    .unwrap();
+            }
+            receiver.into_injector().0
+        });
+
+        let b_stream = TcpStream::connect(b_address).unwrap();
+        b_stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+            .unwrap();
+        let (mut b_channel, _) =
+            SecureChannel::connect(b_stream, Role::Initiator, &a_id, Some(&b_public), |_| false)
+                .unwrap();
+        let c_stream = TcpStream::connect(c_address).unwrap();
+        c_stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+            .unwrap();
+        let (mut c_channel, _) =
+            SecureChannel::connect(c_stream, Role::Initiator, &a_id, Some(&c_public), |_| false)
+                .unwrap();
+
+        let mut topology = Topology::new();
+        topology
+            .place(Machine::Peer(b_ip), Slot::new(1, 0).unwrap())
+            .unwrap();
+        topology
+            .place(Machine::Peer(c_ip), Slot::new(1, 1).unwrap())
+            .unwrap();
+        let mut handoff = HandoffCoordinator::new(topology);
+        handoff.activate_local_edge(Edge::Right, b_ip, 41).unwrap();
+        for (sequence, kind, payload) in [
+            (1, Kind::Control, b"BEGIN".to_vec()),
+            (2, Kind::Input, InputEvent::KeyDown(42).encode()),
+            (3, Kind::Input, InputEvent::ButtonDown(272).encode()),
+        ] {
+            Frame {
+                kind,
+                epoch: 41,
+                sequence,
+                payload,
+            }
+            .write_to(&mut b_channel)
+            .unwrap();
+        }
+        let request = Frame::read_from(&mut b_channel).unwrap();
+        assert_eq!(request.payload, format!("SWITCH\t{c_ip}").into_bytes());
+        handoff
+            .request(b_ip, request.epoch, Machine::Peer(c_ip))
+            .unwrap();
+        assert_eq!(handoff.owner(), Machine::Peer(b_ip));
+        Frame {
+            kind: Kind::Control,
+            epoch: 41,
+            sequence: 4,
+            payload: b"RELEASE".to_vec(),
+        }
+        .write_to(&mut b_channel)
+        .unwrap();
+        let ended = Frame::read_from(&mut b_channel).unwrap();
+        assert_eq!(
+            (ended.kind, ended.epoch, ended.payload.as_slice()),
+            (Kind::Control, 41, &b"ENDED"[..])
+        );
+        assert_eq!(
+            handoff.acknowledge(b_ip, ended.epoch, 42),
+            Ok(Machine::Peer(c_ip))
+        );
+        for (sequence, kind, payload) in [
+            (1, Kind::Control, b"BEGIN".to_vec()),
+            (2, Kind::Input, InputEvent::KeyDown(42).encode()),
+            (3, Kind::Input, InputEvent::ButtonDown(272).encode()),
+            (4, Kind::Control, b"END".to_vec()),
+        ] {
+            Frame {
+                kind,
+                epoch: 42,
+                sequence,
+                payload,
+            }
+            .write_to(&mut c_channel)
+            .unwrap();
+        }
+        b_server.join().unwrap();
+        assert_eq!(
+            c_server.join().unwrap(),
+            vec![
+                InputEvent::KeyDown(42),
+                InputEvent::ButtonDown(272),
+                InputEvent::KeyUp(42),
+                InputEvent::ButtonUp(272),
+            ]
         );
     }
 
