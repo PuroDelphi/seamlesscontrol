@@ -34,6 +34,4 @@ fi
 rm -f -- "$agent"
 printf 'Agente retirado. La identidad, los pares y la cuadrícula permanecen en %s/seamlesscontrol/.\n' \
   "${XDG_CONFIG_HOME:-"$HOME/.config"}"
-if [[ ${SEAMLESSCONTROL_REMOVE_PLUGIN:-0} != 1 ]]; then
-  printf 'Retire el widget aparte con: omarchy plugin remove seamlesscontrol.control\n'
-fi
+printf 'Retire el widget aparte con: omarchy plugin remove seamlesscontrol.control\n'

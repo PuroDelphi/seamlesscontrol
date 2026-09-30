@@ -116,8 +116,6 @@ La variante física `bash tests/integrated_capture_local.sh` también pasó en e
 
 `bash tests/integrated_injection_local.sh` pasó con el receptor normal del agente y dos identidades temporales en este Omarchy. El emisor de prueba no abrió `InputCapture`: después de Noise XX y la reserva `CLAIM/READY`, envió `BEGIN`, movimiento virtual +4 y −4 píxeles y `END`. El IPC de Hyprland mostró `before=569,666`, `shifted=573,666` y `restored=569,666`. Una segunda época incluyó la posición de entrada por el borde izquierdo: el cálculo predijo `(2,383)`, el cursor llegó a `(2,383)`, avanzó a `(6,383)` y volvió a `(569,666)`. Esto confirma la ruta autenticada hasta el puntero virtual, la colocación en un borde y la restauración local; todavía no enlaza captura e inyección en dos escritorios distintos ni verifica teclado o botón inyectados.
 
-El instalador de un comando publicado en `packaging/bootstrap.sh` se ejecutó desde la URL del README sobre el plugin ya instalado: Omarchy actualizó y habilitó `seamlesscontrol.control`, el script compiló el agente de release e instaló las unidades de usuario. La copia instalada quedó en la revisión `d98bc18` y el SHA-256 del ejecutable instalado coincidió con el generado. `bash tests/setup_wrappers.sh` simuló instalación nueva, actualización y retirada, incluida la negativa a borrar el plugin si falla la retirada del agente. El desinstalador real volvió a pasar con HOME temporal y servicios simulados; no se retiró el plugin real de esta sesión.
-
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
