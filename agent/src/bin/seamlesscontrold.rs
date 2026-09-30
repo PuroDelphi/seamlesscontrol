@@ -598,8 +598,8 @@ mod linux {
                         if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                             mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
                         }
-                        coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
                         portal_active = false;
+                        coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
                         control.set_peer(""); control.set_phase("ready");
                     }
                     signal = zones_changed.next() => {
@@ -608,8 +608,13 @@ mod linux {
                         if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                             mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
                         }
+                        if portal_active {
+                            let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                            if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                            let _ = portal.release(&session, options).await;
+                            portal_active = false;
+                        }
                         coordinator.reset_local(); pending_since = None; keys.clear(); buttons.clear(); current_activation = None;
-                        portal_active = false;
                         if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
                         (zone_set, barriers) = install_mesh_barriers(&portal, &session, &topology).await?;
                         if !control.paused() && !locked { portal.enable(&session, Default::default()).await?; capture_enabled = true; }
@@ -840,8 +845,10 @@ mod linux {
                         if signal.zone_set().is_some_and(|id| id != current_zone_set) { continue; }
                         if active {
                             send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
+                            let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                            if let Some(position) = release_position { options = options.set_cursor_position(position); }
+                            let _ = portal.release(&session, options).await;
                             active = false;
-                            current_activation = None;
                         }
                         if capture_enabled {
                             portal.disable(&session, Default::default()).await?;

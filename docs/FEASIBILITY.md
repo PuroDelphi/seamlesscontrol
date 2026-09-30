@@ -72,6 +72,8 @@ El modo `mesh` ahora reinicia la sesión de captura después de un fallo de tran
 
 El instalador añadió `seamlesscontrol-mesh.service` como unidad de usuario deshabilitada. `systemd-analyze verify` aceptó las tres unidades y `bash -n` aceptó el instalador. La unidad requiere `mesh.env` con el puerto común de los destinos y no se habilitó durante estas pruebas.
 
+En `connect` y `mesh`, la señal de cambio de zonas ahora intenta liberar explícitamente la activación del portal y devuelve el puntero al interior del borde antes de instalar las barreras nuevas. Si el portal ya desactivó la captura, el agente continúa con `disable` y la reinstalación. Este caso sigue pendiente de un cambio real de monitores durante una captura.
+
 ## Pendiente para cerrar la fase 0
 
 1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
