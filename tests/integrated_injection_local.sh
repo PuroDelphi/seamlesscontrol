@@ -69,4 +69,5 @@ client_pid=
   >"$scratch/client.log" 2>&1
 cat "$scratch/client.log"
 rg -q '^INJECTION\t' "$scratch/client.log"
-printf 'Recepción Noise e inyección virtual con cursor restaurado: correcto.\n'
+rg -q '^ENTRY\t' "$scratch/client.log"
+printf 'Recepción Noise, entrada por borde e inyección virtual con cursor restaurado: correcto.\n'

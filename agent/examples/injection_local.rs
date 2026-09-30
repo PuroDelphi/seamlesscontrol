@@ -1,13 +1,14 @@
 //! Exercise the normal authenticated receiver on this Hyprland session without
-//! opening InputCapture. Only a four-pixel pointer movement is sent and undone.
+//! opening InputCapture. Pointer movement and edge entry are undone afterward.
 
 #[cfg(target_os = "linux")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
-    use seamlesscontrol_core::protocol::{Frame, Kind};
+    use seamlesscontrol_core::protocol::{EntryPosition, Frame, Kind};
     use seamlesscontrol_core::secure::{Role, SecureChannel};
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{load_or_create_identity, load_peer_key};
+    use seamlesscontrol_core::topology::{Edge, edge_entry_point};
     use std::net::{SocketAddr, TcpStream};
     use std::path::Path;
     use std::thread;
@@ -106,6 +107,88 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     if shifted != (before.0 + 4, before.1) || restored != before {
         return Err("authenticated receiver did not move and restore the cursor".into());
+    }
+
+    let before_entry = hypr.cursor_position()?;
+    let regions = hypr.monitor_rects()?;
+    let fraction = u16::MAX / 2;
+    let mut edge = Edge::Left;
+    let mut expected = edge_entry_point(&regions, edge, fraction).ok_or("no left entry edge")?;
+    if expected == before_entry {
+        edge = Edge::Right;
+        expected = edge_entry_point(&regions, edge, fraction).ok_or("no right entry edge")?;
+    }
+    let epoch = 2;
+    Frame {
+        kind: Kind::Control,
+        epoch,
+        sequence: 1,
+        payload: EntryPosition { edge, fraction }.begin_payload(),
+    }
+    .write_to(&mut channel)?;
+    thread::sleep(Duration::from_millis(300));
+    let placed = hypr.cursor_position()?;
+    Frame {
+        kind: Kind::Input,
+        epoch,
+        sequence: 2,
+        payload: InputEvent::Motion {
+            dx_milli: 4_000,
+            dy_milli: 0,
+        }
+        .encode(),
+    }
+    .write_to(&mut channel)?;
+    thread::sleep(Duration::from_millis(300));
+    let entry_shifted = hypr.cursor_position()?;
+    let restore_dx = before_entry
+        .0
+        .checked_sub(entry_shifted.0)
+        .and_then(|pixels| pixels.checked_mul(1_000))
+        .ok_or("cursor restoration distance overflow")?;
+    let restore_dy = before_entry
+        .1
+        .checked_sub(entry_shifted.1)
+        .and_then(|pixels| pixels.checked_mul(1_000))
+        .ok_or("cursor restoration distance overflow")?;
+    Frame {
+        kind: Kind::Input,
+        epoch,
+        sequence: 3,
+        payload: InputEvent::Motion {
+            dx_milli: restore_dx,
+            dy_milli: restore_dy,
+        }
+        .encode(),
+    }
+    .write_to(&mut channel)?;
+    Frame {
+        kind: Kind::Control,
+        epoch,
+        sequence: 4,
+        payload: b"END".to_vec(),
+    }
+    .write_to(&mut channel)?;
+    thread::sleep(Duration::from_millis(300));
+    let entry_restored = hypr.cursor_position()?;
+    println!(
+        "ENTRY\tbefore={},{}\texpected={},{}\tplaced={},{}\tshifted={},{}\trestored={},{}",
+        before_entry.0,
+        before_entry.1,
+        expected.0,
+        expected.1,
+        placed.0,
+        placed.1,
+        entry_shifted.0,
+        entry_shifted.1,
+        entry_restored.0,
+        entry_restored.1,
+    );
+    if placed != expected
+        || entry_shifted != (expected.0 + 4, expected.1)
+        || entry_restored != before_entry
+    {
+        return Err("authenticated edge entry did not place and restore the cursor".into());
     }
     Ok(())
 }
