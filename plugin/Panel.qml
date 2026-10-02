@@ -26,6 +26,9 @@ Panel {
   readonly property var unassignedPeers: backend ? backend.peers.filter(function(peer) {
     return !backend.topology.some(function(slot) { return slot.id === peer.ip })
   }) : []
+  readonly property int placedPeerCount: backend ? backend.topology.filter(function(slot) {
+    return slot.id !== "local" && backend.peers.some(function(peer) { return peer.ip === slot.id })
+  }).length : 0
 
   function t(spanish) { return Tr.text(spanish, backend ? backend.language : "en") }
 
@@ -82,6 +85,18 @@ Panel {
     var remote = backend.topology.find(function(slot) { return slot.id === server.ip })
     return local && remote
       && Math.abs(local.column - remote.column) + Math.abs(local.row - remote.row) === 1
+  }
+
+  function captureEdge() {
+    if (!backend || !backend.peer) return ""
+    var local = backend.topology.find(function(slot) { return slot.id === "local" })
+    var remote = backend.topology.find(function(slot) { return slot.id === backend.peer })
+    if (!local || !remote) return ""
+    if (remote.column === local.column - 1 && remote.row === local.row) return root.t("izquierdo")
+    if (remote.column === local.column + 1 && remote.row === local.row) return root.t("derecho")
+    if (remote.row === local.row - 1 && remote.column === local.column) return root.t("superior")
+    if (remote.row === local.row + 1 && remote.column === local.column) return root.t("inferior")
+    return ""
   }
 
   function open() { controller.show() }
@@ -370,6 +385,16 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        Text {
+          Layout.fillWidth: true
+          text: root.t("El mapa guarda la dirección del cruce. Para conectar, inicie Recibir control en el destino y pulse Compartir en el origen.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
         GridLayout {
           id: machineGrid
           Layout.fillWidth: true
@@ -554,6 +579,66 @@ Panel {
               }
             }
           }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "connect"
+          text: root.backend && root.backend.phase === "connecting" && root.backend.peer !== ""
+            ? root.t("Red conectada. Preparando la captura del ratón y teclado…")
+            : root.backend && root.backend.phase === "connecting"
+              ? root.t("Conectando con el receptor. Compruebe que allí sigue activo Recibir control.")
+            : root.backend && root.backend.phase === "reconnecting"
+              ? root.t("Buscando el receptor de nuevo. Compruebe que allí sigue activo Recibir control y que el puerto está permitido en su firewall.")
+              : root.backend && (root.backend.phase === "ready" || root.backend.phase === "rearming")
+                ? (root.captureEdge() !== ""
+                  ? root.t("Listo. Cruce el borde exterior ") + root.captureEdge() + root.t(" de las pantallas de este equipo. Si acaba de volver, aleje primero el puntero del borde.")
+                  : root.t("Listo. Revise la posición del otro equipo en el mapa para saber por qué borde cruzar."))
+                : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.captureWaitSeconds >= 15
+            && root.backend.managedAgentRunning
+          text: root.t("La preparación de la captura tarda demasiado. Reiniciar captura cerrará esta sesión y puede interrumpir otras aplicaciones que comparten pantalla en este equipo. Después pulse Compartir otra vez.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.captureWaitSeconds >= 15
+            && root.backend.managedAgentRunning
+          text: root.t("Reiniciar captura de este equipo")
+          bordered: true
+          focusable: true
+          enabled: root.backend && !root.backend.repairBusy
+          foreground: root.ink
+          accent: Color.urgent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.repairCapture()
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.repairBusy || root.backend.repairMessage !== "" || root.backend.repairError !== "")
+          text: root.backend && root.backend.repairBusy ? root.t("Reiniciando la captura…")
+            : root.backend && root.backend.repairError !== "" ? root.backend.repairError
+            : root.backend ? root.backend.repairMessage : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.repairError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         RowLayout {
@@ -834,7 +919,7 @@ Panel {
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: root.t("Compartir entrada")
+            text: root.t("Compartir por IP")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && connectAddress.text.trim() !== ""
@@ -843,6 +928,17 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.startSender(connectAddress.text.trim())
           }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
+          text: root.t("Compartir por IP sirve cuando el receptor ya está emparejado y ubicado, pero no aparece en Equipos en la red.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         RowLayout {
@@ -859,10 +955,11 @@ Panel {
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: root.t("Compartir en malla")
+            text: root.t("Compartir con varios equipos")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning
+              && root.placedPeerCount >= 2
               && /^[0-9]{1,5}$/.test(meshPort.text.trim())
               && Number(meshPort.text.trim()) > 0 && Number(meshPort.text.trim()) <= 65535
             foreground: root.ink
@@ -875,7 +972,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: root.t("Malla experimental: empareje y ubique todos los equipos; cada destino debe estar escuchando en el mismo puerto. El origen distribuye el portapapeles de texto entre los destinos conectados.")
+          text: root.t("Malla experimental: un ratón controla dos o tres receptores en un mapa 2 × 2. Empareje y ubique todos los equipos; cada receptor debe usar este mismo puerto. Para dos equipos en total, use Compartir arriba.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -897,7 +994,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Compartir».")
+          text: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Compartir».\n5  Espere «Listo» y cruce el borde exterior indicado.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted

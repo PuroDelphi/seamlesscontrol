@@ -2,6 +2,8 @@
 
 [Guía de usuario](../README.es.md) · [English](TECHNICAL.md) · [Resultados de pruebas físicas](TEST-RESULTS.es.md) · [Registro detallado](FEASIBILITY.md) · [Plan de pruebas](TESTING.md) · [Protocolo local](IPC.md)
 
+La [guía ilustrada del panel](USER-GUIDE.es.md) cubre la conexión y recuperación habituales desde la interfaz.
+
 Esta guía reúne la operación manual, los paquetes, la seguridad y los límites actuales. Las direcciones siguientes son **ejemplos ficticios**: origen `192.168.50.10`, receptor `192.168.50.20`, LAN `192.168.50.0/24`, interfaz `wlan0`.
 
 ## Paquetes y actualizaciones
@@ -72,6 +74,12 @@ Los archivos usan otra sesión Noise y aprobación del receptor. En el panel, in
 Se instalan, pero no se activan, estas unidades: `seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` y `seamlesscontrol-mesh.service`. El receptor automático usa `47832`. Archivos de entorno manuales en `~/.config/seamlesscontrol/` pueden definir `SEAMLESSCONTROL_LISTEN`, `SEAMLESSCONTROL_PEER`, `SEAMLESSCONTROL_EDGE` o `SEAMLESSCONTROL_PORT`. Activa solo la unidad elegida por equipo.
 
 ## Verificación y límites
+
+### Bloqueo de conexión observado en dos Omarchy
+
+Durante una conexión iniciada desde el panel el 2026-10-02, el receptor indicó `serve connected` y había una conexión TCP establecida. El origen permaneció varios minutos en `connect connecting` aunque ya había identificado al receptor. El portal de captura no registró una sesión nueva para ese intento. Tras cerrar el proceso atascado del origen y reiniciar allí el servicio de usuario `xdg-desktop-portal-hyprland`, otra conexión creó una sesión del portal, obtuvo las zonas, instaló la barrera del borde, conectó EIS y capturó el puntero. Esto respalda que se bloqueó la preparación de la captura tras autenticar la conexión de red; no se pudo demostrar qué llamada exacta quedó esperando. Hubo un cambio anterior en la disposición de monitores, pero tampoco se ha demostrado que fuera la causa.
+
+El panel distingue ahora la reconexión de red, la preparación de captura tras autenticación y el estado listo para cruzar. Pasados 15 segundos en preparación, ofrece detener el proceso de origen iniciado desde el panel, reiniciar únicamente su servicio de portal Hyprland y volver a pulsar Compartir. Advierte que otras aplicaciones que comparten pantalla en ese origen pueden verse interrumpidas. La parada normal pasa de SIGINT a SIGTERM después de dos segundos si el agente quedó bloqueado antes de iniciar su bucle principal. El receptor sigue escuchando. Esta recuperación se diseñó a partir del incidente observado; todavía falta probar el botón con un bloqueo real.
 
 ```bash
 bash tests/firewall_lan.sh

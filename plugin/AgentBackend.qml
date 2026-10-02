@@ -50,6 +50,10 @@ Item {
   property bool managedAgentRunning: false
   property bool stoppingManagedAgent: false
   property string lastAgentError: ""
+  property int captureWaitSeconds: 0
+  property bool repairBusy: false
+  property string repairMessage: ""
+  property string repairError: ""
   readonly property string firewallScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/firewall-lan.sh")).replace(/^file:\/\//, ""))
   readonly property string setupScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/setup-agent.sh")).replace(/^file:\/\//, ""))
   property bool setupBusy: false
@@ -124,6 +128,8 @@ Item {
     if (!installed || agentProcess.running || available || pairingRunning || !address) return
     error = ""
     lastAgentError = ""
+    repairMessage = ""
+    repairError = ""
     stoppingManagedAgent = false
     agentProcess.command = ["seamlesscontrold", "connect", address]
     agentProcess.running = true
@@ -146,6 +152,17 @@ Item {
     if (!agentProcess.running) return
     stoppingManagedAgent = true
     agentProcess.signal(2)
+    stopTimeout.restart()
+  }
+
+  function repairCapture() {
+    if (repairBusy || !agentProcess.running || role !== "connect"
+        || phase !== "connecting" || peer === "" || captureWaitSeconds < 15) return
+    repairBusy = true
+    repairMessage = ""
+    repairError = ""
+    stoppingManagedAgent = true
+    agentProcess.signal(15)
   }
 
   function startFileReceiver(address, directory) {
@@ -495,9 +512,11 @@ Item {
     }
     onExited: function(code) {
       root.managedAgentRunning = false
+      stopTimeout.stop()
       if (code !== 0 && !root.stoppingManagedAgent)
         root.error = root.lastAgentError !== "" ? root.lastAgentError
           : root.t("El agente terminó con error. Revise la dirección y la topología.")
+      if (root.repairBusy) repairProcess.running = true
       root.stoppingManagedAgent = false
       root.refresh()
     }
@@ -507,6 +526,37 @@ Item {
         if (!root.stoppingManagedAgent)
           root.error = root.t("No se pudo mantener el agente en ejecución. Compruebe que está instalado y revise la dirección.")
       }
+    }
+  }
+
+  Process {
+    id: repairProcess
+    command: ["systemctl", "--user", "restart", "xdg-desktop-portal-hyprland.service"]
+    onExited: function(code) {
+      root.repairBusy = false
+      if (code === 0)
+        root.repairMessage = root.t("Captura reiniciada. Pulse Compartir otra vez.")
+      else
+        root.repairError = root.t("No se pudo reiniciar la captura. Revise el servicio del portal de escritorio.")
+      root.refresh()
+    }
+  }
+
+  Timer {
+    id: stopTimeout
+    interval: 2000
+    onTriggered: if (agentProcess.running && root.stoppingManagedAgent) agentProcess.signal(15)
+  }
+
+  Timer {
+    interval: 1000
+    repeat: true
+    running: true
+    onTriggered: {
+      if (root.managedAgentRunning && root.role === "connect"
+          && root.phase === "connecting" && root.peer !== "")
+        root.captureWaitSeconds++
+      else root.captureWaitSeconds = 0
     }
   }
 

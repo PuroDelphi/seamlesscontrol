@@ -2,6 +2,8 @@
 
 [User guide](../README.md) · [Español](TECHNICAL.es.md) · [Physical test results](TEST-RESULTS.md) · [Detailed log (Spanish)](FEASIBILITY.md) · [Test plan (Spanish)](TESTING.md) · [Local control protocol (Spanish)](IPC.md)
 
+The [illustrated panel guide](USER-GUIDE.md) covers the ordinary UI connection and recovery flow.
+
 This guide covers manual operation, packaging, security, and current limits. The addresses below are **fictional examples**: source `192.168.50.10`, receiver `192.168.50.20`, LAN `192.168.50.0/24`, interface `wlan0`.
 
 ## Packaging and updates
@@ -72,6 +74,12 @@ Files use a separate Noise session and receiver approval. In the panel, start **
 User services installed but not enabled: `seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service`, and `seamlesscontrol-mesh.service`. The auto receiver uses `47832`. Manual service environment files in `~/.config/seamlesscontrol/` can set `SEAMLESSCONTROL_LISTEN`, `SEAMLESSCONTROL_PEER`, `SEAMLESSCONTROL_EDGE`, or `SEAMLESSCONTROL_PORT`. Enable only the chosen service per machine.
 
 ## Verification and limits
+
+### Observed connection stall on two Omarchy machines
+
+During a panel-started connection on 2026-10-02, the receiver reported `serve connected` and an established TCP connection. The source reported `connect connecting` with the receiver already identified for several minutes. The input-capture portal had no new session events for that attempt. After ending the stuck source process and restarting the source's `xdg-desktop-portal-hyprland` user service, a fresh connection created a portal session, obtained zones, installed the edge barrier, connected to EIS, and reached working pointer capture. This supports a stalled desktop capture setup after network authentication; the exact call that hung is not proven. A prior monitor layout change may be relevant but is not proven causal.
+
+The panel now distinguishes network retry, authenticated capture setup and ready-to-cross states. After 15 seconds in authenticated capture setup, a UI action stops the panel-started source process, restarts only the source's Hyprland portal service, and asks the user to select Share again. It warns that other screen-sharing apps on that source may be interrupted. The panel's normal Stop action falls back from SIGINT to SIGTERM after two seconds if the agent is stuck before entering its main loop. The receiver keeps listening. This recovery was based on the observed incident; the new button still needs a live stall test.
 
 ```bash
 bash tests/firewall_lan.sh

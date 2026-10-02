@@ -3,6 +3,7 @@
 Use one mouse and keyboard across nearby Omarchy computers. Move the pointer through a screen edge to control the next computer, then move back to return. The first release focuses on Omarchy to Omarchy; Windows support is planned later.
 
 **Language:** English · [Español](README.es.md)
+**Using the panel:** [Illustrated user guide](docs/USER-GUIDE.md)
 **For developers:** [Technical guide](docs/TECHNICAL.md) · [Test results](docs/TEST-RESULTS.md) · [Roadmap (Spanish)](PLAN.md)
 
 > SeamlessControl is experimental. Two physical Omarchy computers have completed two mouse round trips and an Escape return. Other layouts and features still need physical testing.
@@ -37,15 +38,19 @@ Then run `omarchy restart shell` and reopen the panel so Omarchy loads the updat
 
 ## Connect two Omarchy computers
 
-1. On the computer **to be controlled**, select **Receive control**. Leave the address blank to use the local network address and the default TCP port `47832`.
+1. On the computer **to be controlled**, select **Receive control**. Leave the address blank to use the local network address and the default TCP port `47832`. Wait for **Available**.
 2. On the computer with the physical mouse, find the receiver under **Computers on the network** and select **Pair**. If it does not appear, select **Scan** or enter its `IP:port` in the manual field.
-3. **Both panels** show a six digit code. Compare them and select **Codes match · approve here** on **both computers**. The code is generated automatically; you cannot set or type it. The longer **Local identity** is the computer's fingerprint, not the pairing code. If the receiver still says `serve listening`, the connection has not reached it; check the network and firewall.
-4. In **Computer layout**, place the other computer next to **This computer** on **both computers**, matching their physical positions. For example, if the receiver is to the right of the mouse computer, place it to the right on the source; place the source to the left on the receiver. This lets the pointer return by crossing the receiver's left edge.
-5. On the mouse computer, select **Share** beside the discovered receiver. Move the pointer across the chosen edge. To return, cross the edge toward the source or press **Escape** on the physical keyboard.
+3. **Both panels** show a six digit code. Compare them and select **Codes match · approve here** on **both computers**. The code is generated automatically; you cannot set or type it. The longer **Local identity** is the computer's fingerprint, not the pairing code. If the receiver still says **Available** and no code appears, check the network and firewall.
+4. In **Computer layout**, place the other computer next to **This computer** on **both computers**, matching their physical positions. For example, if the receiver is to the right of the mouse computer, place it to the right on the source; place the source to the left on the receiver. This lets the pointer return by crossing the receiver's left edge. The layout only saves the crossing direction.
+5. On the mouse computer, select **Share** beside the discovered receiver. Wait for **Ready**, then move the pointer across the indicated **outer edge of all source monitors**. To return, cross the receiver edge toward the source or press **Escape** on the physical keyboard.
 
 ![The computer layout and discovered receivers in the panel](docs/images/layout-en.png)
 
+![The source panel indicates Ready when it can capture the screen edge](docs/images/session-en.png)
+
 If the pointer does not return, choose **Return control to source** on the receiver. **Cut remote input · emergency** on the receiver disconnects and pauses receiving; choose **Resume receiving** afterward. Stop a session started from the panel with **Stop session started here**.
+
+If the source stays at **Preparing mouse and keyboard capture** for 15 seconds, the panel offers **Restart capture on this computer**. It closes that attempt and restarts the desktop capture service; it may interrupt other screen-sharing apps. Select **Share** again afterward. [The illustrated guide](docs/USER-GUIDE.md) shows the complete panel workflow, troubleshooting by status, file transfer and what the experimental multi-computer mesh does.
 
 ## If pairing times out
 
@@ -68,6 +73,7 @@ If you authorized a firewall rule, remove it **before** removing the widget from
 ## More
 
 - [Technical guide: manual commands, security, services and tests](docs/TECHNICAL.md)
+- [Illustrated panel guide and feature reference](docs/USER-GUIDE.md)
 - [Known limitations and physical test results](docs/TEST-RESULTS.md)
 - [Roadmap (Spanish)](PLAN.md)
 

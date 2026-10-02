@@ -3,6 +3,7 @@
 Usa un ratón y teclado entre equipos Omarchy cercanos. Cruza el borde de una pantalla para controlar el siguiente equipo y vuelve por el borde para regresar. La primera versión se centra en Omarchy con Omarchy; la compatibilidad con Windows está prevista para después.
 
 **Idioma:** [English](README.md) · Español
+**Uso del panel:** [Guía ilustrada](docs/USER-GUIDE.es.md)
 **Para desarrolladores:** [Guía técnica](docs/TECHNICAL.es.md) · [Resultados de pruebas](docs/TEST-RESULTS.es.md) · [Plan](PLAN.md)
 
 > SeamlessControl es experimental. Dos equipos Omarchy físicos completaron dos recorridos de ida y vuelta con el ratón y una devolución con Escape. Faltan pruebas físicas de otras disposiciones y funciones.
@@ -37,15 +38,19 @@ Después ejecuta `omarchy restart shell` y vuelve a abrir el panel para que Omar
 
 ## Conectar dos equipos Omarchy
 
-1. En el equipo **que vas a controlar**, pulsa **Recibir control**. Deja la dirección vacía para usar la IP de la red local y el puerto TCP `47832`.
+1. En el equipo **que vas a controlar**, pulsa **Recibir control**. Deja la dirección vacía para usar la IP de la red local y el puerto TCP `47832`. Espera a que indique **Disponible**.
 2. En el equipo con el ratón físico, busca el receptor en **Equipos en la red** y pulsa **Emparejar**. Si no aparece, pulsa **Buscar** o escribe su `IP:puerto` en el campo manual.
-3. **Ambos paneles** muestran un código de seis cifras. Compáralos y pulsa **Coincide · aprobar aquí** en **los dos equipos**. El código se genera automáticamente; no se puede escribir ni cambiar. La **Identidad local**, más larga, es la huella del equipo, no el código. Si el receptor sigue en `serve listening`, la conexión no le llegó: revisa la red y el firewall.
-4. En **Mapa de equipos**, coloca el otro equipo junto a **Este equipo** en **ambos equipos**, tal como están físicamente. Por ejemplo, si el receptor está a la derecha del equipo con ratón, colócalo a la derecha en el origen; en el receptor, coloca el origen a la izquierda. Así podrás regresar cruzando el borde izquierdo del receptor.
-5. En el equipo con ratón, pulsa **Compartir** junto al receptor descubierto. Cruza el borde elegido. Para volver, cruza el borde hacia el origen o pulsa **Escape** en el teclado físico.
+3. **Ambos paneles** muestran un código de seis cifras. Compáralos y pulsa **Coincide · aprobar aquí** en **los dos equipos**. El código se genera automáticamente; no se puede escribir ni cambiar. La **Identidad local**, más larga, es la huella del equipo, no el código. Si el receptor sigue en **Disponible** y no aparece el código, revisa la red y el firewall.
+4. En **Mapa de equipos**, coloca el otro equipo junto a **Este equipo** en **ambos equipos**, tal como están físicamente. Por ejemplo, si el receptor está a la derecha del equipo con ratón, colócalo a la derecha en el origen; en el receptor, coloca el origen a la izquierda. Así podrás regresar cruzando el borde izquierdo del receptor. El mapa solo guarda la dirección del cruce.
+5. En el equipo con ratón, pulsa **Compartir** junto al receptor descubierto. Espera a **Listo** y cruza el **borde exterior indicado de todos los monitores del origen**. Para volver, cruza el borde del receptor hacia el origen o pulsa **Escape** en el teclado físico.
 
 ![Mapa de equipos y receptores descubiertos en el panel](docs/images/layout-es.png)
 
+![El panel de origen indica Listo cuando puede capturar el cruce de borde](docs/images/session-es.png)
+
 Si el puntero no vuelve, pulsa **Devolver control al origen** en el receptor. **Cortar entrada remota · emergencia** desconecta y pausa la recepción; después pulsa **Reanudar recepción**. Para detener una sesión iniciada desde el panel, pulsa **Terminar sesión iniciada desde el panel**.
+
+Si el origen permanece en **Preparando la captura del ratón y teclado** durante 15 segundos, el panel ofrece **Reiniciar captura de este equipo**. Cierra ese intento y reinicia el servicio de captura del escritorio; puede interrumpir otras aplicaciones que comparten pantalla. Después pulsa **Compartir** de nuevo. La [guía ilustrada](docs/USER-GUIDE.es.md) muestra todo el proceso en el panel, soluciones según el estado, transferencia de archivos y para qué sirve la malla experimental de varios equipos.
 
 ## Si el emparejamiento agota el tiempo
 
@@ -68,6 +73,7 @@ Si autorizaste una regla de firewall, retírala **antes** de quitar el widget en
 ## Más información
 
 - [Guía técnica: comandos manuales, seguridad, servicios y pruebas](docs/TECHNICAL.es.md)
+- [Guía ilustrada del panel y sus funciones](docs/USER-GUIDE.es.md)
 - [Límites actuales y resultados de pruebas físicas](docs/TEST-RESULTS.es.md)
 - [Plan](PLAN.md)
 
