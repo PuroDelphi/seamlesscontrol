@@ -35,7 +35,7 @@ mod linux {
     };
     use seamlesscontrol_core::topology::{
         Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, edge_entry_point,
-        edge_fraction, external_barriers,
+        edge_fraction, edge_release_point, external_barriers,
     };
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::error::Error;
@@ -113,10 +113,10 @@ mod linux {
         fn release_position(self, position: (f32, f32)) -> (f64, f64) {
             let (x, y) = (position.0 as f64, position.1 as f64);
             match self {
-                Self::Left => (x + 1.0, y),
-                Self::Right => (x - 1.0, y),
-                Self::Top => (x, y + 1.0),
-                Self::Bottom => (x, y - 1.0),
+                Self::Left => (x + 32.0, y),
+                Self::Right => (x - 32.0, y),
+                Self::Top => (x, y + 32.0),
+                Self::Bottom => (x, y - 32.0),
             }
         }
     }
@@ -391,7 +391,7 @@ mod linux {
 
     fn return_position(ipc: &HyprIpc, edge: LogicalEdge, fraction: u16) -> Option<(f64, f64)> {
         let regions = ipc.monitor_rects().ok()?;
-        let (x, y) = edge_entry_point(&regions, edge, fraction)?;
+        let (x, y) = edge_release_point(&regions, edge, fraction)?;
         Some((f64::from(x), f64::from(y)))
     }
 
@@ -1428,10 +1428,15 @@ mod linux {
             let mut observed_epoch = None;
             let mut sent_epoch = None;
             let mut observed_motion = 0_u64;
+            let mut remote_motion_seen = false;
             let mut detectors: Vec<(LogicalEdge, IpAddr, EdgeReturnDetector)> = Vec::new();
             let mut monitor_regions: Option<Vec<Rect>> = None;
             let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
+                if watcher_control.disconnect_requested() {
+                    let _ = writer.stream_mut().shutdown(Shutdown::Both);
+                    break;
+                }
                 if hypr
                     .session_lock_state()
                     .unwrap_or(SessionLockState::Undetermined)
@@ -1448,6 +1453,7 @@ mod linux {
                     observed_epoch = active_epoch;
                     sent_epoch = None;
                     observed_motion = motion_generation.load(Ordering::Relaxed);
+                    remote_motion_seen = false;
                     last_geometry_refresh = Instant::now();
                     monitor_regions = if active_epoch.is_some() {
                         edge_hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
@@ -1487,8 +1493,14 @@ mod linux {
                     .take_return_request()
                     .map(|epoch| (epoch, b"RETURN".to_vec()));
                 let motion = motion_generation.load(Ordering::Relaxed);
-                let automatic_return = if sent_epoch.is_none() && motion != observed_motion {
+                if motion != observed_motion {
                     observed_motion = motion;
+                    remote_motion_seen = true;
+                }
+                // Virtual input is asynchronous: Hyprland can move the cursor
+                // after the last injected motion event. Keep sampling until
+                // the epoch ends so a release at the edge is not missed.
+                let automatic_return = if sent_epoch.is_none() && remote_motion_seen {
                     match (active_epoch, edge_hypr.as_ref()) {
                         (Some(epoch), Some(ipc)) => {
                             ipc.cursor_position().ok().and_then(|(x, y)| {
@@ -1582,7 +1594,7 @@ mod linux {
             }
         });
         let result = run_receiver_with_first_until(&mut reader, injector, Some(first), || {
-            control.revoked_active()
+            control.revoked_active() || control.disconnect_requested()
         })
         .map(|_| ());
         watcher_running.store(false, Ordering::Relaxed);
@@ -2103,7 +2115,7 @@ mod linux {
         if args.len() == 2
             && matches!(
                 args[1].as_str(),
-                "status" | "pause" | "resume" | "reject" | "return"
+                "status" | "pause" | "resume" | "reject" | "return" | "emergency-stop"
             )
             || args.len() == 3 && args[1] == "approve"
         {
@@ -2208,7 +2220,7 @@ mod linux {
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold emergency-stop  # en el receptor; corta y pausa\n     seamlesscontrold resume          # reanuda el receptor\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
             );
             return Err("invalid arguments".into());
         }

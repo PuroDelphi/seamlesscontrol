@@ -177,6 +177,20 @@ Item {
     actionProcess.running = true
   }
 
+  function stopRemoteInput() {
+    if (actionProcess.running || role !== "serve") return
+    actionName = "cortar la entrada remota"
+    actionProcess.command = ["seamlesscontrold", "emergency-stop"]
+    actionProcess.running = true
+  }
+
+  function resumeReceiver() {
+    if (actionProcess.running || role !== "serve" || !paused) return
+    actionName = "reanudar la recepción"
+    actionProcess.command = ["seamlesscontrold", "resume"]
+    actionProcess.running = true
+  }
+
   function decidePair(accept) {
     if (actionProcess.running || phase !== "pairing") return
     actionName = accept ? "aprobar" : "rechazar"

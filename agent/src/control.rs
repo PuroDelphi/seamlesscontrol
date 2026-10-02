@@ -27,6 +27,7 @@ pub struct ControlStatus {
     return_requested: Option<u64>,
     decision: Option<bool>,
     receiver_active: bool,
+    disconnect_requested: bool,
 }
 
 #[derive(Clone)]
@@ -39,7 +40,7 @@ impl Drop for ReceiverLease {
         let (lock, _) = &*self.0.0;
         let mut state = lock.lock().expect("control state lock");
         state.receiver_active = false;
-        state.phase = "listening".to_owned();
+        state.phase = if state.paused { "paused" } else { "listening" }.to_owned();
         state.peer.clear();
         state.active_epoch = None;
         state.return_requested = None;
@@ -51,20 +52,31 @@ impl ControlHandle {
     /// and diagnostic connections do not claim this lease.
     pub fn claim_receiver(&self, peer: &str) -> Option<ReceiverLease> {
         let mut state = self.0.0.lock().expect("control state lock");
-        if state.role != "serve" || state.receiver_active || state.phase == "pairing" {
+        if state.role != "serve"
+            || state.receiver_active
+            || state.paused
+            || state.phase == "pairing"
+        {
             return None;
         }
         state.receiver_active = true;
         state.peer = peer.to_owned();
         state.phase = "connected".to_owned();
         state.revoked_active = false;
+        state.disconnect_requested = false;
         state.active_epoch = None;
         state.return_requested = None;
         Some(ReceiverLease(self.clone()))
     }
 
     pub fn set_phase(&self, phase: &str) {
-        self.0.0.lock().expect("control state lock").phase = phase.to_owned();
+        let mut state = self.0.0.lock().expect("control state lock");
+        state.phase = if state.role == "serve" && state.paused && phase == "listening" {
+            "paused"
+        } else {
+            phase
+        }
+        .to_owned();
     }
 
     pub fn phase(&self) -> String {
@@ -85,6 +97,14 @@ impl ControlHandle {
 
     pub fn revoked_active(&self) -> bool {
         self.0.0.lock().expect("control state lock").revoked_active
+    }
+
+    pub fn disconnect_requested(&self) -> bool {
+        self.0
+            .0
+            .lock()
+            .expect("control state lock")
+            .disconnect_requested
     }
 
     pub fn set_active_epoch(&self, epoch: Option<u64>) {
@@ -135,7 +155,11 @@ impl ControlHandle {
             return false;
         };
         let accepted = state.decision == Some(true);
-        state.phase = prior;
+        state.phase = if state.role == "serve" && state.paused {
+            "paused".to_owned()
+        } else {
+            prior
+        };
         state.pair_sas.clear();
         state.pair_key.clear();
         state.decision = None;
@@ -213,6 +237,7 @@ impl ControlServer {
                 return_requested: None,
                 decision: None,
                 receiver_active: false,
+                disconnect_requested: false,
             }),
             Condvar::new(),
         )));
@@ -245,6 +270,23 @@ impl ControlServer {
                                 }
                                 "resume" if status.role == "connect" => {
                                     status.paused = false;
+                                    "OK\n".to_owned()
+                                }
+                                "emergency-stop" if status.role == "serve" => {
+                                    status.paused = true;
+                                    status.disconnect_requested = true;
+                                    if status.phase == "pairing" {
+                                        status.decision = Some(false);
+                                        wake.notify_all();
+                                    }
+                                    status.phase = "paused".to_owned();
+                                    status.return_requested = None;
+                                    "OK\n".to_owned()
+                                }
+                                "resume" if status.role == "serve" && !status.receiver_active => {
+                                    status.paused = false;
+                                    status.disconnect_requested = false;
+                                    status.phase = "listening".to_owned();
                                     "OK\n".to_owned()
                                 }
                                 "return"
@@ -433,6 +475,30 @@ mod tests {
                 .contains("\tlistening\t\t")
         );
         assert!(handle.claim_receiver("192.168.1.3").is_some());
+        drop(server);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn emergency_stop_disconnects_and_blocks_new_claims_until_resume() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-emergency-control-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let path = dir.join("control.sock");
+        let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
+        let handle = server.handle();
+        let lease = handle.claim_receiver("192.168.1.2").unwrap();
+        assert_eq!(request_at(&path, "emergency-stop").unwrap(), "OK\n");
+        assert!(handle.disconnect_requested());
+        assert!(handle.paused());
+        drop(lease);
+        assert!(request_at(&path, "status").unwrap().contains("\tpaused\t"));
+        assert!(handle.claim_receiver("192.168.1.2").is_none());
+        assert_eq!(request_at(&path, "resume").unwrap(), "OK\n");
+        assert!(!handle.disconnect_requested());
+        assert!(handle.claim_receiver("192.168.1.2").is_some());
         drop(server);
         fs::remove_dir_all(dir).unwrap();
     }

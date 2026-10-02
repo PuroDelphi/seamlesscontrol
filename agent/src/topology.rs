@@ -320,6 +320,21 @@ pub fn edge_entry_point(regions: &[Rect], edge: Edge, fraction: u16) -> Option<(
     None
 }
 
+/// Place the returned local pointer far enough inside the screen that the
+/// capture barrier does not immediately activate again.
+pub fn edge_release_point(regions: &[Rect], edge: Edge, fraction: u16) -> Option<(i32, i32)> {
+    let (x, y) = edge_entry_point(regions, edge, fraction)?;
+    let region = regions.iter().find(|region| {
+        x >= region.x && x < region.right() && y >= region.y && y < region.bottom()
+    })?;
+    Some(match edge {
+        Edge::Left => ((region.x.saturating_add(32)).min(region.right() - 1), y),
+        Edge::Right => ((region.right().saturating_sub(33)).max(region.x), y),
+        Edge::Top => (x, (region.y.saturating_add(32)).min(region.bottom() - 1)),
+        Edge::Bottom => (x, (region.bottom().saturating_sub(33)).max(region.y)),
+    })
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Machine {
     Local,
@@ -694,6 +709,21 @@ mod tests {
         assert_eq!(Edge::Right.opposite(), Edge::Left);
         assert_eq!(Edge::parse("left"), Some(Edge::Left));
         assert_eq!(Edge::parse("LEFT"), None);
+    }
+
+    #[test]
+    fn returned_pointer_stays_inside_and_away_from_capture_barrier() {
+        let monitors = [Rect::new(0, 0, 1366, 768).unwrap()];
+        assert_eq!(
+            edge_release_point(&monitors, Edge::Left, u16::MAX / 2),
+            Some((32, 383))
+        );
+        assert_eq!(
+            edge_release_point(&monitors, Edge::Right, u16::MAX / 2),
+            Some((1333, 383))
+        );
+        let narrow = [Rect::new(0, 0, 20, 20).unwrap()];
+        assert_eq!(edge_release_point(&narrow, Edge::Left, 0), Some((19, 0)));
     }
 
     #[test]

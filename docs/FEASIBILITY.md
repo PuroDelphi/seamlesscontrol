@@ -126,8 +126,15 @@ En la malla, un `ENDED` recibido después de cancelar una cesión con Escape, pa
 
 ## Pendiente para cerrar la fase 0
 
-1. Conseguir una segunda sesión Omarchy física para probar origen y destino.
-2. Probar liberación mediante el atajo local en el agente integrado; la prueba local ya recibió movimiento, teclado y clic físicos y liberó el cursor al cerrar la captura, pero todavía falta el atajo Escape durante esa sesión.
-3. Enviar eventos de prueba al teclado/puntero virtual del segundo equipo y verificar liberación de teclas y botones; la inyección de movimiento en el receptor normal sólo se verificó en el Omarchy local.
-4. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
-5. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha verificado su flujo físico extremo a extremo.
+1. Resolver y validar físicamente el regreso mediante Escape y por el borde, con una parada de emergencia accesible desde el receptor.
+2. Probar teclado, clic, rueda y liberación de teclas y botones en el segundo Omarchy; hasta ahora sólo se confirmó el movimiento del puntero entre ambos.
+3. Medir cruce, vuelta, desconexión y pantalla completa; documentar resultados y límites.
+4. Medir la latencia real del agente integrado; los adaptadores están conectados en el prototipo, pero todavía no se ha medido el flujo físico extremo a extremo.
+
+## 1 de octubre de 2026 · primera conexión entre dos Omarchy
+
+El Omarchy receptor físico `192.168.1.25` escuchaba en TCP `47832`, pero el Omarchy origen `192.168.1.15` agotaba el tiempo de conexión y el receptor permanecía en `serve listening`. UFW estaba activo con entrada `DROP` y sin regla para ese puerto. Se autorizó exclusivamente TCP `47832` desde `192.168.1.0/24` por `wlo1` hacia `192.168.1.25`. Tras repetir `seamlesscontrold pair 192.168.1.25:47832`, ambos equipos mostraron el mismo código de seis cifras, lo aprobaron y conservaron la clave del par. `seamlesscontrold peers` confirmó el par en ambos extremos.
+
+Desde `192.168.1.15`, `seamlesscontrold connect 192.168.1.25:47832 right` estableció el canal autenticado. El receptor cambió de `connected` a `controlling` y el usuario observó que el puntero físico del origen controlaba este Omarchy. El mapa del receptor estaba inicialmente sin el origen colocado: no había ruta de retorno por borde. Se colocó el receptor en `(1,0)` y el origen en `(0,0)`, se reinició el receptor y el origen se reconectó. En esa segunda sesión, el usuario informó que ni el cruce por el borde izquierdo ni Escape devolvían el control; el estado permaneció en `controlling`. Detener el receptor con `systemctl --user stop seamlesscontrol-receiver-auto.service` cortó el enlace y el usuario confirmó que recuperó ratón y teclado en el origen. El receptor permanece detenido hasta validar una recuperación fiable. No se ha confirmado aún clic, teclado, rueda, portapapeles ni archivos en el segundo equipo.
+
+La investigación encontró que el origen colocaba el cursor a solo un píxel del borde al liberar el portal, lo que puede provocar una nueva captura inmediata. Esta revisión amplía el margen de retorno a 32 píxeles y añade `emergency-stop` en el receptor: corta una conexión activa y bloquea nuevas sesiones hasta `resume`. Pasaron las 69 pruebas de Rust y Clippy, pero estos cambios **aún no se han probado físicamente**. El fallo concreto de Escape en el origen sigue sin explicación confirmada; el terminal solo informó «conexión interrumpida» tras detener el receptor.

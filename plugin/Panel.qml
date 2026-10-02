@@ -216,7 +216,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "Arrastre un equipo a otra casilla o selecciónelo y pulse su destino. Los vecinos del equipo local definen el borde de salida."
+          text: "Ubique el otro equipo junto a ESTE EQUIPO en ambos Omarchy. En el receptor, esa posición permite volver cruzando el borde hacia el origen; sin ella, use Escape o «Devolver control al origen»."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -309,6 +309,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.unassignedPeers.length > 0
           text: "SIN POSICIÓN · " + root.unassignedPeers.map(function(peer) { return peer.ip }).join(" · ")
+            + "\nUbique este equipo en la cuadrícula antes de probar el regreso por el borde."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
@@ -681,9 +682,34 @@ Panel {
           onClicked: if (root.backend) root.backend.requestReturn()
         }
 
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "serve"
+            && !root.backend.paused && (root.backend.phase === "controlling" || root.backend.phase === "connected")
+          text: "Cortar entrada remota · emergencia"
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.urgent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.stopRemoteInput()
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "serve" && root.backend.paused
+          text: "Reanudar recepción"
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.resumeReceiver()
+        }
+
         Text {
           Layout.fillWidth: true
-          text: "Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen o use el botón del destino. La prueba física sigue pendiente."
+          text: "Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen. Si el retorno falla, use «Cortar entrada remota · emergencia» en este receptor; reanude cuando sea seguro."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
