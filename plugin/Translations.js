@@ -106,7 +106,7 @@ var english = {
   "Esperar un archivo": "Wait for a file",
   "Preparando la recepción de archivos…": "Preparing file receiving…",
   "Esperando archivo en ": "Waiting for a file on ",
-  "Los archivos usan un puerto distinto al del control. En este receptor, prepare y autorice una regla LAN para el puerto de archivos si el envío agota el tiempo.": "Files use a different port from remote control. On this receiver, preview and authorize a LAN rule for the file port if sending times out.",
+  "ANTES DEL PRIMER ENVÍO: en este receptor, prepare y autorice la regla LAN para el puerto de archivos 47833 (o el puerto que eligió arriba). El puerto del control, 47832 por defecto, no sirve para archivos. Vuelva a pulsar Esperar un archivo para cada envío.": "BEFORE THE FIRST TRANSFER: on this receiver, preview and authorize the LAN rule for file port 47833 (or the port selected above). The remote control port, 47832 by default, does not open file transfers. Select Wait for a file again for each transfer.",
   "Preparar regla LAN para archivos": "Preview file LAN rule",
   "De ": "From ",
   " bytes)\nSHA-256 ": " bytes)\nSHA-256 ",

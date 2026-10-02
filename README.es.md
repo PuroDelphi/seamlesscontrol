@@ -66,7 +66,7 @@ El cambio de firewall se hace en el **receptor**. En **Firewall · solo en el re
 
 ![Vista previa de la regla LAN en el panel receptor](docs/images/firewall-es.png)
 
-Si eliges otro puerto de recepción, úsalo también en la sección de firewall. La recepción de archivos usa `47833` de forma predeterminada. La sección **Archivos** tiene su propio botón **Preparar regla LAN para archivos**; autoriza esa regla en el equipo receptor si el envío agota el tiempo.
+Si eliges otro puerto de recepción, úsalo también en la sección de firewall. **Antes del primer envío**, autoriza el puerto de archivos separado (`47833` por defecto) en el receptor con **Preparar regla LAN para archivos**, en **Archivos**. El puerto de control (`47832` por defecto) no abre la transferencia de archivos. Pulsa **Esperar un archivo** otra vez para cada archivo.
 
 ## Desinstalar
 

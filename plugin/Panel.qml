@@ -1227,7 +1227,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("Los archivos usan un puerto distinto al del control. En este receptor, prepare y autorice una regla LAN para el puerto de archivos si el envío agota el tiempo.")
+          text: root.t("ANTES DEL PRIMER ENVÍO: en este receptor, prepare y autorice la regla LAN para el puerto de archivos 47833 (o el puerto que eligió arriba). El puerto del control, 47832 por defecto, no sirve para archivos. Vuelva a pulsar Esperar un archivo para cada envío.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
