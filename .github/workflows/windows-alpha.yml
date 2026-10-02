@@ -25,6 +25,15 @@ jobs:
         env:
           RUSTFLAGS: -C target-feature=+crt-static
         run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
+      - name: Start the Windows executable
+        shell: pwsh
+        run: |
+          $env:LOCALAPPDATA = "$env:RUNNER_TEMP\SeamlessControlSmoke"
+          $exe = 'agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe'
+          & $exe identity
+          if ($LASTEXITCODE -ne 0) { throw 'Identity startup failed' }
+          & $exe peers
+          if ($LASTEXITCODE -ne 0) { throw 'Peer listing startup failed' }
       - name: Write executable checksum
         shell: pwsh
         run: |
