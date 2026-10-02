@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## Sin publicar · alpha
+
+- Añade un receptor de consola para Windows x64 compatible con el emparejamiento y el protocolo cifrado de Omarchy. Puede solicitar el regreso por el borde de entrada y enviar o recibir archivos aprobados.
+- Compila y prueba el ejecutable Windows x64 en un workflow de `alpha`. Aún no se ha verificado físicamente Windows↔Omarchy.
+
 ## 0.20.0 — 2026-10-02
 
 - Integra las mejoras de `alpha` en la rama publicada: el panel queda organizado en **Principal** y **Más**, con la preparación y el firewall en **Principal**, y explicaciones desplegables accesibles con el teclado.

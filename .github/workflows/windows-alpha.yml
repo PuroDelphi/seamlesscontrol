@@ -22,9 +22,19 @@ jobs:
       - name: Test portable core on Windows x64
         run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
       - name: Build Windows x64 console agent
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
         run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
+      - name: Write executable checksum
+        shell: pwsh
+        run: |
+          $output = 'agent/target/x86_64-pc-windows-msvc/release'
+          $digest = (Get-FileHash -Algorithm SHA256 "$output/seamlesscontrold.exe").Hash.ToLowerInvariant()
+          "$digest  seamlesscontrold.exe" | Set-Content -Encoding ascii -Path "$output/seamlesscontrold.exe.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: seamlesscontrol-windows-x64-alpha
-          path: agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe
+          path: |
+            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe
+            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe.sha256
           if-no-files-found: error

@@ -438,7 +438,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.pairSas !== ""
           text: root.backend ? root.t("Código de este equipo: ") + root.backend.pairSas
-            + root.t("\nCompárelo con el que aparece en el otro Omarchy. Se genera automáticamente; no hay que escribirlo ni cambiarlo.")
+            + root.t("\nCompárelo con el que aparece en el otro equipo. Se genera automáticamente. Si el otro equipo usa Windows, escríbalo en su terminal y confirme aquí.")
             : ""
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
@@ -490,7 +490,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Posición y teclado")
-          description: root.t("Ubique el otro equipo junto a ESTE EQUIPO en ambos Omarchy. En el receptor, esa posición permite volver cruzando el borde hacia el origen; sin ella, use Escape o «Devolver control al origen».")
+          description: root.t("Ubique el otro equipo junto a ESTE EQUIPO. Entre dos Omarchy, configure el mapa en ambos; el receptor Windows deduce el borde de regreso del cruce.")
             + "\n\n" + root.t("El mapa guarda la dirección del cruce. Para iniciar la sesión, pulse Conectar en el origen.")
             + "\n\n" + root.t("Teclado: Tab llega al mapa y recorre sus casillas, Enter elige una ficha, las flechas llevan a la casilla de destino y Enter la coloca. Escape cancela la selección.")
           foreground: root.ink

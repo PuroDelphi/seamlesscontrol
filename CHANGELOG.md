@@ -4,6 +4,11 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## Unreleased · alpha
+
+- Add a Windows x64 console receiver using the Omarchy pairing and encrypted input protocol. It can request return across its entry edge and send or receive approved files.
+- Build and test the Windows x64 executable in an `alpha` workflow. Physical Windows↔Omarchy operation is not verified yet.
+
 ## 0.20.0 — 2026-10-02
 
 - Bring the `alpha` improvements to the published branch: organize the panel into **Main** and **More**, keep essential setup and firewall actions on **Main**, and collapse optional explanations with keyboard access.

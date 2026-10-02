@@ -6,7 +6,7 @@ El agente de consola para Windows usa la misma identidad Noise fijada, el códig
 
 ## Obtener la compilación x64
 
-Abre la última ejecución exitosa del [workflow Windows x64 alpha](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml) en la rama `alpha` y descarga `seamlesscontrol-windows-x64-alpha`. Extrae `seamlesscontrold.exe` en una carpeta de tu cuenta de Windows. El workflow lo compila para `x86_64-pc-windows-msvc`; es un artefacto de prueba, no un instalador firmado.
+Abre la última ejecución exitosa del [workflow Windows x64 alpha](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml) en la rama `alpha` y descarga `seamlesscontrol-windows-x64-alpha`. Extrae `seamlesscontrold.exe` y su archivo `.sha256` en una carpeta de tu cuenta de Windows. El workflow lo compila para `x86_64-pc-windows-msvc` con el entorno C integrado; es un artefacto de prueba, no un instalador firmado. En PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` debe coincidir con el primer campo del archivo `.sha256`.
 
 También puedes compilar el código de `alpha` en Windows x64 con Rust instalado:
 
@@ -19,7 +19,7 @@ cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows
 1. Pon ambos equipos en la misma red local privada. En PowerShell de Windows, inicia el receptor: `./seamlesscontrold.exe serve 0.0.0.0:47832`. Deja la terminal abierta. Si Windows pregunta por el acceso a la red, elige solamente **Redes privadas**. Si el firewall bloquea la recepción, revisa y aplica la regla de abajo en **PowerShell como administrador**.
 2. En Omarchy, abre SeamlessControl. En **Mapa de equipos**, coloca Windows junto a **Este equipo** en el lado por donde cruzarás. En **Equipos en la red**, escribe la dirección `IP:puerto` de Windows con el puerto `47832` y pulsa **Emparejar**. Windows aún no se anuncia mediante mDNS.
 3. Ambos equipos muestran un código de seis cifras. Compáralos. Escribe ese mismo código en la terminal Windows y apruébalo en el panel de Omarchy. La huella larga de identidad es otro dato; no reemplaza el código de emparejamiento.
-4. En Omarchy, pulsa **Conectar** para la dirección Windows emparejada. Espera a **Listo** y cruza el borde exterior elegido con el ratón físico. Para volver, mueve el puntero al menos 17 píxeles hacia el interior de Windows y cruza de regreso el borde por donde entró; **Escape** en el teclado físico de Omarchy también devuelve el control.
+4. En Omarchy, abre **Más**, escribe la dirección Windows emparejada `IP:47832` en **Conectar por IP** y pulsa ese botón. Espera a **Listo** y cruza el borde exterior elegido con el ratón físico. Para volver, mueve el puntero al menos 17 píxeles hacia el interior de Windows y cruza de regreso el borde por donde entró; **Escape** en el teclado físico de Omarchy también devuelve el control.
 
 El receptor Windows obtiene el borde de regreso del mensaje autenticado `BEGIN`. Por ahora usa los límites del escritorio virtual como geometría; comienza las pruebas con una disposición sencilla de monitores. Mantén accesible una terminal de Omarchy para detener la conexión si hace falta.
 
