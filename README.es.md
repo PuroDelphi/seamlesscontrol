@@ -10,7 +10,11 @@ Usa un ratón y teclado entre equipos Omarchy cercanos. Cruza el borde de una pa
 
 **Para desarrolladores:** [Guía técnica](docs/TECHNICAL.es.md) · [Resultados de pruebas](docs/TEST-RESULTS.es.md) · [Plan](PLAN.md)
 
-> SeamlessControl es experimental. Dos equipos Omarchy físicos completaron recorridos de ida y vuelta con el ratón, una devolución con Escape y el atajo Super+V a través de la conexión. Faltan pruebas físicas de otras disposiciones y funciones.
+## Probado con dos equipos Omarchy físicos
+
+En una misma red local, los dos equipos se emparejaron con códigos de seis cifras coincidentes. El ratón cruzó al receptor y regresó por el borde opuesto dos veces; **Escape** también devolvió el control. El atajo físico **Super+V** abrió el historial del portapapeles en el receptor. Un archivo de texto se ofreció, aceptó y entregó después de autorizar el puerto de archivos independiente en el receptor.
+
+Son resultados observados con una pareja de equipos. El [registro de pruebas](docs/TEST-RESULTS.es.md) detalla las versiones, las comprobaciones locales y los casos que aún requieren verificación física.
 
 Las capturas del panel usan nombres de equipo y direcciones de red ficticios.
 

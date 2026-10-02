@@ -10,7 +10,11 @@ Use one mouse and keyboard across nearby Omarchy computers. Move the pointer thr
 
 **For developers:** [Technical guide](docs/TECHNICAL.md) · [Test results](docs/TEST-RESULTS.md) · [Roadmap (Spanish)](PLAN.md)
 
-> SeamlessControl is experimental. Two physical Omarchy computers have completed mouse round trips, an Escape return, and a Super+V shortcut across the connection. Other layouts and features still need physical testing.
+## Tested with two physical Omarchy computers
+
+On one LAN, both computers paired with matching six digit codes. The mouse crossed to the receiver and returned across the opposite edge twice; pressing **Escape** also returned control. The physical **Super+V** shortcut opened clipboard history on the receiver. A text file was offered, accepted and delivered after the receiver authorized its separate file port.
+
+These are observed results from one two-computer setup. [The test record](docs/TEST-RESULTS.md) lists the versions, local checks and scenarios still awaiting physical verification.
 
 Panel screenshots use fictional computer names and network addresses.
 

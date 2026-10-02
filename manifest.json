@@ -5,7 +5,7 @@
   "version": "0.19.9",
   "author": "PuroDelphi",
   "license": "MIT",
-  "description": "Experimental Omarchy input sharing between LAN computers",
+  "description": "Share one mouse and keyboard across paired Omarchy computers on a LAN",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "plugin/BarWidget.qml"
