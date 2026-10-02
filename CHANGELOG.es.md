@@ -4,9 +4,14 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.9 — 2026-10-02
+
+- Los selectores de archivo y carpeta se abren mediante el portal del escritorio en un proceso separado del agente. GTK/GVfs ya no se ejecuta dentro de Quickshell al abrir un selector. Se confirmó la apertura y cancelación del selector externo en el Omarchy afectado sin caída del shell.
+- Se valida que la ruta seleccionada sea local antes de mostrarla en el panel. Los campos manuales siguen disponibles si falla el portal.
+
 ## 0.19.8 — 2026-10-02
 
-- Los selectores de archivo y carpeta usan los diálogos propios de Qt Quick. Así evitan la ruta GTK/GVfs que abortó Quickshell al pulsar **Elegir** en el Omarchy probado.
+- Se probaron los diálogos propios de Qt Quick para elegir archivos y carpetas. El panel real siguió fallando al pulsar **Elegir**; 0.19.9 mueve el selector fuera de Quickshell.
 
 ## 0.19.7 — 2026-10-02
 

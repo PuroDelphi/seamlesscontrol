@@ -4,9 +4,14 @@
 
 This file summarizes user-visible published changes. The repository is experimental; consult the [test results](docs/TEST-RESULTS.md) for verified behavior.
 
+## 0.19.9 — 2026-10-02
+
+- Open the file and folder pickers through the desktop portal in a separate agent process, so opening a picker no longer runs GTK/GVfs inside Quickshell. Canceling the external picker was confirmed on the affected Omarchy without a shell crash.
+- Validate local file URIs before placing the chosen path in the panel. The manual path fields remain available if the portal fails.
+
 ## 0.19.8 — 2026-10-02
 
-- Open the file and folder pickers with Qt Quick's own dialogs. This avoids the GTK/GVfs path that aborted Quickshell when **Choose** was pressed on the tested Omarchy.
+- Tried Qt Quick's own dialogs for file and folder selection. The live panel still crashed when **Choose** was pressed; 0.19.9 moves the picker out of Quickshell.
 
 ## 0.19.7 — 2026-10-02
 

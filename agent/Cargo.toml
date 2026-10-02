@@ -17,7 +17,7 @@ sha2 = "0.10"
 wayland-client = "0.31.15"
 wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
 wayland-protocols-misc = { version = "0.3.12", features = ["client"] }
-ashpd = { version = "0.13.13", features = ["input_capture"] }
+ashpd = { version = "0.13.13", features = ["input_capture", "file_chooser"] }
 tokio = { version = "1.52", features = ["rt-multi-thread", "macros", "time", "signal", "net", "sync", "process"] }
 reis = { version = "0.7.1", features = ["tokio"] }
 futures-util = "0.3"

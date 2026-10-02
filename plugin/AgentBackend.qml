@@ -44,6 +44,9 @@ Item {
   property var topology: []
   property bool receivingFile: false
   property bool sendingFile: false
+  property bool pickerBusy: false
+  property string pickerKind: ""
+  signal pathChosen(string kind, string path)
   property var fileOffer: null
   property string fileResult: ""
   property bool stoppingFileReceiver: false
@@ -210,6 +213,15 @@ Item {
     sendFileProcess.command = ["seamlesscontrold", "send-file", address, path]
     sendFileProcess.running = true
     sendingFile = true
+  }
+
+  function choosePath(kind) {
+    if (!installed || pickerBusy || (kind !== "file" && kind !== "folder")) return
+    error = ""
+    pickerKind = kind
+    pickerBusy = true
+    pickerProcess.command = ["seamlesscontrold", kind === "file" ? "choose-file" : "choose-folder", language]
+    pickerProcess.running = true
   }
 
   function refresh() {
@@ -588,6 +600,28 @@ Item {
       if (code !== 0 && !root.stoppingFileReceiver)
         root.error = root.t("La recepción de archivos terminó con error. Revise IP, puerto y directorio.")
       root.stoppingFileReceiver = false
+    }
+  }
+
+  Process {
+    id: pickerProcess
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var output = String(text || "").trim()
+        if (output === "") return
+        try {
+          var path = JSON.parse(output)
+          if (typeof path !== "string" || path.charAt(0) !== "/") throw new Error("invalid path")
+          root.pathChosen(root.pickerKind, path)
+        } catch (error) {
+          root.error = root.t("El selector devolvió una ruta inválida. Escríbala manualmente.")
+        }
+      }
+    }
+    onExited: function(code) {
+      root.pickerBusy = false
+      if (code !== 0) root.error = root.t("No se pudo abrir el selector. Escriba la ruta manualmente.")
     }
   }
 

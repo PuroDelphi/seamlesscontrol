@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls as Controls
-import QtQuick.Dialogs as Dialogs
 import QtCore as Core
 import Quickshell
 import qs.Commons
@@ -133,23 +132,12 @@ Panel {
   }
   function toggle() { opened ? close() : open() }
 
-  function localPath(url) {
-    return decodeURIComponent(String(url).replace(/^file:\/\/(localhost)?/, ""))
-  }
-
-  Dialogs.FileDialog {
-    id: sourceChooser
-    title: root.t("Archivo para SeamlessControl")
-    fileMode: Dialogs.FileDialog.OpenFile
-    options: Dialogs.FileDialog.DontUseNativeDialog
-    onAccepted: fileSourcePath.text = root.localPath(selectedFile)
-  }
-
-  Dialogs.FolderDialog {
-    id: destinationChooser
-    title: root.t("Guardar archivos de SeamlessControl")
-    options: Dialogs.FolderDialog.DontUseNativeDialog
-    onAccepted: fileDirectory.text = root.localPath(selectedFolder)
+  Connections {
+    target: root.backend
+    function onPathChosen(kind, path) {
+      if (kind === "file") fileSourcePath.text = path
+      else if (kind === "folder") fileDirectory.text = path
+    }
   }
 
   KeyboardPanel {
@@ -1190,10 +1178,11 @@ Panel {
             text: root.t("Elegir")
             bordered: true
             focusable: true
+            enabled: root.backend && root.backend.installed && !root.backend.pickerBusy
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: destinationChooser.open()
+            onClicked: if (root.backend) root.backend.choosePath("folder")
           }
         }
 
@@ -1305,10 +1294,11 @@ Panel {
             text: root.t("Elegir")
             bordered: true
             focusable: true
+            enabled: root.backend && root.backend.installed && !root.backend.pickerBusy
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: sourceChooser.open()
+            onClicked: if (root.backend) root.backend.choosePath("file")
           }
         }
 

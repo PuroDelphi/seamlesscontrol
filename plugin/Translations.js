@@ -146,6 +146,8 @@ var english = {
   "El agente terminó con error. Revise la dirección y la topología.": "The agent exited with an error. Check the address and layout.",
   "No se pudo mantener el agente en ejecución. Compruebe que está instalado y revise la dirección.": "The agent could not keep running. Check its installation and address.",
   "La recepción de archivos terminó con error. Revise IP, puerto y directorio.": "File receiving ended with an error. Check IP, port and folder.",
+  "No se pudo abrir el selector. Escriba la ruta manualmente.": "Could not open the picker. Enter the path manually.",
+  "El selector devolvió una ruta inválida. Escríbala manualmente.": "The picker returned an invalid path. Enter it manually.",
   "No se entregó el archivo. Revise el par, la red y la aceptación del destino.": "The file was not delivered. Check pairing, network and receiver approval.",
   "Archivo rechazado o cancelado": "File rejected or canceled",
   "Archivo guardado en ": "File saved to ",

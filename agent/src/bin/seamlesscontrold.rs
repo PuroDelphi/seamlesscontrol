@@ -1,6 +1,7 @@
 #[cfg(target_os = "linux")]
 mod linux {
     use ashpd::desktop::Session;
+    use ashpd::desktop::file_chooser::SelectedFiles;
     use ashpd::desktop::input_capture::{
         ActivatedBarrier, Barrier, BarrierID, BarrierPosition, Capabilities, CreateSessionOptions,
         InputCapture, ReleaseOptions,
@@ -42,6 +43,7 @@ mod linux {
     use std::future::Future;
     use std::io::{self, Write};
     use std::net::{IpAddr, Ipv4Addr, Shutdown, SocketAddr, TcpListener, TcpStream};
+    use std::os::unix::ffi::OsStringExt;
     use std::os::unix::net::UnixStream;
     use std::path::PathBuf;
     use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -53,6 +55,79 @@ mod linux {
     const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/5";
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
+
+    fn portal_file_path(uri: &str) -> Result<PathBuf, Box<dyn Error>> {
+        let encoded = uri
+            .strip_prefix("file://")
+            .ok_or("the file chooser returned a non-local URI")?;
+        let encoded = encoded.strip_prefix("localhost").unwrap_or(encoded);
+        if !encoded.starts_with('/') || encoded.contains(['?', '#']) {
+            return Err("the file chooser returned an invalid local URI".into());
+        }
+        let mut decoded = Vec::with_capacity(encoded.len());
+        let mut bytes = encoded.as_bytes().iter().copied();
+        while let Some(byte) = bytes.next() {
+            if byte == b'%' {
+                let digit = |value: u8| match value {
+                    b'0'..=b'9' => Some(value - b'0'),
+                    b'A'..=b'F' => Some(value - b'A' + 10),
+                    b'a'..=b'f' => Some(value - b'a' + 10),
+                    _ => None,
+                };
+                let high = bytes
+                    .next()
+                    .and_then(digit)
+                    .ok_or("invalid file URI escape")?;
+                let low = bytes
+                    .next()
+                    .and_then(digit)
+                    .ok_or("invalid file URI escape")?;
+                decoded.push(high << 4 | low);
+            } else {
+                decoded.push(byte);
+            }
+        }
+        if decoded.contains(&0) {
+            return Err("file URI contains a NUL byte".into());
+        }
+        Ok(PathBuf::from(std::ffi::OsString::from_vec(decoded)))
+    }
+
+    async fn choose_local_path(directory: bool, spanish: bool) -> Result<(), Box<dyn Error>> {
+        let title = match (directory, spanish) {
+            (false, false) => "Choose a file for SeamlessControl",
+            (false, true) => "Elija un archivo para SeamlessControl",
+            (true, false) => "Choose a destination folder for SeamlessControl",
+            (true, true) => "Elija una carpeta de destino para SeamlessControl",
+        };
+        let request = SelectedFiles::open_file()
+            .title(title)
+            .directory(directory)
+            .send()
+            .await?;
+        let selected = match request.response() {
+            Ok(selected) => selected,
+            Err(ashpd::Error::Response(ashpd::desktop::ResponseError::Cancelled)) => {
+                return Ok(());
+            }
+            Err(error) => return Err(error.into()),
+        };
+        let uri = selected
+            .uris()
+            .first()
+            .ok_or("the file chooser returned no path")?;
+        let path = portal_file_path(uri.as_str())?;
+        if !(if directory {
+            path.is_dir()
+        } else {
+            path.is_file()
+        }) {
+            return Err("the selected path is not accessible".into());
+        }
+        let path = path.to_str().ok_or("the selected path is not UTF-8")?;
+        println!("{}", serde_json::to_string(path)?);
+        Ok(())
+    }
 
     #[derive(Clone, Copy)]
     enum Edge {
@@ -2025,6 +2100,12 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
+        if args.len() == 3 && matches!(args[1].as_str(), "choose-file" | "choose-folder") {
+            if args[2] != "en" && args[2] != "es" {
+                return Err("picker language must be en or es".into());
+            }
+            return choose_local_path(args[1] == "choose-folder", args[2] == "es").await;
+        }
         if args.len() == 2 && args[1] == "clipboard-helper" {
             clipboard_omarchy::emit_watched_event()?;
             return Ok(());
@@ -2290,7 +2371,7 @@ mod linux {
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold emergency-stop  # en el receptor; corta y pausa\n     seamlesscontrold resume          # reanuda el receptor\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold emergency-stop  # en el receptor; corta y pausa\n     seamlesscontrold resume          # reanuda el receptor\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold choose-file en|es\n     seamlesscontrold choose-folder en|es\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
             );
             return Err("invalid arguments".into());
         }
@@ -2399,6 +2480,20 @@ mod linux {
         use super::*;
         use std::io::Read;
         use std::net::Ipv4Addr;
+
+        #[test]
+        fn portal_selection_accepts_only_local_file_paths() {
+            assert_eq!(
+                portal_file_path("file:///home/user/My%20file%25.txt")
+                    .unwrap()
+                    .to_str(),
+                Some("/home/user/My file%.txt")
+            );
+            assert!(portal_file_path("https://example.com/file").is_err());
+            assert!(portal_file_path("file://remote-host/home/user/file").is_err());
+            assert!(portal_file_path("file:///home/user/%00file").is_err());
+            assert!(portal_file_path("file:///home/user/%GG").is_err());
+        }
 
         fn test_mesh_link(remote: Identity) -> (MeshLink, thread::JoinHandle<io::Result<usize>>) {
             let local = Identity::generate().unwrap();
