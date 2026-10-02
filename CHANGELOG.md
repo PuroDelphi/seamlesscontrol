@@ -4,6 +4,10 @@
 
 This file summarizes user-visible published changes. The repository is experimental; consult the [test results](docs/TEST-RESULTS.md) for verified behavior.
 
+## 0.19.8 — 2026-10-02
+
+- Open the file and folder pickers with Qt Quick's own dialogs. This avoids the GTK/GVfs path that aborted Quickshell when **Choose** was pressed on the tested Omarchy.
+
 ## 0.19.7 — 2026-10-02
 
 - Close authenticated mesh links when their peer identity is revoked, even when that peer no longer controls input. Discard queued feedback from revoked links and release capture if the revoked peer was active.

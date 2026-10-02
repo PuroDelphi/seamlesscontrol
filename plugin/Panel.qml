@@ -141,12 +141,14 @@ Panel {
     id: sourceChooser
     title: root.t("Archivo para SeamlessControl")
     fileMode: Dialogs.FileDialog.OpenFile
+    options: Dialogs.FileDialog.DontUseNativeDialog
     onAccepted: fileSourcePath.text = root.localPath(selectedFile)
   }
 
   Dialogs.FolderDialog {
     id: destinationChooser
     title: root.t("Guardar archivos de SeamlessControl")
+    options: Dialogs.FolderDialog.DontUseNativeDialog
     onAccepted: fileDirectory.text = root.localPath(selectedFolder)
   }
 

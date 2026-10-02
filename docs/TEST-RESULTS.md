@@ -14,6 +14,8 @@ The same rapid authenticated disconnect recurred with 0.19.3 even without a plug
 
 The original trapped cursor episode involved a source `connect` process in a suspended `T` state, which could not process Escape, return feedback or termination signals. A separate immediate recapture occurred after Escape; the current agent requires the returned pointer to move 96 pixels inside the source before rearming the capture edge. Hyprland's unlocked `solitaryBlockedBy: null` response is also handled when an active workspace is present.
 
+On 0.19.7, pressing **Choose** for a file caused the Omarchy Quickshell process to abort. The coredump and journal place the abort in GLib/GVfs during the native GTK dialog, with a failed 4-byte allocation; no OOM kill was recorded. Version 0.19.8 forces Qt Quick's non-native file and folder dialogs. Both dialogs opened and closed in an isolated offscreen QML smoke test. A live panel retest is pending.
+
 Local loopback and integrated tests cover pairing, Noise XX, discovery, simulated network address changes, file offer/acceptance, return messages, virtual input and capture. The [technical guide](TECHNICAL.md) lists the commands. The firewall helper has a test for rule scope and confirmation, and the setup scripts have tests that preserve identity and remove only tracked packages.
 
 For 0.19.7, a local encrypted loopback test keeps two mesh links open, revokes an idle peer, verifies its socket closes while the other link remains usable, then revokes the active peer and verifies that the mesh loop receives the error that triggers capture release. The complete Rust test suite (72 tests) and Clippy passed locally. This does not replace a physical multi-computer mesh test.

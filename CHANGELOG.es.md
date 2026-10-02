@@ -4,6 +4,10 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.8 — 2026-10-02
+
+- Los selectores de archivo y carpeta usan los diálogos propios de Qt Quick. Así evitan la ruta GTK/GVfs que abortó Quickshell al pulsar **Elegir** en el Omarchy probado.
+
 ## 0.19.7 — 2026-10-02
 
 - Se cierran los vínculos autenticados de malla al revocar la identidad de un equipo, aunque ya no controle la entrada. Se descartan mensajes pendientes del vínculo revocado y se libera la captura si ese equipo tenía el control.
