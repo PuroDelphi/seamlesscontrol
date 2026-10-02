@@ -13,4 +13,4 @@ Para comprobarlo localmente antes de entregarlo, ejecuta `bash scripts/submissio
 
 Los comandos de usuario `omarchy plugin add` y `omarchy plugin update` siguen obteniendo el `HEAD` actual; la validación por SHA del mercado no fija esos comandos a un commit. Consulta la [política de verificación](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md).
 
-El GitHub Release v0.19.1 no incluye un agente precompilado. Si más adelante se ofrece uno, el checkout revisado deberá fijar su SHA256 exacto y el instalador deberá verificarlo antes de instalarlo; crear un tag de release por sí solo no resolvería una descarga mutable.
+Los GitHub Releases publicados hasta ahora no incluyen un agente precompilado. Si más adelante se ofrece uno, el checkout revisado deberá fijar su SHA256 exacto y el instalador deberá verificarlo antes de instalarlo; crear un tag de release por sí solo no resolvería una descarga mutable.

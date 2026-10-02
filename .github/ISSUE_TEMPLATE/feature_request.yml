@@ -1,0 +1,29 @@
+name: Feature request / Propuesta de función
+description: Suggest a focused improvement / Propón una mejora concreta
+title: "[Feature] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please search existing issues and the [roadmap](https://github.com/PuroDelphi/seamlesscontrol/blob/main/PLAN.md) first. / Busca antes en los issues y en el plan.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve / Problema que resolver
+      description: Describe the user's task and why the current panel does not cover it. / Explica la tarea del usuario y qué falta en el panel actual.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior / Comportamiento propuesto
+      description: Include the expected UI flow. / Incluye el proceso esperado en la interfaz.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Permissions, network and testing / Permisos, red y pruebas
+      description: Mention new access, ports, dependencies and what hardware would be needed to verify it. / Indica accesos, puertos, dependencias y equipos necesarios para probarla.
+    validations:
+      required: false

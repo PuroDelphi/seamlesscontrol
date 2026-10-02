@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Installation and usage / Instalación y uso
+    url: https://github.com/PuroDelphi/seamlesscontrol/blob/main/SUPPORT.md
+    about: Read the panel guide and troubleshooting steps / Lee la guía del panel y las soluciones
+  - name: Private security report / Reporte privado de seguridad
+    url: https://github.com/PuroDelphi/seamlesscontrol/security/advisories/new
+    about: Do not publish vulnerabilities in an issue / No publiques vulnerabilidades en un issue

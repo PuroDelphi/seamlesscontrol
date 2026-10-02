@@ -1,0 +1,55 @@
+name: Bug report / Reporte de error
+description: Report a reproducible problem / Informa de un problema reproducible
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the [user guide](https://github.com/PuroDelphi/seamlesscontrol/blob/main/docs/USER-GUIDE.md) and [current test limits](https://github.com/PuroDelphi/seamlesscontrol/blob/main/docs/TEST-RESULTS.md) first. / Consulta antes la [guía](https://github.com/PuroDelphi/seamlesscontrol/blob/main/docs/USER-GUIDE.es.md) y los [límites actuales](https://github.com/PuroDelphi/seamlesscontrol/blob/main/docs/TEST-RESULTS.es.md).
+        For vulnerabilities, use the [private security route](https://github.com/PuroDelphi/seamlesscontrol/security/advisories/new). / Para vulnerabilidades, usa la vía privada.
+  - type: input
+    id: versions
+    attributes:
+      label: Omarchy and SeamlessControl versions / Versiones
+      description: Include the plugin version on both computers, if relevant. / Indica la versión del plugin en ambos equipos, si corresponde.
+      placeholder: "Omarchy …; SeamlessControl 0.19.2 on both computers"
+    validations:
+      required: true
+  - type: dropdown
+    id: location
+    attributes:
+      label: Where does it happen? / ¿Dónde sucede?
+      options:
+        - Source computer / Equipo de origen
+        - Receiver computer / Equipo receptor
+        - Both / Ambos
+        - Installation or documentation / Instalación o documentación
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / Pasos para reproducir
+      placeholder: "1. …\n2. …\n3. …"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result / Resultado esperado
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and panel status / Resultado real y estado del panel
+      description: Attach a redacted screenshot or short log if useful. / Adjunta una captura o registro anonimizado si ayuda.
+    validations:
+      required: true
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check / Privacidad
+      options:
+        - label: I removed keys, codes, tokens, personal content and real device or network details. / Eliminé claves, códigos, tokens, contenido personal y datos reales de equipos o red.
+          required: true

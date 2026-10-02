@@ -89,4 +89,4 @@ cargo test --manifest-path agent/Cargo.toml
 cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
 ```
 
-Loopback pairing, discovery, file, reconnect and roaming scripts are listed in [TESTING.md](TESTING.md). Integrated capture and injection tests require a real Omarchy session without another active agent. The observed physical success covers two Omarchy machines with one known monitor layout and right/left edge return. Keyboard, file transfer, multi-machine mesh, different monitor layouts, sleep and network loss need further physical testing. Windows support remains planned.
+Loopback pairing, discovery, file, reconnect and roaming scripts are listed in [TESTING.md](TESTING.md). Integrated capture and injection tests require a real Omarchy session without another active agent. The observed physical success covers two Omarchy machines with one known monitor layout, edge return, Escape and Super+V. Other keyboard shortcuts, file transfer, multi-machine mesh, different monitor layouts, sleep and network loss need further physical testing. Windows support remains planned.

@@ -13,4 +13,4 @@ For local verification before submission, run `bash scripts/submission-pin.sh`. 
 
 The user-facing `omarchy plugin add` and `omarchy plugin update` commands still fetch current upstream `HEAD`; the marketplace's exact-SHA validation does not make those commands commit-bound. See the [marketplace verification policy](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md).
 
-The v0.19.1 GitHub Release contains no prebuilt agent. If one is introduced later, the reviewed checkout must pin its exact SHA256 and the installer must verify it before installation; simply creating a release tag would not resolve a mutable-download finding.
+The GitHub Releases so far contain no prebuilt agent. If one is introduced later, the reviewed checkout must pin its exact SHA256 and the installer must verify it before installation; simply creating a release tag would not resolve a mutable-download finding.

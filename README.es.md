@@ -1,12 +1,16 @@
 # SeamlessControl para Omarchy
 
+[![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Licencia MIT](LICENSE)
+
 Usa un ratón y teclado entre equipos Omarchy cercanos. Cruza el borde de una pantalla para controlar el siguiente equipo y vuelve por el borde para regresar. La primera versión se centra en Omarchy con Omarchy; la compatibilidad con Windows está prevista para después.
 
 **Idioma:** [English](README.md) · Español
+
 **Uso del panel:** [Guía ilustrada](docs/USER-GUIDE.es.md)
+
 **Para desarrolladores:** [Guía técnica](docs/TECHNICAL.es.md) · [Resultados de pruebas](docs/TEST-RESULTS.es.md) · [Plan](PLAN.md)
 
-> SeamlessControl es experimental. Dos equipos Omarchy físicos completaron dos recorridos de ida y vuelta con el ratón y una devolución con Escape. Faltan pruebas físicas de otras disposiciones y funciones.
+> SeamlessControl es experimental. Dos equipos Omarchy físicos completaron recorridos de ida y vuelta con el ratón, una devolución con Escape y el atajo Super+V a través de la conexión. Faltan pruebas físicas de otras disposiciones y funciones.
 
 Las capturas del panel usan nombres de equipo y direcciones de red ficticios.
 
@@ -76,6 +80,9 @@ Si autorizaste una regla de firewall, retírala **antes** de quitar el widget en
 
 ## Más información
 
+- [Ayuda y solución de problemas](SUPPORT.es.md)
+- [Contribuir](CONTRIBUTING.es.md) · [Normas de conducta](CODE_OF_CONDUCT.es.md) · [Política de seguridad](SECURITY.es.md)
+- [Notas de versiones](CHANGELOG.es.md) · [Último release de código fuente](https://github.com/PuroDelphi/seamlesscontrol/releases/latest)
 - [Guía técnica: comandos manuales, seguridad, servicios y pruebas](docs/TECHNICAL.es.md)
 - [Guía ilustrada del panel y sus funciones](docs/USER-GUIDE.es.md)
 - [Límites actuales y resultados de pruebas físicas](docs/TEST-RESULTS.es.md)

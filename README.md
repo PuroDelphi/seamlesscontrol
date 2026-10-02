@@ -1,12 +1,16 @@
 # SeamlessControl for Omarchy
 
+[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [MIT license](LICENSE)
+
 Use one mouse and keyboard across nearby Omarchy computers. Move the pointer through a screen edge to control the next computer, then move back to return. The first release focuses on Omarchy to Omarchy; Windows support is planned later.
 
 **Language:** English · [Español](README.es.md)
+
 **Using the panel:** [Illustrated user guide](docs/USER-GUIDE.md)
+
 **For developers:** [Technical guide](docs/TECHNICAL.md) · [Test results](docs/TEST-RESULTS.md) · [Roadmap (Spanish)](PLAN.md)
 
-> SeamlessControl is experimental. Two physical Omarchy computers have completed two mouse round trips and an Escape return. Other layouts and features still need physical testing.
+> SeamlessControl is experimental. Two physical Omarchy computers have completed mouse round trips, an Escape return, and a Super+V shortcut across the connection. Other layouts and features still need physical testing.
 
 Panel screenshots use fictional computer names and network addresses.
 
@@ -76,6 +80,9 @@ If you authorized a firewall rule, remove it **before** removing the widget from
 
 ## More
 
+- [Help and troubleshooting](SUPPORT.md)
+- [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md)
+- [Release notes](CHANGELOG.md) · [Latest source release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest)
 - [Technical guide: manual commands, security, services and tests](docs/TECHNICAL.md)
 - [Illustrated panel guide and feature reference](docs/USER-GUIDE.md)
 - [Known limitations and physical test results](docs/TEST-RESULTS.md)
