@@ -203,7 +203,9 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("Después de añadir el plugin con Omarchy, instale aquí el agente y los paquetes que falten. Se abrirá una terminal para mostrar el progreso y pedir autorización si hace falta.")
+          text: root.backend && root.backend.installed
+            ? root.t("El agente ya está instalado. Detenga las sesiones activas antes de actualizarlo. Se abrirá una terminal para mostrar el progreso.")
+            : root.t("Después de añadir el plugin con Omarchy, instale aquí el agente y los paquetes que falten. Se abrirá una terminal para mostrar el progreso y pedir autorización si hace falta.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -216,10 +218,12 @@ Panel {
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
-            text: root.t("Instalar agente")
+            text: root.backend && root.backend.installed
+              ? root.t("Actualizar agente") : root.t("Instalar agente")
             bordered: true
             focusable: true
-            enabled: root.backend && !root.backend.installed && !root.backend.setupBusy
+            enabled: root.backend && !root.backend.available && !root.backend.managedAgentRunning
+              && !root.backend.setupBusy
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face

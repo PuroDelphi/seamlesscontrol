@@ -21,7 +21,19 @@ Open **SeamlessControl** from the Omarchy bar. The panel starts in English; sele
 
 ![The SeamlessControl language and setup controls in the Omarchy panel](docs/images/setup-en.png)
 
+The screenshot shows an existing installation, so this button reads **Update agent**. On a new computer, it reads **Install agent**.
+
 The first build downloads Rust dependencies and can take a while. The panel detects the agent automatically. The installed widget alone cannot share input until the agent is installed.
+
+## Update on both computers
+
+Stop any active SeamlessControl session. On **each** Omarchy, update the widget with the standard command:
+
+```bash
+omarchy plugin update seamlesscontrol.control
+```
+
+Open the panel and choose **Update agent** under **Set up this computer**. The terminal rebuilds and replaces the agent while keeping pairing keys and the computer layout. Close the terminal when it finishes, then start receiving or sharing again. Update both computers before using a new agent version. If you only changed the widget's language, no update is needed.
 
 ## Connect two Omarchy computers
 
