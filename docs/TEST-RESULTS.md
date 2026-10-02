@@ -16,4 +16,6 @@ The original trapped cursor episode involved a source `connect` process in a sus
 
 Local loopback and integrated tests cover pairing, Noise XX, discovery, simulated network address changes, file offer/acceptance, return messages, virtual input and capture. The [technical guide](TECHNICAL.md) lists the commands. The firewall helper has a test for rule scope and confirmation, and the setup scripts have tests that preserve identity and remove only tracked packages.
 
+For 0.19.7, a local encrypted loopback test keeps two mesh links open, revokes an idle peer, verifies its socket closes while the other link remains usable, then revokes the active peer and verifies that the mesh loop receives the error that triggers capture release. The complete Rust test suite (72 tests) and Clippy passed locally. This does not replace a physical multi-computer mesh test.
+
 The following still need physical verification: other keyboard shortcuts and layouts, wheel and dragging between the two machines; file transfer; clipboard synchronization; multiple receiver mesh; other screen edges and monitor arrangements; locking, sleep and network loss. Windows support is planned for a later phase.

@@ -312,7 +312,7 @@ mod linux {
         address: SocketAddr,
         identity: &Identity,
         config: &std::path::Path,
-        feedback: tokio::sync::mpsc::Sender<(IpAddr, Result<Frame, FrameError>)>,
+        feedback: tokio::sync::mpsc::Sender<(IpAddr, [u8; 32], Result<Frame, FrameError>)>,
     ) -> Result<MeshLink, Box<dyn Error>> {
         let peers = config.join("peers");
         let pinned = load_peer_key(&peers, address.ip())?
@@ -354,11 +354,12 @@ mod linux {
             .set_write_timeout(Some(Duration::from_secs(5)))?;
         let (mut reader, writer) = channel.into_tcp_halves()?;
         let peer_ip = address.ip();
+        let peer_key = peer.public_key;
         let reader = thread::spawn(move || {
             loop {
                 let frame = Frame::read_from(&mut reader);
                 let done = frame.is_err();
-                if feedback.blocking_send((peer_ip, frame)).is_err() || done {
+                if feedback.blocking_send((peer_ip, peer_key, frame)).is_err() || done {
                     break;
                 }
             }
@@ -432,6 +433,40 @@ mod linux {
             .ok_or_else(|| "mesh peer is not connected".into())
     }
 
+    fn reconcile_mesh_links(
+        links: &mut BTreeMap<IpAddr, MeshLink>,
+        peers_dir: &std::path::Path,
+        coordinator: &HandoffCoordinator,
+    ) -> Result<(), Box<dyn Error>> {
+        let mut removed = Vec::new();
+        for (&address, link) in links.iter() {
+            if load_peer_key(peers_dir, address)? != Some(link.peer_key)
+                || is_revoked(peers_dir, &link.peer_key)?
+            {
+                removed.push(address);
+            }
+        }
+        let mut active_revoked = false;
+        for address in removed {
+            if let Some(mut link) = links.remove(&address) {
+                let _ = link.writer.stream_mut().shutdown(Shutdown::Both);
+                // The reader reports through feedback_rx. It must not be joined
+                // here because it may be waiting for space in that channel.
+            }
+            if coordinator.owner() == Machine::Peer(address)
+                || coordinator.pending().is_some_and(|pending| {
+                    pending.from == address || pending.target == Machine::Peer(address)
+                })
+            {
+                active_revoked = true;
+            }
+        }
+        if active_revoked {
+            return Err("active mesh peer was revoked; releasing capture".into());
+        }
+        Ok(())
+    }
+
     async fn mesh_loop(
         port: u16,
         identity: &Identity,
@@ -493,7 +528,7 @@ mod linux {
         let started = Instant::now();
 
         let (feedback_tx, mut feedback_rx) =
-            tokio::sync::mpsc::channel::<(IpAddr, Result<Frame, FrameError>)>(32);
+            tokio::sync::mpsc::channel::<(IpAddr, [u8; 32], Result<Frame, FrameError>)>(32);
         let mut clipboard_mesh = MeshClipboard::new(identity.public);
         let (clipboard_apply, clipboard_apply_worker) = spawn_apply_events();
         let (clipboard_tx, mut clipboard_rx) = tokio::sync::mpsc::channel::<ClipboardEvent>(8);
@@ -507,6 +542,7 @@ mod linux {
             }
         };
         let mut links = BTreeMap::<IpAddr, MeshLink>::new();
+        let peers_dir = config.join("peers");
         let mut coordinator = HandoffCoordinator::new(topology.clone());
         let mut heartbeat = tokio::time::interval(Duration::from_secs(2));
         let mut topology_check = tokio::time::interval(Duration::from_secs(1));
@@ -531,6 +567,7 @@ mod linux {
                         }
                     }
                     _ = pause_tick.tick() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         if control.revoked_active() { return Err("active mesh peer was revoked".into()); }
                         locked = lock_ipc.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
                         if pending_since.is_some_and(|since| since.elapsed() > Duration::from_secs(2)) {
@@ -555,9 +592,11 @@ mod linux {
                         }
                     }
                     _ = heartbeat.tick() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         for link in links.values_mut() { link.send(Kind::Heartbeat, 0, Vec::new())?; }
                     }
                     Some(event) = clipboard_rx.recv() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         if !locked && let Some(packet) = clipboard_mesh.local_changed(event)? {
                             for link in links.values_mut() {
                                 link.send(Kind::Clipboard, 0, packet.encode())?;
@@ -565,7 +604,11 @@ mod linux {
                         }
                     }
                     feedback = feedback_rx.recv() => {
-                        let (from, frame) = feedback.ok_or("mesh feedback channel closed")?;
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
+                        let (from, from_key, frame) = feedback.ok_or("mesh feedback channel closed")?;
+                        // A removed reader can still have a queued frame. Never
+                        // process it after revocation or re-pairing at that IP.
+                        if !links.get(&from).is_some_and(|link| link.peer_key == from_key) { continue; }
                         let frame = frame?;
                         if frame.kind == Kind::Clipboard {
                             let expected = mesh_link(&mut links, from)?.peer_key;
@@ -655,6 +698,7 @@ mod linux {
                         } else { return Err("unknown mesh feedback control".into()); }
                     }
                     signal = activated.next() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         let signal = signal.ok_or("capture activation stream closed")?;
                         let target = match signal.barrier_id() {
                             Some(ActivatedBarrier::Barrier(id)) => barriers.get(&id.get()).copied(),
@@ -699,6 +743,7 @@ mod linux {
                         println!("Control remoto activo en {peer}.");
                     }
                     signal = deactivated.next() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         if signal.is_none() { return Err("capture deactivation stream closed".into()); }
                         if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                             mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
@@ -708,6 +753,7 @@ mod linux {
                         control.set_peer(""); control.set_phase("ready");
                     }
                     signal = zones_changed.next() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         let signal = signal.ok_or("capture zones stream closed")?;
                         if signal.zone_set().is_some_and(|id| id != zone_set) { continue; }
                         if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
@@ -726,6 +772,7 @@ mod linux {
                         control.set_peer(""); control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "ready" });
                     }
                     event = events.next() => {
+                        reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         let event = event.ok_or("EIS event stream closed")??;
                         if let EiEvent::SeatAdded(seat) = &event {
                             seat.seat.bind_capabilities(DeviceCapability::Pointer | DeviceCapability::Keyboard | DeviceCapability::Scroll | DeviceCapability::Button);
@@ -2350,7 +2397,94 @@ mod linux {
     #[cfg(test)]
     mod tests {
         use super::*;
+        use std::io::Read;
         use std::net::Ipv4Addr;
+
+        fn test_mesh_link(remote: Identity) -> (MeshLink, thread::JoinHandle<io::Result<usize>>) {
+            let local = Identity::generate().unwrap();
+            let remote_key = remote.public;
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let server = thread::spawn(move || {
+                let (stream, _) = listener.accept()?;
+                stream.set_read_timeout(Some(Duration::from_secs(3)))?;
+                let (mut channel, _) = SecureChannel::connect(
+                    stream,
+                    Role::Responder,
+                    &remote,
+                    Some(&local.public),
+                    |_| false,
+                )
+                .map_err(io::Error::other)?;
+                let mut byte = [0];
+                channel.read(&mut byte)
+            });
+            let stream = TcpStream::connect(address).unwrap();
+            let (channel, _) =
+                SecureChannel::connect(stream, Role::Initiator, &local, Some(&remote_key), |_| {
+                    false
+                })
+                .unwrap();
+            let (_, writer) = channel.into_tcp_halves().unwrap();
+            (
+                MeshLink {
+                    writer,
+                    peer_key: remote_key,
+                    sequence: 0,
+                    reader: None,
+                },
+                server,
+            )
+        }
+
+        #[test]
+        fn revoking_mesh_peers_closes_links_and_releases_active_control() {
+            let scratch = std::env::temp_dir().join(format!(
+                "seamlesscontrol-mesh-revoke-{}-{}",
+                std::process::id(),
+                SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            let peers = scratch.join("peers");
+            let a = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2));
+            let b = IpAddr::V4(Ipv4Addr::new(192, 168, 1, 3));
+            let a_identity = Identity::generate().unwrap();
+            let b_identity = Identity::generate().unwrap();
+            remember_peer_key(&peers, a, &a_identity.public).unwrap();
+            remember_peer_key(&peers, b, &b_identity.public).unwrap();
+            let (a_link, a_server) = test_mesh_link(a_identity);
+            let (b_link, b_server) = test_mesh_link(b_identity);
+            let mut links = BTreeMap::from([(a, a_link), (b, b_link)]);
+            let coordinator = HandoffCoordinator::new(Default::default());
+            reconcile_mesh_links(&mut links, &peers, &coordinator).unwrap();
+            assert_eq!(links.len(), 2);
+
+            revoke_peer_key(&peers, a).unwrap();
+            reconcile_mesh_links(&mut links, &peers, &coordinator).unwrap();
+            assert!(!links.contains_key(&a));
+            assert_eq!(a_server.join().unwrap().unwrap(), 0);
+            links
+                .get_mut(&b)
+                .unwrap()
+                .send(Kind::Heartbeat, 0, Vec::new())
+                .unwrap();
+            assert_eq!(b_server.join().unwrap().unwrap(), 1);
+
+            let mut topology = seamlesscontrol_core::topology::Topology::new();
+            topology
+                .place(Machine::Peer(b), Slot::new(1, 0).unwrap())
+                .unwrap();
+            let mut active = HandoffCoordinator::new(topology);
+            active
+                .activate_local_edge(LogicalEdge::Right, b, 1)
+                .unwrap();
+            revoke_peer_key(&peers, b).unwrap();
+            assert!(reconcile_mesh_links(&mut links, &peers, &active).is_err());
+            assert!(links.is_empty());
+            std::fs::remove_dir_all(scratch).unwrap();
+        }
 
         #[test]
         fn input_epoch_remains_monotonic_when_clock_is_behind() {

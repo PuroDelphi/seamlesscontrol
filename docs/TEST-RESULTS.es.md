@@ -16,4 +16,6 @@ En el episodio original de puntero atrapado había un proceso `connect` del orig
 
 Las pruebas locales de loopback e integración cubren emparejamiento, Noise XX, descubrimiento, cambios de IP simulados, oferta y aceptación de archivos, mensajes de retorno, entrada virtual y captura. La [guía técnica](TECHNICAL.es.md) enumera los comandos. El asistente de firewall tiene pruebas del alcance de la regla y la confirmación; los scripts de instalación tienen pruebas de conservación de identidad y retirada solo de paquetes registrados.
 
+En 0.19.7, una prueba local cifrada de loopback mantiene abiertos dos vínculos de malla, revoca un equipo inactivo y comprueba que su socket se cierra mientras el otro sigue operativo; luego revoca el equipo activo y comprueba que el bucle de malla recibe el error que provoca la liberación de la captura. Pasaron las 72 pruebas Rust y Clippy localmente. Esto no sustituye una prueba física de malla con varios equipos.
+
 Siguen pendientes de verificación física: otros atajos y mapas de teclado, rueda y arrastre entre los dos equipos; archivos; sincronización del portapapeles; malla de varios receptores; otros bordes y disposiciones de monitores; bloqueo, suspensión y pérdida de red. La compatibilidad con Windows corresponde a una fase posterior.

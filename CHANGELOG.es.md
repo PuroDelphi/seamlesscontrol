@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.7 — 2026-10-02
+
+- Se cierran los vínculos autenticados de malla al revocar la identidad de un equipo, aunque ya no controle la entrada. Se descartan mensajes pendientes del vínculo revocado y se libera la captura si ese equipo tenía el control.
+- Se añadió una prueba de regresión local con conexiones cifradas de loopback. Sigue pendiente repetir la prueba de malla con varios equipos físicos.
+
 ## 0.19.6 — 2026-10-02
 
 - Se publica un archivo del código fuente de cada tag y su suma SHA256 como assets del release.

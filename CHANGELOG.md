@@ -4,6 +4,11 @@
 
 This file summarizes user-visible published changes. The repository is experimental; consult the [test results](docs/TEST-RESULTS.md) for verified behavior.
 
+## 0.19.7 — 2026-10-02
+
+- Close authenticated mesh links when their peer identity is revoked, even when that peer no longer controls input. Discard queued feedback from revoked links and release capture if the revoked peer was active.
+- Added a local encrypted loopback regression test. A physical multi-computer mesh retest is still pending.
+
 ## 0.19.6 — 2026-10-02
 
 - Publish a tagged source archive and adjacent SHA256 checksum as GitHub Release assets.
