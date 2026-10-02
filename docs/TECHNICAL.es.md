@@ -14,7 +14,7 @@ Alternativa desde terminal:
 bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh
 ```
 
-Para actualizar el widget en **cada** equipo, ejecuta `omarchy plugin update seamlesscontrol.control`. Si cambió el agente, detén cualquier sesión activa, pulsa **Actualizar agente** en el panel (o usa el comando de terminal) y reinicia el agente en ambos extremos. Un proceso en marcha conserva la revisión anterior hasta reiniciarlo. Las claves y el mapa se conservan.
+Para actualizar el widget en **cada** equipo, ejecuta `omarchy plugin update seamlesscontrol.control` y después `omarchy restart shell` para cargar el QML nuevo. Si cambió el agente, detén cualquier sesión activa, pulsa **Actualizar agente** en el panel (o usa el comando de terminal) y reinicia el agente en ambos extremos. Un proceso en marcha conserva la revisión anterior hasta reiniciarlo. Las claves y el mapa se conservan.
 
 **Retirar agente** ejecuta `uninstall-agent.sh --remove-deps` en una terminal de Omarchy. Detiene los servicios de usuario instalados, elimina el binario y retira solo los paquetes registrados como instalados por este plugin. Pacman rechazará la retirada de paquetes requeridos por otros. Los paquetes que ya estaban presentes no se registran. La desinstalación CLI predeterminada, sin `--remove-deps`, conserva los paquetes. Ninguna ruta borra `~/.config/seamlesscontrol/` (identidad, pares, mapa). Retira una regla de firewall por separado antes de `omarchy plugin remove seamlesscontrol.control`.
 

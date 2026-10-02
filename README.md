@@ -33,7 +33,7 @@ Stop any active SeamlessControl session. On **each** Omarchy, update the widget 
 omarchy plugin update seamlesscontrol.control
 ```
 
-Open the panel and choose **Update agent** under **Set up this computer**. The terminal rebuilds and replaces the agent while keeping pairing keys and the computer layout. Close the terminal when it finishes, then start receiving or sharing again. Update both computers before using a new agent version. If you only changed the widget's language, no update is needed.
+Then run `omarchy restart shell` and reopen the panel so Omarchy loads the updated interface. Choose **Update agent** under **Set up this computer**. The terminal rebuilds and replaces the agent while keeping pairing keys and the computer layout. Close the terminal when it finishes, then start receiving or sharing again. Update both computers before using a new agent version. If you only changed the widget's language, no update is needed.
 
 ## Connect two Omarchy computers
 

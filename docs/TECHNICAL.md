@@ -14,7 +14,7 @@ The terminal fallback is:
 bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh
 ```
 
-To update the widget on **each** machine, run `omarchy plugin update seamlesscontrol.control`. For agent code changes, stop any active session, choose **Update agent** in the panel (or use the terminal command), then restart the agent on both ends. An already running process keeps using its old binary until restarted. Pairing keys and layout are preserved.
+To update the widget on **each** machine, run `omarchy plugin update seamlesscontrol.control`, followed by `omarchy restart shell` so the panel loads the new QML. For agent code changes, stop any active session, choose **Update agent** in the panel (or use the terminal command), then restart the agent on both ends. An already running process keeps using its old binary until restarted. Pairing keys and layout are preserved.
 
 **Remove agent** in the panel runs `uninstall-agent.sh --remove-deps` in an Omarchy terminal. It stops installed user services, removes the binary and removes only packages recorded as installed by this plugin. Pacman will refuse removals needed by other packages. Packages that predated the plugin are never recorded. The default CLI uninstall, without `--remove-deps`, leaves packages installed. Neither path deletes `~/.config/seamlesscontrol/` (identity, peers, layout). Remove a firewall rule separately before `omarchy plugin remove seamlesscontrol.control`.
 

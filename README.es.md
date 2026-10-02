@@ -33,7 +33,7 @@ Detén cualquier sesión activa de SeamlessControl. En **cada** Omarchy, actuali
 omarchy plugin update seamlesscontrol.control
 ```
 
-Abre el panel y pulsa **Actualizar agente** en **Preparar este equipo**. La terminal recompilará y reemplazará el agente sin borrar las claves de emparejamiento ni el mapa de equipos. Cierra la terminal cuando termine y vuelve a iniciar la recepción o el uso compartido. Actualiza ambos equipos antes de usar una versión nueva del agente. Un cambio de idioma del widget no requiere actualizarlo.
+Después ejecuta `omarchy restart shell` y vuelve a abrir el panel para que Omarchy cargue la interfaz actualizada. Pulsa **Actualizar agente** en **Preparar este equipo**. La terminal recompilará y reemplazará el agente sin borrar las claves de emparejamiento ni el mapa de equipos. Cierra la terminal cuando termine y vuelve a iniciar la recepción o el uso compartido. Actualiza ambos equipos antes de usar una versión nueva del agente. Un cambio de idioma del widget no requiere actualizarlo.
 
 ## Conectar dos equipos Omarchy
 
