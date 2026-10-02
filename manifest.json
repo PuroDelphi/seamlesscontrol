@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.19.10",
+  "version": "0.20.0",
   "author": "PuroDelphi",
   "license": "MIT",
   "description": "Share one mouse and keyboard across paired Omarchy computers on a LAN",

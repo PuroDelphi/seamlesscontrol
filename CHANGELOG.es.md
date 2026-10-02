@@ -4,6 +4,12 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## 0.20.0 — 2026-10-02
+
+- Integra las mejoras de `alpha` en la rama publicada: el panel queda organizado en **Principal** y **Más**, con la preparación y el firewall en **Principal**, y explicaciones desplegables accesibles con el teclado.
+- Muestra cuándo el receptor de archivos está escuchando y ofrece una acción específica para autorizar su puerto LAN. Corrige el manejo de la sesión de archivos tras una oferta y añade una prueba local del estado de escucha.
+- Incluye la imagen promocional y las guías actualizadas en inglés y español. Se verificó una transferencia física en un sentido; la acción específica para el puerto de archivos y los demás casos requieren más pruebas físicas.
+
 ## 0.19.10 — 2026-10-02
 
 - Destaca en los dos README y en la ficha del mercado las pruebas verificadas de ratón, teclado y regreso entre dos equipos.

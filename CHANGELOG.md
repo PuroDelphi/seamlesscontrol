@@ -4,6 +4,12 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## 0.20.0 — 2026-10-02
+
+- Bring the `alpha` improvements to the published branch: organize the panel into **Main** and **More**, keep essential setup and firewall actions on **Main**, and collapse optional explanations with keyboard access.
+- Show file receiver readiness and provide a dedicated LAN firewall action for the file port. Correct file-session handling after an offer and add loopback coverage for the visible listening state.
+- Include the promotional preview and the updated English and Spanish guides. One physical file transfer was verified in one direction; the dedicated file-port control and remaining scenarios need further physical testing.
+
 ## 0.19.10 — 2026-10-02
 
 - Describe the verified two-computer mouse, keyboard and return-control tests prominently in both READMEs and the marketplace listing.
