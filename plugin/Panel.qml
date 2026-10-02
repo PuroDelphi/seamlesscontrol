@@ -1336,6 +1336,16 @@ Panel {
             root.close()
           }
         }
+
+        Text {
+          Layout.fillWidth: true
+          text: "Powered by JhonnySuarez - PuroDelphi"
+          textFormat: Text.PlainText
+          horizontalAlignment: Text.AlignHCenter
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
         }
       }
     }
