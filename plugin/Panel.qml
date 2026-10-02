@@ -173,19 +173,28 @@ Panel {
     contentWidth: panel.fittedContentWidth(Style.space(430))
     contentHeight: panel.fittedContentHeight(content.implicitHeight)
 
-    PanelKeyCatcher {
+    Item {
       id: keyCatcher
       anchors.fill: parent
-      blocked: root.activeTab === "more"
-      onTabRequested: function(direction) {
-        if (root.activeTab === "main")
-          root.focusCell(root.keyboardCell < 0 ? (direction > 0 ? 0 : 3) : (root.keyboardCell + direction + 4) % 4)
-      }
-      onMoveRequested: function(dx, dy) { root.moveKeyboardCell(dx, dy) }
-      onActivateRequested: root.activateKeyboardCell()
-      onCloseRequested: {
-        if (root.selectedMachine !== "") root.selectedMachine = ""
-        else root.close()
+      focus: true
+      Keys.priority: Keys.BeforeItem
+      Keys.onPressed: function(event) {
+        if (event.key === Qt.Key_Escape) {
+          if (root.selectedMachine !== "") root.selectedMachine = ""
+          else root.close()
+          event.accepted = true
+          return
+        }
+        if (root.activeTab !== "main" || root.keyboardCell < 0) return
+        if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
+            || event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
+          root.moveKeyboardCell(event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0,
+                                event.key === Qt.Key_Up ? -1 : event.key === Qt.Key_Down ? 1 : 0)
+          event.accepted = true
+        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+          root.activateKeyboardCell()
+          event.accepted = true
+        }
       }
 
       Flickable {
@@ -302,17 +311,15 @@ Panel {
           fontFamily: root.face
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
           visible: root.activeTab === "main"
-          text: root.backend && root.backend.installed
+          title: root.t("Ayuda · Instalación del agente")
+          description: root.backend && root.backend.installed
             ? root.t("El agente ya está instalado. Detenga las sesiones activas antes de actualizarlo. Se abrirá una terminal para mostrar el progreso.")
             : root.t("Después de añadir el plugin con Omarchy, instale aquí el agente y los paquetes que falten. Se abrirá una terminal para mostrar el progreso y pedir autorización si hace falta.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         PanelSectionHeader {
@@ -477,34 +484,14 @@ Panel {
           fontFamily: root.face
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("Ubique el otro equipo junto a ESTE EQUIPO en ambos Omarchy. En el receptor, esa posición permite volver cruzando el borde hacia el origen; sin ella, use Escape o «Devolver control al origen».")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
-        }
-
-        Text {
-          Layout.fillWidth: true
-          text: root.t("El mapa guarda la dirección del cruce. Para iniciar la sesión, pulse Conectar en el origen.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
-        }
-
-        Text {
-          Layout.fillWidth: true
-          text: root.t("Teclado: Tab recorre las casillas, Enter elige una ficha, las flechas llevan a la casilla de destino y Enter la coloca. Escape cancela la selección.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Posición y teclado")
+          description: root.t("Ubique el otro equipo junto a ESTE EQUIPO en ambos Omarchy. En el receptor, esa posición permite volver cruzando el borde hacia el origen; sin ella, use Escape o «Devolver control al origen».")
+            + "\n\n" + root.t("El mapa guarda la dirección del cruce. Para iniciar la sesión, pulse Conectar en el origen.")
+            + "\n\n" + root.t("Teclado: Tab llega al mapa y recorre sus casillas, Enter elige una ficha, las flechas llevan a la casilla de destino y Enter la coloca. Escape cancela la selección.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         GridLayout {
@@ -520,6 +507,11 @@ Panel {
             delegate: Rectangle {
               id: gridCell
               required property int index
+              activeFocusOnTab: true
+              onActiveFocusChanged: {
+                if (activeFocus) root.keyboardCell = index
+                else if (root.keyboardCell === index) root.keyboardCell = -1
+              }
               readonly property int column: index % 2
               readonly property int row: Math.floor(index / 2)
               readonly property string machine: root.machineAt(column, row)
@@ -632,14 +624,13 @@ Panel {
           fontFamily: root.face
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("Emparejar autoriza un equipo una sola vez. Conectar inicia cada sesión de control.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Emparejar y conectar")
+          description: root.t("Emparejar autoriza un equipo una sola vez. Conectar inicia cada sesión de control.")
+          foreground: root.ink
+          fontFamily: root.face
+          detailColor: Color.accent
         }
 
         RowLayout {
@@ -978,15 +969,13 @@ Panel {
           fontFamily: root.face
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
           visible: root.backend && root.backend.installed
-          text: root.t("Si el otro equipo agota el tiempo de conexión, permita aquí el mismo puerto TCP elegido para «Recibir control». Primero verá la regla limitada a esta red local; Omarchy pedirá autorización antes de aplicarla.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Puerto de control")
+          description: root.t("Si el otro equipo agota el tiempo de conexión, permita aquí el mismo puerto TCP elegido para «Recibir control». Primero verá la regla limitada a esta red local; Omarchy pedirá autorización antes de aplicarla.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         RowLayout {
@@ -1102,15 +1091,13 @@ Panel {
           }
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: root.t("Conectar por IP sirve cuando el receptor ya está emparejado y ubicado, pero no aparece en Equipos en la red.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Conexión por IP")
+          description: root.t("Conectar por IP sirve cuando el receptor ya está emparejado y ubicado, pero no aparece en Equipos en la red.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         RowLayout {
@@ -1141,15 +1128,13 @@ Panel {
           }
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: root.t("Malla experimental: un ratón controla dos o tres receptores en un mapa 2 × 2. Empareje y ubique todos los equipos; cada receptor debe usar este mismo puerto. Para dos equipos en total, use Conectar arriba.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Varios equipos")
+          description: root.t("Malla experimental: un ratón controla dos o tres receptores en un mapa 2 × 2. Empareje y ubique todos los equipos; cada receptor debe usar este mismo puerto. Para dos equipos en total, use Conectar arriba.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         }
@@ -1171,14 +1156,12 @@ Panel {
           onClicked: if (root.backend) root.backend.stopManagedAgent()
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Conectar».\n5  Espere «Listo» y cruce el borde exterior indicado.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Conexión paso a paso")
+          description: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Conectar».\n5  Espere «Listo» y cruce el borde exterior indicado.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         Button {
@@ -1230,14 +1213,13 @@ Panel {
           onClicked: if (root.backend) root.backend.resumeReceiver()
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen. Si el retorno falla, use «Cortar entrada remota · emergencia» en este receptor; reanude cuando sea seguro.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Volver al origen")
+          description: root.t("Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen. Si el retorno falla, use «Cortar entrada remota · emergencia» en este receptor; reanude cuando sea seguro.")
+          foreground: root.ink
+          fontFamily: root.face
+          detailColor: Color.accent
         }
 
         PanelSeparator {
@@ -1252,14 +1234,12 @@ Panel {
           fontFamily: root.face
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Límite predeterminado: 100 MiB.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Recibir archivos")
+          description: root.t("En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Límite predeterminado: 100 MiB.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         Controls.TextField {
@@ -1327,14 +1307,12 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("ANTES DEL PRIMER ENVÍO: en este receptor, prepare y autorice la regla LAN para el puerto de archivos 47833 (o el puerto que eligió arriba). El puerto del control, 47832 por defecto, no sirve para archivos. Vuelva a pulsar Esperar un archivo para cada envío.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Firewall para archivos")
+          description: root.t("ANTES DEL PRIMER ENVÍO: en este receptor, prepare y autorice la regla LAN para el puerto de archivos 47833 (o el puerto que eligió arriba). El puerto del control, 47832 por defecto, no sirve para archivos. Vuelva a pulsar Esperar un archivo para cada envío.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         Button {
@@ -1442,14 +1420,12 @@ Panel {
           }
         }
 
-        Text {
+        HelpDisclosure {
           Layout.fillWidth: true
-          text: root.t("En el origen, elija un equipo emparejado y un archivo local.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.muted
-          font.family: root.face
-          font.pixelSize: Style.font.caption
+          title: root.t("Ayuda · Enviar archivos")
+          description: root.t("En el origen, elija un equipo emparejado y un archivo local.")
+          foreground: root.ink
+          fontFamily: root.face
         }
 
         Controls.TextField {
