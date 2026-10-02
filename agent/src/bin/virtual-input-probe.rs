@@ -13,6 +13,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let dy: f64 = args[3].parse()?;
         devices.motion(dx, dy, 0)?;
         println!("Se envió movimiento relativo ({dx}, {dy}).");
+    } else if args.len() == 2 && args[1] == "--escape" {
+        devices.key(1, true, 0)?;
+        devices.key(1, false, 1)?;
+        println!("Se envió Escape con el teclado virtual.");
     } else {
         println!("Hyprland aceptó teclado y puntero virtuales; no se enviaron eventos.");
     }

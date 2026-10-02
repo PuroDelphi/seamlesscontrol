@@ -175,6 +175,31 @@ impl EdgeReturnDetector {
     }
 }
 
+/// Keep the capture barrier disabled after returning until the local pointer
+/// has moved well inside a monitor. Otherwise the same physical motion can
+/// activate the barrier again before the user regains control.
+pub fn clear_of_external_edge(regions: &[Rect], edge: Edge, x: i32, y: i32) -> bool {
+    if !regions
+        .iter()
+        .any(|region| x >= region.x && x < region.right() && y >= region.y && y < region.bottom())
+    {
+        return false;
+    }
+    external_barriers(regions, edge)
+        .iter()
+        .filter(|segment| match edge {
+            Edge::Left | Edge::Right => y >= segment.y1 && y <= segment.y2,
+            Edge::Top | Edge::Bottom => x >= segment.x1 && x <= segment.x2,
+        })
+        .all(|segment| {
+            let distance = match edge {
+                Edge::Left | Edge::Right => (i64::from(x) - i64::from(segment.x1)).abs(),
+                Edge::Top | Edge::Bottom => (i64::from(y) - i64::from(segment.y1)).abs(),
+            };
+            distance >= 96
+        })
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Edge {
     Left,
@@ -908,6 +933,19 @@ mod tests {
         assert!(!detector.sample(20, 50));
         assert!(detector.sample(1, 50));
         assert!(!detector.sample(1, 50));
+    }
+
+    #[test]
+    fn returned_local_pointer_must_leave_capture_edge_before_rearming() {
+        let regions = [
+            Rect::new(0, 0, 1920, 1080).unwrap(),
+            Rect::new(1920, 0, 1920, 1080).unwrap(),
+        ];
+        assert!(!clear_of_external_edge(&regions, Edge::Right, 3807, 323));
+        assert!(!clear_of_external_edge(&regions, Edge::Right, 3745, 323));
+        assert!(clear_of_external_edge(&regions, Edge::Right, 3744, 323));
+        assert!(!clear_of_external_edge(&regions, Edge::Right, 3840, 323));
+        assert!(clear_of_external_edge(&regions, Edge::Right, 1000, 323));
     }
 
     #[test]

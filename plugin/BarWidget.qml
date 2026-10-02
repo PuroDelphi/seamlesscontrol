@@ -18,6 +18,7 @@ BarWidget {
     : backend.phase === "controlling" ? "remoto"
     : backend.phase === "connected" ? "conectado"
     : backend.phase === "ready" ? "listo"
+    : backend.phase === "rearming" ? "alejar del borde"
     : backend.phase === "listening" ? "disponible" : backend.phaseText
 
   function open() { if (panelLoader.item) panelLoader.item.open() }

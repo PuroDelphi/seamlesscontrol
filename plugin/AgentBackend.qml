@@ -12,6 +12,7 @@ Item {
     reconnecting: "reconectando",
     pairing: "emparejando",
     ready: "listo",
+    rearming: "aleja el puntero del borde",
     controlling: "control remoto",
     handoff: "cediendo control",
     connected: "conectado",

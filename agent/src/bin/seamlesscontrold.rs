@@ -34,8 +34,8 @@ mod linux {
         save_topology,
     };
     use seamlesscontrol_core::topology::{
-        Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, edge_entry_point,
-        edge_fraction, edge_release_point, external_barriers,
+        Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, clear_of_external_edge,
+        edge_entry_point, edge_fraction, edge_release_point, external_barriers,
     };
     use std::collections::{BTreeMap, BTreeSet, HashMap};
     use std::error::Error;
@@ -393,6 +393,16 @@ mod linux {
         let regions = ipc.monitor_rects().ok()?;
         let (x, y) = edge_release_point(&regions, edge, fraction)?;
         Some((f64::from(x), f64::from(y)))
+    }
+
+    fn ready_to_rearm(ipc: &HyprIpc, edge: LogicalEdge) -> bool {
+        let Ok(regions) = ipc.monitor_rects() else {
+            return false;
+        };
+        let Ok((x, y)) = ipc.cursor_position() else {
+            return false;
+        };
+        clear_of_external_edge(&regions, edge, x, y)
     }
 
     fn remember_held(event: &InputEvent, keys: &mut BTreeSet<u32>, buttons: &mut BTreeSet<u32>) {
@@ -855,6 +865,7 @@ mod linux {
         let mut current_activation = None;
         let mut active = false;
         let mut release_position = None;
+        let mut rearm_after_return = false;
         let result: Result<(), Box<dyn Error>> = async {
             loop {
                 tokio::select! {
@@ -880,9 +891,14 @@ mod linux {
                             capture_enabled = false;
                             control.set_phase(if locked { "locked" } else { "paused" });
                         } else if !control.paused() && !locked && !capture_enabled {
-                            portal.enable(&session, Default::default()).await?;
-                            capture_enabled = true;
-                            control.set_phase("ready");
+                            if rearm_after_return && !ready_to_rearm(&local_lock, edge.logical()) {
+                                control.set_phase("rearming");
+                            } else {
+                                rearm_after_return = false;
+                                portal.enable(&session, Default::default()).await?;
+                                capture_enabled = true;
+                                control.set_phase("ready");
+                            }
                         } else if locked {
                             control.set_phase("locked");
                         } else if control.paused() {
@@ -923,13 +939,16 @@ mod linux {
                             if let Some(position) = release_position { options = options.set_cursor_position(position); }
                             portal.release(&session, options).await?;
                             active = false;
-                            control.set_phase(if locked { "locked" } else { "ready" });
+                            portal.disable(&session, Default::default()).await?;
+                            capture_enabled = false;
+                            rearm_after_return = true;
+                            control.set_phase("rearming");
                             println!("El equipo remoto devolvió el control local.");
                         }
                     }
                     signal = activated.next() => {
                         let signal = signal.ok_or("capture activation stream closed")?;
-                        if control.paused() || locked {
+                        if !capture_enabled || control.paused() || locked {
                             let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
                             if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
                             portal.release(&session, options).await?;
@@ -972,12 +991,13 @@ mod linux {
                             capture_enabled = false;
                         }
                         current_zone_set = install_barriers(&portal, &session, edge).await?;
-                        if !control.paused() && !locked {
+                        if !control.paused() && !locked && (!rearm_after_return || ready_to_rearm(&local_lock, edge.logical())) {
+                            rearm_after_return = false;
                             portal.enable(&session, Default::default()).await?;
                             capture_enabled = true;
                             control.set_phase("ready");
                         } else {
-                            control.set_phase(if locked { "locked" } else { "paused" });
+                            control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "rearming" });
                         }
                     }
                     event = events.next() => {
@@ -993,7 +1013,10 @@ mod linux {
                                 active = false;
                                 if let Some(position) = release_position { options = options.set_cursor_position(position); }
                                 portal.release(&session, options).await?;
-                                control.set_phase(if locked { "locked" } else { "ready" });
+                                portal.disable(&session, Default::default()).await?;
+                                capture_enabled = false;
+                                rearm_after_return = true;
+                                control.set_phase("rearming");
                                 println!("Control local restaurado.");
                             } else if let Some(event) = input_event(event) {
                                 send_frame(&mut writer, Kind::Input, epoch, &mut sequence, event.encode())?;
