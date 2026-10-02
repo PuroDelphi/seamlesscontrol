@@ -2,7 +2,12 @@
 
 [Español](CHANGELOG.es.md) · [All GitHub releases](https://github.com/PuroDelphi/seamlesscontrol/releases)
 
-This file summarizes user-visible published changes. The repository is experimental; consult the [test results](docs/TEST-RESULTS.md) for verified behavior.
+This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
+
+## 0.19.10 — 2026-10-02
+
+- Describe the verified two-computer mouse, keyboard and return-control tests prominently in both READMEs and the marketplace listing.
+- Correct the physical file-transfer record: one direction was verified on `alpha`; the other cases remain open. The agent and widget code are unchanged.
 
 ## 0.19.9 — 2026-10-02
 

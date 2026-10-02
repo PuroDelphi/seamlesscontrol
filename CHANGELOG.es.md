@@ -2,7 +2,12 @@
 
 [English](CHANGELOG.md) · [Todos los releases de GitHub](https://github.com/PuroDelphi/seamlesscontrol/releases)
 
-Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
+Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
+
+## 0.19.10 — 2026-10-02
+
+- Destaca en los dos README y en la ficha del mercado las pruebas verificadas de ratón, teclado y regreso entre dos equipos.
+- Corrige el registro de transferencia física: se verificó un sentido en `alpha`; quedan pendientes los demás casos. El código del agente y del widget no cambia.
 
 ## 0.19.9 — 2026-10-02
 

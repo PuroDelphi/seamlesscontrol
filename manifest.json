@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.19.9",
+  "version": "0.19.10",
   "author": "PuroDelphi",
   "license": "MIT",
-  "description": "Experimental Omarchy input sharing between LAN computers",
+  "description": "Share one mouse and keyboard across paired Omarchy computers on a LAN",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "plugin/BarWidget.qml"

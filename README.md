@@ -10,7 +10,11 @@ Use one mouse and keyboard across nearby Omarchy computers. Move the pointer thr
 
 **For developers:** [Technical guide](docs/TECHNICAL.md) · [Test results](docs/TEST-RESULTS.md) · [Roadmap (Spanish)](PLAN.md)
 
-> SeamlessControl is experimental. Two physical Omarchy computers have completed mouse round trips, an Escape return, and a Super+V shortcut across the connection. Other layouts and features still need physical testing.
+## Tested with two physical Omarchy computers
+
+On one LAN, both computers paired with matching six digit codes. The mouse crossed to the receiver and returned across the opposite edge twice; pressing **Escape** also returned control. The physical **Super+V** shortcut opened clipboard history on the receiver. In a later `alpha` build, a text file was offered, accepted and delivered after the receiver authorized its separate file port.
+
+These are observed results from one two-computer setup. [The test record](docs/TEST-RESULTS.md) lists the versions, local checks and scenarios still awaiting physical verification.
 
 Panel screenshots use fictional computer names and network addresses.
 
@@ -66,7 +70,7 @@ The firewall change belongs on the **receiver**. Under **Firewall · receiver on
 
 ![Reviewing a LAN firewall rule in the receiver panel](docs/images/firewall-en.png)
 
-If you choose a different receiver port, enter that port in the firewall section too. The file receiver uses `47833` by default and needs its own rule if the firewall blocks it.
+If you choose a different receiver port, enter that port in the firewall section too. **Before the first file transfer**, enter the separate file port (`47833` by default) in the receiver's **Firewall · receiver only** section, then select **Preview LAN rule** and **Authorize this rule**. The control port (`47832` by default) does not open file transfers. Select **Wait for a file** again for each file.
 
 ## Remove
 
