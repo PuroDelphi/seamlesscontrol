@@ -115,6 +115,16 @@ Panel {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
 
+        Connections {
+          target: root.backend
+          function onPairSasChanged() {
+            if (root.backend && root.backend.pairSas !== "") {
+              scroller.contentY = 0
+              root.open()
+            }
+          }
+        }
+
         ColumnLayout {
           id: content
           width: scroller.width
@@ -141,6 +151,53 @@ Panel {
         PanelSeparator {
           Layout.fillWidth: true
           foreground: root.ink
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairSas !== ""
+          text: "CONFIRMAR EMPAREJAMIENTO · ESTE EQUIPO"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairSas !== ""
+          text: root.backend ? "Código de este equipo: " + root.backend.pairSas
+            + "\nCompárelo con el que aparece en el otro Omarchy. Se genera automáticamente; no hay que escribirlo ni cambiarlo."
+            : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.body
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairSas !== ""
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: "Coincide · aprobar aquí"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decidePair(true)
+          }
+          Button {
+            Layout.fillWidth: true
+            text: "No coincide · rechazar"
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decidePair(false)
+          }
         }
 
         PanelSectionHeader {
@@ -592,57 +649,12 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "1  Instale el agente en ambos equipos.\n2  En el destino, inicie «Recibir control».\n3  Empareje y ubique el destino junto al origen en la cuadrícula.\n4  En el origen, inicie «Compartir entrada».\n5  Compare el código de seis cifras en ambos paneles."
+          text: "1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Compartir»."
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
           font.family: root.face
           font.pixelSize: Style.font.caption
-        }
-
-        PanelSectionHeader {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.pairSas !== ""
-          text: "CONFIRMAR EMPAREJAMIENTO"
-          foreground: root.ink
-          fontFamily: root.face
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.pairSas !== ""
-          text: root.backend ? "Código: " + root.backend.pairSas + "\nClave remota: " + root.backend.pairKey : ""
-          textFormat: Text.PlainText
-          wrapMode: Text.WrapAnywhere
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.body
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.pairSas !== ""
-          spacing: Style.space(8)
-          Button {
-            Layout.fillWidth: true
-            text: "Coincide · aceptar"
-            bordered: true
-            focusable: true
-            foreground: root.ink
-            accent: Color.accent
-            fontFamily: root.face
-            onClicked: if (root.backend) root.backend.decidePair(true)
-          }
-          Button {
-            Layout.fillWidth: true
-            text: "Rechazar"
-            bordered: true
-            focusable: true
-            foreground: root.ink
-            accent: Color.accent
-            fontFamily: root.face
-            onClicked: if (root.backend) root.backend.decidePair(false)
-          }
         }
 
         Button {

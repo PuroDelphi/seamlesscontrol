@@ -26,6 +26,7 @@ Item {
   property string pairKey: ""
   property string error: ""
   property bool pairingRunning: false
+  property string pairError: ""
   property string actionName: ""
   property var peers: []
   property var discovered: []
@@ -188,6 +189,7 @@ Item {
   function pair(address) {
     if (!installed || pairProcess.running || available || !address) return
     error = ""
+    pairError = ""
     pairingRunning = true
     pairProcess.command = ["seamlesscontrold", "pair", address]
     pairProcess.running = true
@@ -336,9 +338,14 @@ Item {
 
   Process {
     id: pairProcess
+    stderr: SplitParser {
+      onRead: function(line) { root.pairError = String(line).trim() }
+    }
     onExited: function(code) {
       root.pairingRunning = false
-      if (code !== 0) root.error = "No se pudo emparejar. Revise IP, red y código."
+      if (code !== 0) root.error = root.pairError !== ""
+        ? "No se pudo emparejar: " + root.pairError
+        : "No se pudo emparejar. Revise IP, red y aprobación en ambos equipos."
       root.refresh()
       root.refreshPeers()
       root.refreshTopology()
