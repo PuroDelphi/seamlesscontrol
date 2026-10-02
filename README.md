@@ -39,6 +39,14 @@ Instale la misma revisión en ambos equipos con los comandos anteriores. Para el
 
 Si no se ve la confirmación en el destino, abra su panel desde el widget de la barra. También puede abrir un terminal **en el destino** y ejecutar `seamlesscontrold status`: cuando muestre `STATUS` seguido de `serve` y `pairing`, el **sexto campo**, separado por tabulaciones, es el código. Tras compararlo con el del origen, ejecute `seamlesscontrold approve 123456` en el destino, sustituyendo `123456` por **su propio código mostrado**; apruebe también en el origen. El código caduca tras cinco minutos. Si el destino nunca muestra `pairing`, compruebe que **Recibir control** sigue activo y que ambos equipos usan la misma revisión del agente. La búsqueda sólo propone una dirección; no reemplaza la aprobación ni el cifrado. El panel puede terminar los procesos que haya iniciado.
 
+Si el origen informa `connection timed out` y el destino permanece en `serve listening`, compruebe el cortafuegos del **destino**. En un Omarchy con UFW activo y entrada denegada por defecto, hay que permitir TCP `47832` desde la subred local hacia la IP donde escucha el receptor. Por ejemplo, si la interfaz es `wlo1`, la LAN es `192.168.1.0/24` y el receptor escucha en `192.168.1.20:47832`:
+
+```bash
+sudo ufw allow in on wlo1 from 192.168.1.0/24 to 192.168.1.20 port 47832 proto tcp comment seamlesscontrol
+```
+
+Sustituya interfaz, subred e IP por las del destino; `ip -4 route` muestra la interfaz y la subred, y `seamlesscontrold local-address 47832` muestra la dirección elegida por el agente. No abra este puerto a Internet. Si usa la recepción de archivos, autorice también TCP `47833` con la misma restricción de origen. Para retirar una regla, repita el comando precedido de `sudo ufw delete allow` en lugar de `sudo ufw allow`.
+
 Si cambia la IP de un equipo emparejado y conserva su identidad, **Recibir control** detecta la dirección nueva, vuelve a escuchar y actualiza el anuncio mDNS automáticamente. El panel del origen mostrará **Actualizar IP**. Una conexión Noise comprueba la clave ya fijada antes de trasladar el par y su posición en la cuadrícula; no se repite el código. Si aparece **Clave cambió** en una IP ya ocupada, el panel impide la conexión hasta que se resuelva el conflicto. El anuncio mDNS por sí solo nunca modifica un par guardado.
 
 La detección automática necesita multicast mDNS disponible en la LAN. Si la red lo bloquea, el panel conserva los campos de IP manual. También puede usar terminales o servicios de usuario. Para iniciar un receptor sin escribir su IP:
