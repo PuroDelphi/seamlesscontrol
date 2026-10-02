@@ -657,7 +657,7 @@ Panel {
             : root.backend && root.backend.phase === "connecting"
               ? root.t("Conectando con el receptor. Compruebe que allí sigue activo Recibir control.")
             : root.backend && root.backend.phase === "reconnecting"
-              ? root.t("Buscando el receptor de nuevo. Compruebe que allí sigue activo Recibir control y que el puerto está permitido en su firewall.")
+              ? root.t("Conexión interrumpida. El agente reintenta automáticamente; espere antes de pulsar Conectar otra vez. Si persiste, compruebe que el receptor sigue disponible.")
               : root.backend && (root.backend.phase === "ready" || root.backend.phase === "rearming")
                 ? (root.captureEdge() !== ""
                   ? root.t("Listo. Cruce el borde exterior ") + root.captureEdge() + root.t(" de las pantallas de este equipo. Si acaba de volver, aleje primero el puntero del borde.")
@@ -666,6 +666,18 @@ Panel {
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.role === "connect"
+            && root.backend.phase === "reconnecting" && root.backend.reconnectReason !== ""
+          text: root.t("Último intento: ") + (root.backend ? root.backend.reconnectReason : "")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
           font.family: root.face
           font.pixelSize: Style.font.caption
         }

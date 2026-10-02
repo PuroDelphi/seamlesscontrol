@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.3 — 2026-10-02
+
+- Se muestra en el panel el último error del agente durante la reconexión.
+- Se aclaran los pasos para una reconexión transitoria y se documenta una interrupción observada al recargar el plugin con una sesión activa. No cambió el agente ni el protocolo de red.
+
 ## 0.19.2 — 2026-10-02
 
 - Se añadieron documentos bilingües de contribución, ayuda, seguridad, conducta y versiones.

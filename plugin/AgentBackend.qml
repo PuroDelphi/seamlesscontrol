@@ -50,6 +50,8 @@ Item {
   property bool managedAgentRunning: false
   property bool stoppingManagedAgent: false
   property string lastAgentError: ""
+  readonly property string reconnectReason: lastAgentError.replace(/^Conexión interrumpida: /, "")
+    .replace(/\. Reintentando en [0-9]+ s\.$/, "")
   property int captureWaitSeconds: 0
   property bool repairBusy: false
   property string repairMessage: ""

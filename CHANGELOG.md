@@ -4,6 +4,11 @@
 
 This file summarizes user-visible published changes. The repository is experimental; consult the [test results](docs/TEST-RESULTS.md) for verified behavior.
 
+## 0.19.3 — 2026-10-02
+
+- Show the most recent agent retry error in the panel during reconnection.
+- Clarify the steps for transient reconnection and document an observed interruption during an active-session plugin reload. No agent or network protocol changes.
+
 ## 0.19.2 — 2026-10-02
 
 - Added bilingual contribution, support, security, conduct and release documentation.
