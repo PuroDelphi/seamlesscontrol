@@ -4,8 +4,8 @@
 use crate::state::InputEvent;
 use std::collections::BTreeSet;
 use std::error::Error;
-use std::io::Read;
 use std::os::fd::AsFd;
+use std::os::unix::fs::FileExt;
 use wayland_client::protocol::{wl_keyboard, wl_pointer, wl_registry, wl_seat};
 use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle, delegate_noop};
 use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
@@ -120,9 +120,16 @@ impl VirtualInput {
         if format != 1 || size == 0 || size > 4 * 1024 * 1024 {
             return Err("unsupported Wayland keyboard keymap".into());
         }
-        let mut keymap_file = std::fs::File::from(fd.as_fd().try_clone_to_owned()?);
+        let keymap_file = std::fs::File::from(fd);
         let mut keymap_bytes = vec![0; size as usize];
-        keymap_file.read_exact(&mut keymap_bytes)?;
+        // The compositor may reuse an open file description for keymaps. A
+        // sequential read (even through dup) changes its shared offset, so a
+        // later connection can start at EOF and fail during setup.
+        keymap_file
+            .read_exact_at(&mut keymap_bytes, 0)
+            .map_err(|error| {
+                std::io::Error::new(error.kind(), format!("Wayland keymap read failed: {error}"))
+            })?;
         if keymap_bytes.last() == Some(&0) {
             keymap_bytes.pop();
         }
@@ -139,7 +146,7 @@ impl VirtualInput {
 
         let pointer = pointer_manager.create_virtual_pointer(Some(&seat), &qh, ());
         let keyboard = keyboard_manager.create_virtual_keyboard(&seat, &qh, ());
-        keyboard.keymap(format, fd.as_fd(), size);
+        keyboard.keymap(format, keymap_file.as_fd(), size);
         queue.roundtrip(&mut state)?;
         physical_keyboard.release();
         Ok(Self {

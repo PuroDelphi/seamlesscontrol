@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.4 — 2026-10-02
+
+- Se corrigió el fallo intermitente de conexión al leer el mapa de teclado de Wayland desde una posición de archivo compartida en el receptor.
+- Se mejoró el error del agente si todavía no puede leer el mapa del compositor. No cambió el emparejamiento ni el protocolo de red.
+
 ## 0.19.3 — 2026-10-02
 
 - Se muestra en el panel el último error del agente durante la reconexión.
