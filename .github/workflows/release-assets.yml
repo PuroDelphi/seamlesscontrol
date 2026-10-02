@@ -1,0 +1,45 @@
+name: Release source assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish or verify
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          fetch-depth: 0
+      - name: Package tagged source and checksum
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          bash scripts/package-source-release.sh "$RELEASE_TAG"
+          version=${RELEASE_TAG#v}
+          archive="seamlesscontrol-$version-source.tar.gz"
+          for name in "$archive" "$archive.sha256"; do
+            if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$name"; then
+              mkdir -p remote
+              gh release download "$RELEASE_TAG" --pattern "$name" --dir remote
+              cmp "dist/$name" "remote/$name"
+            else
+              gh release upload "$RELEASE_TAG" "dist/$name"
+            fi
+          done
+          mkdir -p verified
+          gh release download "$RELEASE_TAG" --pattern "$archive" --pattern "$archive.sha256" --dir verified
+          (cd verified && sha256sum --check "$archive.sha256")
+          printf 'Verified release assets for %s at %s\n' "$RELEASE_TAG" "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"

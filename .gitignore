@@ -1,4 +1,5 @@
 /agent/target/
+/dist/
 /.direnv/
 *.log
 __pycache__/

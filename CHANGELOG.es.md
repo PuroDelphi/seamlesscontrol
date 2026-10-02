@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.6 — 2026-10-02
+
+- Se publica un archivo del código fuente de cada tag y su suma SHA256 como assets del release.
+- Se automatizan la generación y verificación de esos assets para las próximas versiones. No cambian el agente ni la instalación.
+
 ## 0.19.5 — 2026-10-02
 
 - Se conservan los archivos personalizados de los servicios de usuario de SeamlessControl al instalar y retirar el agente.

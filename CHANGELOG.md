@@ -4,6 +4,11 @@
 
 This file summarizes user-visible published changes. The repository is experimental; consult the [test results](docs/TEST-RESULTS.md) for verified behavior.
 
+## 0.19.6 — 2026-10-02
+
+- Publish a tagged source archive and adjacent SHA256 checksum as GitHub Release assets.
+- Automate asset generation and verification for future releases. The agent and installation flow are unchanged.
+
 ## 0.19.5 — 2026-10-02
 
 - Preserve existing customized SeamlessControl user service files during agent installation and removal.
