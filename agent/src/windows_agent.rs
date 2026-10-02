@@ -257,7 +257,8 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
     );
     println!("Allow this port on your Private Windows network if the firewall prompts.");
     for connection in listener.incoming() {
-        let (stream, address) = connection?;
+        let stream = connection?;
+        let address = stream.peer_addr()?;
         let identity = identity.clone();
         let config = config.clone();
         let occupied = Arc::clone(&occupied);
