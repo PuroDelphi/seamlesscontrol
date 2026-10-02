@@ -38,19 +38,23 @@ Después ejecuta `omarchy restart shell` y vuelve a abrir el panel para que Omar
 
 ## Conectar dos equipos Omarchy
 
+**Emparejar** autoriza un equipo una vez; **Conectar** inicia la sesión de control cada vez que quieras usarlo. Ubicar los equipos en el mapa solo define el borde de cruce.
+
 1. En el equipo **que vas a controlar**, pulsa **Recibir control**. Deja la dirección vacía para usar la IP de la red local y el puerto TCP `47832`. Espera a que indique **Disponible**.
 2. En el equipo con el ratón físico, busca el receptor en **Equipos en la red** y pulsa **Emparejar**. Si no aparece, pulsa **Buscar** o escribe su `IP:puerto` en el campo manual.
 3. **Ambos paneles** muestran un código de seis cifras. Compáralos y pulsa **Coincide · aprobar aquí** en **los dos equipos**. El código se genera automáticamente; no se puede escribir ni cambiar. La **Identidad local**, más larga, es la huella del equipo, no el código. Si el receptor sigue en **Disponible** y no aparece el código, revisa la red y el firewall.
-4. En **Mapa de equipos**, coloca el otro equipo junto a **Este equipo** en **ambos equipos**, tal como están físicamente. Por ejemplo, si el receptor está a la derecha del equipo con ratón, colócalo a la derecha en el origen; en el receptor, coloca el origen a la izquierda. Así podrás regresar cruzando el borde izquierdo del receptor. El mapa solo guarda la dirección del cruce.
-5. En el equipo con ratón, pulsa **Compartir** junto al receptor descubierto. Espera a **Listo** y cruza el **borde exterior indicado de todos los monitores del origen**. Para volver, cruza el borde del receptor hacia el origen o pulsa **Escape** en el teclado físico.
+4. En **Mapa de equipos**, coloca el otro equipo junto a **Este equipo** en **ambos equipos**, tal como están físicamente. Por ejemplo, si el receptor está a la derecha del equipo con ratón, colócalo a la derecha en el origen; en el receptor, coloca el origen a la izquierda. Así podrás regresar cruzando el borde izquierdo del receptor. Puedes arrastrar las fichas o usar Tab, Enter y las flechas. El mapa solo guarda la dirección del cruce.
+5. En el equipo con ratón, pulsa **Conectar** junto al receptor descubierto. Espera a **Listo** y cruza el **borde exterior indicado de todos los monitores del origen**. Para volver, cruza el borde del receptor hacia el origen o pulsa **Escape** en el teclado físico.
 
-![Mapa de equipos y receptores descubiertos en el panel](docs/images/layout-es.png)
+![Emparejar y Conectar son acciones distintas en el panel](docs/images/connect-context-es.png)
+
+![La acción Conectar junto a un receptor emparejado](docs/images/connect-button-es.png)
 
 ![El panel de origen indica Listo cuando puede capturar el cruce de borde](docs/images/session-es.png)
 
 Si el puntero no vuelve, pulsa **Devolver control al origen** en el receptor. **Cortar entrada remota · emergencia** desconecta y pausa la recepción; después pulsa **Reanudar recepción**. Para detener una sesión iniciada desde el panel, pulsa **Terminar sesión iniciada desde el panel**.
 
-Si el origen permanece en **Preparando la captura del ratón y teclado** durante 15 segundos, el panel ofrece **Reiniciar captura de este equipo**. Cierra ese intento y reinicia el servicio de captura del escritorio; puede interrumpir otras aplicaciones que comparten pantalla. Después pulsa **Compartir** de nuevo. La [guía ilustrada](docs/USER-GUIDE.es.md) muestra todo el proceso en el panel, soluciones según el estado, transferencia de archivos y para qué sirve la malla experimental de varios equipos.
+Si el origen permanece en **Preparando la captura del ratón y teclado** durante 15 segundos, el panel ofrece **Reiniciar captura de este equipo**. Cierra ese intento y reinicia el servicio de captura del escritorio; puede interrumpir otras aplicaciones que comparten pantalla. Después pulsa **Conectar** de nuevo. La [guía ilustrada](docs/USER-GUIDE.es.md) muestra todo el proceso en el panel, soluciones según el estado, transferencia de archivos y para qué sirve la malla experimental de varios equipos.
 
 ## Si el emparejamiento agota el tiempo
 

@@ -34,23 +34,27 @@ Stop any active SeamlessControl session. On **each** Omarchy, update the widget 
 omarchy plugin update seamlesscontrol.control
 ```
 
-Then run `omarchy restart shell` and reopen the panel so Omarchy loads the updated interface. Choose **Update agent** under **Set up this computer**. The terminal rebuilds and replaces the agent while keeping pairing keys and the computer layout. Close the terminal when it finishes, then start receiving or sharing again. Update both computers before using a new agent version. If you only changed the widget's language, no update is needed.
+Then run `omarchy restart shell` and reopen the panel so Omarchy loads the updated interface. Choose **Update agent** under **Set up this computer**. The terminal rebuilds and replaces the agent while keeping pairing keys and the computer layout. Close the terminal when it finishes, then start receiving or connecting again. Update both computers before using a new agent version. If you only changed the widget's language, no update is needed.
 
 ## Connect two Omarchy computers
+
+**Pair** trusts a computer once; **Connect** starts a control session each time you want to use it. Placing computers in the layout only chooses the crossing edge.
 
 1. On the computer **to be controlled**, select **Receive control**. Leave the address blank to use the local network address and the default TCP port `47832`. Wait for **Available**.
 2. On the computer with the physical mouse, find the receiver under **Computers on the network** and select **Pair**. If it does not appear, select **Scan** or enter its `IP:port` in the manual field.
 3. **Both panels** show a six digit code. Compare them and select **Codes match · approve here** on **both computers**. The code is generated automatically; you cannot set or type it. The longer **Local identity** is the computer's fingerprint, not the pairing code. If the receiver still says **Available** and no code appears, check the network and firewall.
-4. In **Computer layout**, place the other computer next to **This computer** on **both computers**, matching their physical positions. For example, if the receiver is to the right of the mouse computer, place it to the right on the source; place the source to the left on the receiver. This lets the pointer return by crossing the receiver's left edge. The layout only saves the crossing direction.
-5. On the mouse computer, select **Share** beside the discovered receiver. Wait for **Ready**, then move the pointer across the indicated **outer edge of all source monitors**. To return, cross the receiver edge toward the source or press **Escape** on the physical keyboard.
+4. In **Computer layout**, place the other computer next to **This computer** on **both computers**, matching their physical positions. For example, if the receiver is to the right of the mouse computer, place it to the right on the source; place the source to the left on the receiver. This lets the pointer return by crossing the receiver's left edge. You can drag tiles or use Tab, Enter and the arrow keys. The layout only saves the crossing direction.
+5. On the mouse computer, select **Connect** beside the discovered receiver. Wait for **Ready**, then move the pointer across the indicated **outer edge of all source monitors**. To return, cross the receiver edge toward the source or press **Escape** on the physical keyboard.
 
-![The computer layout and discovered receivers in the panel](docs/images/layout-en.png)
+![Pair and Connect are separate actions in the panel](docs/images/connect-context-en.png)
+
+![The Connect action beside a paired receiver](docs/images/connect-button-en.png)
 
 ![The source panel indicates Ready when it can capture the screen edge](docs/images/session-en.png)
 
 If the pointer does not return, choose **Return control to source** on the receiver. **Cut remote input · emergency** on the receiver disconnects and pauses receiving; choose **Resume receiving** afterward. Stop a session started from the panel with **Stop session started here**.
 
-If the source stays at **Preparing mouse and keyboard capture** for 15 seconds, the panel offers **Restart capture on this computer**. It closes that attempt and restarts the desktop capture service; it may interrupt other screen-sharing apps. Select **Share** again afterward. [The illustrated guide](docs/USER-GUIDE.md) shows the complete panel workflow, troubleshooting by status, file transfer and what the experimental multi-computer mesh does.
+If the source stays at **Preparing mouse and keyboard capture** for 15 seconds, the panel offers **Restart capture on this computer**. It closes that attempt and restarts the desktop capture service; it may interrupt other screen-sharing apps. Select **Connect** again afterward. [The illustrated guide](docs/USER-GUIDE.md) shows the complete panel workflow, troubleshooting by status, file transfer and what the experimental multi-computer mesh does.
 
 ## If pairing times out
 

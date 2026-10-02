@@ -18,6 +18,7 @@ Panel {
   property var backend: null
   property string revokeCandidate: ""
   property string selectedMachine: ""
+  property int keyboardCell: -1
   property bool confirmRemoveAgent: false
   readonly property var ownerItem: hostWidget || root
   readonly property color ink: bar ? bar.foreground : Color.foreground
@@ -57,6 +58,31 @@ Panel {
   function assignMachine(machine, column, row) {
     if (backend && machine) backend.placeMachine(machine, column, row)
     selectedMachine = ""
+  }
+
+  function focusCell(index) {
+    keyboardCell = index
+    var cell = machineCells.itemAt(index)
+    if (cell) cell.forceActiveFocus()
+  }
+
+  function moveKeyboardCell(dx, dy) {
+    if (keyboardCell < 0) return
+    var column = keyboardCell % 2 + dx
+    var row = Math.floor(keyboardCell / 2) + dy
+    if (column >= 0 && column < 2 && row >= 0 && row < 2)
+      focusCell(row * 2 + column)
+  }
+
+  function activateKeyboardCell() {
+    if (keyboardCell < 0) return
+    var column = keyboardCell % 2
+    var row = Math.floor(keyboardCell / 2)
+    if (selectedMachine !== "") assignMachine(selectedMachine, column, row)
+    else {
+      var machine = machineAt(column, row)
+      if (machine !== "") selectedMachine = machine
+    }
   }
 
   function knownServer(server) {
@@ -100,7 +126,11 @@ Panel {
   }
 
   function open() { controller.show() }
-  function close() { controller.hide() }
+  function close() {
+    keyboardCell = -1
+    selectedMachine = ""
+    controller.hide()
+  }
   function toggle() { opened ? close() : open() }
 
   function localPath(url) {
@@ -133,7 +163,15 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      onCloseRequested: root.close()
+      onTabRequested: function(direction) {
+        root.focusCell(root.keyboardCell < 0 ? (direction > 0 ? 0 : 3) : (root.keyboardCell + direction + 4) % 4)
+      }
+      onMoveRequested: function(dx, dy) { root.moveKeyboardCell(dx, dy) }
+      onActivateRequested: root.activateKeyboardCell()
+      onCloseRequested: {
+        if (root.selectedMachine !== "") root.selectedMachine = ""
+        else root.close()
+      }
 
       Flickable {
         id: scroller
@@ -387,10 +425,20 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("El mapa guarda la dirección del cruce. Para conectar, inicie Recibir control en el destino y pulse Compartir en el origen.")
+          text: root.t("El mapa guarda la dirección del cruce. Para iniciar la sesión, pulse Conectar en el origen.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Teclado: Tab recorre las casillas, Enter elige una ficha, las flechas llevan a la casilla de destino y Enter la coloca. Escape cancela la selección.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
           font.family: root.face
           font.pixelSize: Style.font.caption
         }
@@ -403,6 +451,7 @@ Panel {
           rowSpacing: Style.space(8)
 
           Repeater {
+            id: machineCells
             model: 4
             delegate: Rectangle {
               id: gridCell
@@ -414,8 +463,8 @@ Panel {
               Layout.preferredHeight: Style.space(68)
               radius: 8
               color: Color.background
-              border.width: 1
-              border.color: root.selectedMachine !== "" ? Color.accent : Color.muted
+              border.width: root.keyboardCell === gridCell.index ? 2 : 1
+              border.color: root.keyboardCell === gridCell.index || root.selectedMachine !== "" ? Color.accent : Color.muted
 
               DropArea {
                 anchors.fill: parent
@@ -457,7 +506,10 @@ Panel {
                   id: tileMouse
                   anchors.fill: parent
                   drag.target: gridTile
-                  onClicked: root.selectedMachine = gridTile.machineId
+                  onClicked: {
+                    root.selectedMachine = gridTile.machineId
+                    gridCell.forceActiveFocus()
+                  }
                   onReleased: {
                     Qt.callLater(function() {
                       gridTile.x = Style.space(4)
@@ -469,8 +521,11 @@ Panel {
 
               MouseArea {
                 anchors.fill: parent
-                onClicked: if (root.selectedMachine !== "")
-                  root.assignMachine(root.selectedMachine, gridCell.column, gridCell.row)
+                onClicked: {
+                  gridCell.forceActiveFocus()
+                  if (root.selectedMachine !== "")
+                    root.assignMachine(root.selectedMachine, gridCell.column, gridCell.row)
+                }
               }
             }
           }
@@ -499,7 +554,10 @@ Panel {
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: root.selectedMachine = root.unassignedPeers[index].ip
+            onClicked: {
+              root.selectedMachine = root.unassignedPeers[index].ip
+              root.focusCell(0)
+            }
           }
         }
 
@@ -508,6 +566,16 @@ Panel {
           text: root.t("EQUIPOS EN LA RED")
           foreground: root.ink
           fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Emparejar autoriza un equipo una sola vez. Conectar inicia cada sesión de control.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         RowLayout {
@@ -559,7 +627,7 @@ Panel {
               Layout.preferredWidth: Style.space(108)
               text: root.changedServerKey(discoveredRow.server) ? root.t("Clave cambió")
                 : root.knownServer(discoveredRow.server)
-                  ? root.adjacentServer(discoveredRow.server) ? root.t("Compartir") : root.t("Ubicar")
+                  ? root.adjacentServer(discoveredRow.server) ? root.t("Conectar") : root.t("Ubicar")
                   : root.previousServerIp(discoveredRow.server) !== "" ? "Actualizar IP" : root.t("Emparejar")
               bordered: true
               focusable: true
@@ -606,7 +674,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.captureWaitSeconds >= 15
             && root.backend.managedAgentRunning
-          text: root.t("La preparación de la captura tarda demasiado. Reiniciar captura cerrará esta sesión y puede interrumpir otras aplicaciones que comparten pantalla en este equipo. Después pulse Compartir otra vez.")
+          text: root.t("La preparación de la captura tarda demasiado. Reiniciar captura cerrará esta sesión y puede interrumpir otras aplicaciones que comparten pantalla en este equipo. Después pulse Conectar otra vez.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.urgent
@@ -919,7 +987,7 @@ Panel {
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: root.t("Compartir por IP")
+            text: root.t("Conectar por IP")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && connectAddress.text.trim() !== ""
@@ -933,7 +1001,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: root.t("Compartir por IP sirve cuando el receptor ya está emparejado y ubicado, pero no aparece en Equipos en la red.")
+          text: root.t("Conectar por IP sirve cuando el receptor ya está emparejado y ubicado, pero no aparece en Equipos en la red.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -955,7 +1023,7 @@ Panel {
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: root.t("Compartir con varios equipos")
+            text: root.t("Conectar varios equipos")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning
@@ -972,7 +1040,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: root.t("Malla experimental: un ratón controla dos o tres receptores en un mapa 2 × 2. Empareje y ubique todos los equipos; cada receptor debe usar este mismo puerto. Para dos equipos en total, use Compartir arriba.")
+          text: root.t("Malla experimental: un ratón controla dos o tres receptores en un mapa 2 × 2. Empareje y ubique todos los equipos; cada receptor debe usar este mismo puerto. Para dos equipos en total, use Conectar arriba.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -994,7 +1062,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Compartir».\n5  Espere «Listo» y cruce el borde exterior indicado.")
+          text: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Conectar».\n5  Espere «Listo» y cruce el borde exterior indicado.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted

@@ -535,7 +535,7 @@ Item {
     onExited: function(code) {
       root.repairBusy = false
       if (code === 0)
-        root.repairMessage = root.t("Captura reiniciada. Pulse Compartir otra vez.")
+        root.repairMessage = root.t("Captura reiniciada. Pulse Conectar otra vez.")
       else
         root.repairError = root.t("No se pudo reiniciar la captura. Revise el servicio del portal de escritorio.")
       root.refresh()
