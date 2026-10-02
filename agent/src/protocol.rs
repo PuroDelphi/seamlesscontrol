@@ -8,6 +8,8 @@ use std::net::IpAddr;
 use crate::topology::Edge;
 
 pub const PROTOCOL_VERSION: u16 = 1;
+/// Application handshake shared by the Omarchy and Windows agents.
+pub const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/5";
 pub const MAX_PAYLOAD: usize = 1024 * 1024;
 const HEADER_LEN: usize = 20;
 

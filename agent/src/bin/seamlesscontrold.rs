@@ -24,7 +24,7 @@ mod linux {
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
     use seamlesscontrol_core::omarchy::VirtualInput;
     use seamlesscontrol_core::protocol::{
-        EntryPosition, Frame, FrameError, Kind, ReturnRequest, SwitchRequest,
+        AGENT_PROTOCOL, EntryPosition, Frame, FrameError, Kind, ReturnRequest, SwitchRequest,
     };
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
     use seamlesscontrol_core::secure::{Identity, Role, SecureChannel, SecureError, SecureWriter};
@@ -52,7 +52,6 @@ mod linux {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
-    const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/5";
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
 
@@ -2786,7 +2785,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     linux::run().await
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "windows")]
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    seamlesscontrol_core::windows_agent::run()
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
 fn main() {
-    eprintln!("El receptor Omarchy sólo se compila en Linux por ahora.");
+    eprintln!("SeamlessControl supports Omarchy and Windows desktops.");
 }

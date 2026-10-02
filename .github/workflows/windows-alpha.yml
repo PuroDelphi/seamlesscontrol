@@ -1,0 +1,30 @@
+name: Windows x64 alpha
+
+on:
+  push:
+    branches: [alpha]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --manifest-path agent/Cargo.toml --check
+      - name: Test portable core on Windows x64
+        run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
+      - name: Build Windows x64 console agent
+        run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seamlesscontrol-windows-x64-alpha
+          path: agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe
+          if-no-files-found: error

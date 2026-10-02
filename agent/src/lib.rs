@@ -11,6 +11,12 @@ pub mod secure;
 pub mod state;
 pub mod storage;
 pub mod topology;
+pub mod windows_keymap;
+
+#[cfg(target_os = "windows")]
+pub mod windows_agent;
+#[cfg(target_os = "windows")]
+pub mod windows_input;
 
 #[cfg(target_os = "linux")]
 pub mod clipboard_omarchy;

@@ -2,11 +2,13 @@
 
 [![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [MIT license](LICENSE)
 
-Use one mouse and keyboard across nearby Omarchy computers. Move the pointer through a screen edge to control the next computer, then move back to return. The first release focuses on Omarchy to Omarchy; Windows support is planned later.
+Use one mouse and keyboard across nearby Omarchy computers. Move the pointer through a screen edge to control the next computer, then move back to return. Omarchy to Omarchy is the tested setup; a Windows x64 receiver is available in `alpha` for cross-platform testing.
 
 **Language:** English · [Español](README.es.md)
 
 **Using the panel:** [Illustrated user guide](docs/USER-GUIDE.md)
+
+**Windows x64 alpha:** [Windows agent and first cross-platform test](docs/WINDOWS-ALPHA.md)
 
 **For developers:** [Technical guide](docs/TECHNICAL.md) · [Test results](docs/TEST-RESULTS.md) · [Roadmap (Spanish)](PLAN.md)
 

@@ -2,11 +2,13 @@
 
 [![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Licencia MIT](LICENSE)
 
-Usa un ratón y teclado entre equipos Omarchy cercanos. Cruza el borde de una pantalla para controlar el siguiente equipo y vuelve por el borde para regresar. La primera versión se centra en Omarchy con Omarchy; la compatibilidad con Windows está prevista para después.
+Usa un ratón y teclado entre equipos Omarchy cercanos. Cruza el borde de una pantalla para controlar el siguiente equipo y vuelve por el borde para regresar. La configuración probada es Omarchy con Omarchy; `alpha` incluye un receptor Windows x64 para pruebas entre plataformas.
 
 **Idioma:** [English](README.md) · Español
 
 **Uso del panel:** [Guía ilustrada](docs/USER-GUIDE.es.md)
+
+**Windows x64 alpha:** [Agente Windows y primera prueba entre plataformas](docs/WINDOWS-ALPHA.es.md)
 
 **Para desarrolladores:** [Guía técnica](docs/TECHNICAL.es.md) · [Resultados de pruebas](docs/TEST-RESULTS.es.md) · [Plan](PLAN.md)
 
