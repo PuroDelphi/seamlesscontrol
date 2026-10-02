@@ -307,6 +307,7 @@ pub fn relocate_peer_key(dir: &Path, old: IpAddr, new: IpAddr, key: &[u8; 32]) -
         return Err(error);
     }
     fs::remove_file(peer_path(dir, old))?;
+    #[cfg(unix)]
     File::open(dir)?.sync_all()?;
     Ok(())
 }
