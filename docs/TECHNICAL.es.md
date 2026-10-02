@@ -8,7 +8,7 @@ Esta guía reúne la operación manual, los paquetes, la seguridad y los límite
 
 ## Paquetes y actualizaciones
 
-`omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` instala el widget. Omarchy no ejecuta hooks de instalación del repositorio. El botón **Instalar agente** abre una terminal de Omarchy y ejecuta `packaging/install-agent.sh`. Instala los paquetes ausentes `rust`, `avahi` y `wl-clipboard` con `omarchy pkg add`, compila el binario release y lo instala en `~/.local/bin`. Registra solo los paquetes que instaló en `~/.local/state/seamlesscontrol/installed-packages`. Avahi se activa cuando hace falta para el descubrimiento mDNS. Las cuatro unidades de usuario se copian, pero quedan deshabilitadas.
+`omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` instala el widget. Omarchy no ejecuta hooks de instalación del repositorio. El botón **Instalar agente** abre una terminal de Omarchy y ejecuta `packaging/install-agent.sh`. Instala los paquetes ausentes `rust`, `avahi` y `wl-clipboard` con `omarchy pkg add`, compila el binario release y lo instala en `~/.local/bin`. Registra solo los paquetes que instaló en `~/.local/state/seamlesscontrol/installed-packages`. Avahi se activa cuando hace falta para el descubrimiento mDNS. Las cuatro unidades de usuario se instalan, pero quedan deshabilitadas. Los archivos de servicio existentes se conservan si difieren de los incluidos en el plugin.
 
 Alternativa desde terminal:
 
@@ -18,7 +18,7 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.s
 
 Para actualizar el widget en **cada** equipo, ejecuta `omarchy plugin update seamlesscontrol.control` y después `omarchy restart shell` para cargar el QML nuevo. Si cambió el agente, detén cualquier sesión activa, pulsa **Actualizar agente** en el panel (o usa el comando de terminal) y reinicia el agente en ambos extremos. Un proceso en marcha conserva la revisión anterior hasta reiniciarlo. Las claves y el mapa se conservan.
 
-**Retirar agente** ejecuta `uninstall-agent.sh --remove-deps` en una terminal de Omarchy. Detiene los servicios de usuario instalados, elimina el binario y retira solo los paquetes registrados como instalados por este plugin. Pacman rechazará la retirada de paquetes requeridos por otros. Los paquetes que ya estaban presentes no se registran. La desinstalación CLI predeterminada, sin `--remove-deps`, conserva los paquetes. Ninguna ruta borra `~/.config/seamlesscontrol/` (identidad, pares, mapa). Retira una regla de firewall por separado antes de `omarchy plugin remove seamlesscontrol.control`.
+**Retirar agente** ejecuta `uninstall-agent.sh --remove-deps` en una terminal de Omarchy. Detiene y retira los archivos de servicio del plugin sin modificaciones, conserva los modificados, elimina el binario y retira solo los paquetes registrados como instalados por este plugin. Pacman rechazará la retirada de paquetes requeridos por otros. Los paquetes que ya estaban presentes no se registran. La desinstalación CLI predeterminada, sin `--remove-deps`, conserva los paquetes. Ninguna ruta borra `~/.config/seamlesscontrol/` (identidad, pares, mapa). Retira una regla de firewall por separado antes de `omarchy plugin remove seamlesscontrol.control`.
 
 ## Conexión manual
 

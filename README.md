@@ -28,7 +28,7 @@ Open **SeamlessControl** from the Omarchy bar. The panel starts in English; sele
 
 The screenshot shows an existing installation, so this button reads **Update agent**. On a new computer, it reads **Install agent**.
 
-The first build downloads Rust dependencies and can take a while. The panel detects the agent automatically. The installed widget alone cannot share input until the agent is installed.
+The first build downloads Rust dependencies and can take a while. The setup installs missing `rust`, `avahi` and `wl-clipboard` packages and may request system authorization. The panel detects the agent automatically. The installed widget alone cannot share input until the agent is installed.
 
 ## Update on both computers
 
@@ -70,7 +70,7 @@ If you choose a different receiver port, enter that port in the firewall section
 
 ## Remove
 
-Stop any active session. In **Set up this computer**, choose **Remove agent** and confirm. The terminal removes the agent and only packages SeamlessControl itself recorded as newly installed. It keeps pairing keys and computer positions so a later reinstall can reuse them. Then remove the widget with the standard Omarchy command:
+Stop any active session. In **Set up this computer**, choose **Remove agent** and confirm. The terminal removes the agent and only packages SeamlessControl itself recorded as newly installed. It preserves modified service files, pairing keys and computer positions so a later reinstall can reuse them. Then remove the widget with the standard Omarchy command:
 
 ```bash
 omarchy plugin remove seamlesscontrol.control

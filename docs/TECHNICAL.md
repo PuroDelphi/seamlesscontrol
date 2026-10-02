@@ -8,7 +8,7 @@ This guide covers manual operation, packaging, security, and current limits. The
 
 ## Packaging and updates
 
-`omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` installs the Omarchy widget. Omarchy does not run repository install hooks. The widget's **Install agent** button opens an Omarchy terminal and runs `packaging/install-agent.sh`. This installs missing `rust`, `avahi` and `wl-clipboard` packages with `omarchy pkg add`, builds the release binary, and installs it in `~/.local/bin`. The installer records only packages it installed under `~/.local/state/seamlesscontrol/installed-packages`. Avahi is enabled for mDNS discovery when needed. Four user services are copied but left disabled.
+`omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` installs the Omarchy widget. Omarchy does not run repository install hooks. The widget's **Install agent** button opens an Omarchy terminal and runs `packaging/install-agent.sh`. This installs missing `rust`, `avahi` and `wl-clipboard` packages with `omarchy pkg add`, builds the release binary, and installs it in `~/.local/bin`. The installer records only packages it installed under `~/.local/state/seamlesscontrol/installed-packages`. Avahi is enabled for mDNS discovery when needed. Four user services are installed but left disabled. Existing service files are preserved if their contents differ from the plugin copies.
 
 The terminal fallback is:
 
@@ -18,7 +18,7 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.s
 
 To update the widget on **each** machine, run `omarchy plugin update seamlesscontrol.control`, followed by `omarchy restart shell` so the panel loads the new QML. For agent code changes, stop any active session, choose **Update agent** in the panel (or use the terminal command), then restart the agent on both ends. An already running process keeps using its old binary until restarted. Pairing keys and layout are preserved.
 
-**Remove agent** in the panel runs `uninstall-agent.sh --remove-deps` in an Omarchy terminal. It stops installed user services, removes the binary and removes only packages recorded as installed by this plugin. Pacman will refuse removals needed by other packages. Packages that predated the plugin are never recorded. The default CLI uninstall, without `--remove-deps`, leaves packages installed. Neither path deletes `~/.config/seamlesscontrol/` (identity, peers, layout). Remove a firewall rule separately before `omarchy plugin remove seamlesscontrol.control`.
+**Remove agent** in the panel runs `uninstall-agent.sh --remove-deps` in an Omarchy terminal. It stops and removes unchanged plugin service files, preserves modified service files, removes the binary and removes only packages recorded as installed by this plugin. Pacman will refuse removals needed by other packages. Packages that predated the plugin are never recorded. The default CLI uninstall, without `--remove-deps`, leaves packages installed. Neither path deletes `~/.config/seamlesscontrol/` (identity, peers, layout). Remove a firewall rule separately before `omarchy plugin remove seamlesscontrol.control`.
 
 ## Manual connection
 

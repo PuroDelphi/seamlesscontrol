@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados visibles para los usuarios. El proyecto es experimental; consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para saber qué se ha verificado.
 
+## 0.19.5 — 2026-10-02
+
+- Se conservan los archivos personalizados de los servicios de usuario de SeamlessControl al instalar y retirar el agente.
+- Se enumeran las dependencias de preparación directamente en el README para la revisión del marketplace.
+
 ## 0.19.4 — 2026-10-02
 
 - Se corrigió el fallo intermitente de conexión al leer el mapa de teclado de Wayland desde una posición de archivo compartida en el receptor.

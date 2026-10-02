@@ -33,7 +33,12 @@ cat >"$scratch/mock/omarchy" <<'MOCK'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$SC_OMARCHY_LOG"
 MOCK
-chmod 755 "$scratch/mock/omarchy"
+cat >"$scratch/mock/pgrep" <<'MOCK'
+#!/usr/bin/env bash
+pid=$(cat "$XDG_RUNTIME_DIR/test-agent-pid")
+if kill -0 "$pid" 2>/dev/null; then printf '%s\n' "$pid"; fi
+MOCK
+chmod 755 "$scratch/mock/omarchy" "$scratch/mock/pgrep"
 mkdir -m 700 -p "$fake_home/.local/state/seamlesscontrol"
 printf 'rust\navahi\nnot-a-plugin-package\n' >"$fake_home/.local/state/seamlesscontrol/installed-packages"
 
@@ -41,6 +46,7 @@ port=$((49000 + RANDOM % 8000))
 HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
   "$bin" serve "127.0.0.1:$port" >"$scratch/server.log" 2>&1 &
 server_pid=$!
+printf '%s\n' "$server_pid" >"$scratch/run/test-agent-pid"
 for _ in {1..100}; do
   if XDG_RUNTIME_DIR="$scratch/run" "$bin" status >/dev/null 2>&1; then break; fi
   sleep 0.05

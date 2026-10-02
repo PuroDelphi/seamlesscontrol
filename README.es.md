@@ -28,7 +28,7 @@ Abre **SeamlessControl** desde la barra de Omarchy. El panel comienza en inglés
 
 La captura muestra un agente ya instalado, por eso el botón dice **Actualizar agente**. En un equipo nuevo, dice **Instalar agente**.
 
-La primera compilación descarga dependencias de Rust y puede tardar. El panel detecta automáticamente el agente. El widget instalado por sí solo todavía no puede compartir la entrada.
+La primera compilación descarga dependencias de Rust y puede tardar. La preparación instala los paquetes ausentes `rust`, `avahi` y `wl-clipboard` y puede pedir autorización del sistema. El panel detecta automáticamente el agente. El widget instalado por sí solo todavía no puede compartir la entrada.
 
 ## Actualizar en ambos equipos
 
@@ -70,7 +70,7 @@ Si eliges otro puerto de recepción, úsalo también en la sección de firewall.
 
 ## Desinstalar
 
-Detén cualquier sesión activa. En **Preparar este equipo**, pulsa **Retirar agente** y confirma. La terminal retirará el agente y solo los paquetes que SeamlessControl haya registrado como instalados por él. Conservará las claves de emparejamiento y la posición de los equipos para una posible reinstalación. Después retira el widget con el comando estándar de Omarchy:
+Detén cualquier sesión activa. En **Preparar este equipo**, pulsa **Retirar agente** y confirma. La terminal retirará el agente y solo los paquetes que SeamlessControl haya registrado como instalados por él. Conservará los archivos de servicio modificados, las claves de emparejamiento y la posición de los equipos para una posible reinstalación. Después retira el widget con el comando estándar de Omarchy:
 
 ```bash
 omarchy plugin remove seamlesscontrol.control

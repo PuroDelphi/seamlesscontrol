@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 install_dir=${XDG_BIN_HOME:-"$HOME/.local/bin"}
 agent="$install_dir/seamlesscontrold"
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/seamlesscontrol
@@ -26,15 +27,16 @@ if [[ "$install_dir" == "$HOME/.local/bin" ]]; then
   )
   installed_units=false
   for unit in "${units[@]}"; do
-    if [[ -e "$unit_dir/$unit" || -L "$unit_dir/$unit" ]]; then
+    target="$unit_dir/$unit"
+    if [[ -f "$target" && ! -L "$target" ]] && cmp -s -- "$repo_dir/packaging/$unit" "$target"; then
       systemctl --user disable --now "$unit"
+      rm -f -- "$target"
       installed_units=true
+    elif [[ -e "$target" || -L "$target" ]]; then
+      say "Preserving modified service configuration: $target" "Se conserva la configuración modificada del servicio: $target"
     fi
   done
   if [[ "$installed_units" == true ]]; then
-    for unit in "${units[@]}"; do
-      rm -f -- "$unit_dir/$unit"
-    done
     systemctl --user daemon-reload
   fi
 fi

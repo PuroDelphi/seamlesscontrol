@@ -65,10 +65,16 @@ trap - EXIT
 if [[ "$install_dir" == "$HOME/.local/bin" ]]; then
   unit_dir="$HOME/.config/systemd/user"
   install -d -m 755 "$unit_dir"
-  install -m 644 "$repo_dir/packaging/seamlesscontrol-receiver.service" "$unit_dir/"
-  install -m 644 "$repo_dir/packaging/seamlesscontrol-receiver-auto.service" "$unit_dir/"
-  install -m 644 "$repo_dir/packaging/seamlesscontrol-sender.service" "$unit_dir/"
-  install -m 644 "$repo_dir/packaging/seamlesscontrol-mesh.service" "$unit_dir/"
+  for unit in seamlesscontrol-receiver.service seamlesscontrol-receiver-auto.service seamlesscontrol-sender.service seamlesscontrol-mesh.service; do
+    target="$unit_dir/$unit"
+    if [[ -e "$target" || -L "$target" ]]; then
+      if ! cmp -s -- "$repo_dir/packaging/$unit" "$target"; then
+        say "Preserving existing service configuration: $target" "Se conserva la configuración existente del servicio: $target"
+      fi
+    else
+      install -m 644 "$repo_dir/packaging/$unit" "$target"
+    fi
+  done
   systemctl --user daemon-reload
   say 'User services installed but disabled. receiver-auto uses port 47832 and discovers the LAN IP.' 'Unidades de usuario instaladas, sin habilitar. receiver-auto usa el puerto 47832 y descubre la IP LAN.'
 fi
