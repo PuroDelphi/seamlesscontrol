@@ -553,10 +553,16 @@ Panel {
           Controls.TextField {
             id: listenAddress
             Layout.fillWidth: true
-            placeholderText: "Automático · 47832 (o IP:puerto)"
+            placeholderText: "Automático · 47832 (o puerto / IP:puerto)"
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+            onTextChanged: {
+              var value = text.trim()
+              var match = value.match(/:([0-9]{1,5})$/)
+              if (match) firewallPortField.text = match[1]
+              else if (/^[0-9]{1,5}$/.test(value)) firewallPortField.text = value
+            }
           }
           Button {
             text: "Recibir control"
@@ -568,10 +574,105 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) {
               var address = listenAddress.text.trim()
-              if (address === "") root.backend.startReceiverAuto("47832")
+              if (address === "") root.backend.startReceiverAuto(firewallPortField.text.trim())
+              else if (/^[0-9]{1,5}$/.test(address)) root.backend.startReceiverAuto(address)
               else root.backend.startReceiver(address)
             }
           }
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.installed
+          text: "FIREWALL · SOLO EN EL RECEPTOR"
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.installed
+          text: "Si el otro equipo agota el tiempo de conexión, permita aquí el mismo puerto TCP elegido para «Recibir control». Primero verá la regla limitada a esta red local; Omarchy pedirá autorización antes de aplicarla."
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.installed
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: firewallPortField
+            Layout.fillWidth: true
+            text: "47832"
+            placeholderText: "Puerto TCP del receptor"
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+            onTextChanged: if (root.backend) root.backend.cancelFirewall()
+          }
+          Button {
+            text: root.backend && root.backend.firewallBusy ? "Comprobando…" : "Preparar regla LAN"
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.firewallBusy
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.previewFirewall(firewallPortField.text.trim())
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== ""
+          text: root.backend ? root.backend.firewallPreview : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== ""
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: "Autorizar esta regla"
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.firewallBusy
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.allowFirewall()
+          }
+          Button {
+            text: "Cancelar"
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.firewallBusy
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.cancelFirewall()
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
+          text: root.backend ? (root.backend.firewallError !== "" ? root.backend.firewallError : root.backend.firewallMessage) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.firewallError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         RowLayout {

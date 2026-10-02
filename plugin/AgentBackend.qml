@@ -41,6 +41,15 @@ Item {
   property bool managedAgentRunning: false
   property bool stoppingManagedAgent: false
   property string lastAgentError: ""
+  readonly property string firewallScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/firewall-lan.sh")).replace(/^file:\/\//, ""))
+  property bool firewallBusy: false
+  property string firewallPreview: ""
+  property string firewallMessage: ""
+  property string firewallError: ""
+  property string firewallPort: ""
+  property string firewallStep: ""
+  property string firewallOutput: ""
+  property string firewallStderr: ""
 
   function startReceiver(address) {
     if (!installed || agentProcess.running || available || pairingRunning || !address) return
@@ -217,6 +226,42 @@ Item {
     actionProcess.running = true
   }
 
+  function previewFirewall(port) {
+    var number = Number(port)
+    if (firewallProcess.running || !installed) return
+    firewallPreview = ""
+    firewallMessage = ""
+    firewallError = ""
+    if (!/^[0-9]{1,5}$/.test(port) || number < 1 || number > 65535) {
+      firewallError = "Indique un puerto TCP entre 1 y 65535."
+      return
+    }
+    firewallPort = String(number)
+    firewallStep = "preview"
+    firewallOutput = ""
+    firewallStderr = ""
+    firewallBusy = true
+    firewallProcess.command = ["bash", firewallScript, "show", firewallPort]
+    firewallProcess.running = true
+  }
+
+  function allowFirewall() {
+    if (firewallProcess.running || firewallPreview === "" || firewallPort === "") return
+    firewallStep = "allow"
+    firewallOutput = ""
+    firewallStderr = ""
+    firewallError = ""
+    firewallBusy = true
+    firewallProcess.command = ["bash", firewallScript, "allow", firewallPort, "--yes"]
+    firewallProcess.running = true
+  }
+
+  function cancelFirewall() {
+    if (firewallProcess.running) return
+    firewallPreview = ""
+    firewallPort = ""
+  }
+
   Process {
     id: executableProbe
     command: ["sh", "-c", "command -v seamlesscontrold >/dev/null"]
@@ -281,6 +326,30 @@ Item {
       root.refresh()
       root.refreshPeers()
       root.refreshTopology()
+    }
+  }
+
+  Process {
+    id: firewallProcess
+    stdout: SplitParser {
+      onRead: function(line) { root.firewallOutput = String(line).trim() }
+    }
+    stderr: SplitParser {
+      onRead: function(line) { root.firewallStderr = String(line).trim() }
+    }
+    onExited: function(code) {
+      root.firewallBusy = false
+      if (code !== 0) {
+        root.firewallError = root.firewallStderr !== "" ? root.firewallStderr
+          : "No se pudo configurar UFW; compruebe la autorización y la red local."
+        return
+      }
+      if (root.firewallStep === "preview") {
+        root.firewallPreview = root.firewallOutput
+      } else if (root.firewallStep === "allow") {
+        root.firewallMessage = "Regla LAN aplicada para TCP " + root.firewallPort + "."
+        root.firewallPreview = ""
+      }
     }
   }
 

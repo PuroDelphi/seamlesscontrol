@@ -27,6 +27,10 @@ cat >"$scratch/bin/sudo" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"$FIREWALL_TEST_LOG"
 EOF
+cat >"$scratch/bin/pkexec" <<'EOF'
+#!/usr/bin/env bash
+printf 'POLKIT %s\n' "$*" >>"$FIREWALL_TEST_LOG"
+EOF
 chmod +x "$scratch/bin/"*
 export PATH="$scratch/bin:$PATH"
 export FIREWALL_TEST_LOG="$scratch/commands"
@@ -40,4 +44,6 @@ printf 's\n' | bash "$repo_dir/packaging/firewall-lan.sh" allow >/dev/null
 rg -q 'ufw allow in on wlo1 from 192.168.1.0/24 to 192.168.1.25 port 47832 proto tcp comment seamlesscontrol' "$FIREWALL_TEST_LOG"
 printf 's\n' | bash "$repo_dir/packaging/firewall-lan.sh" remove >/dev/null
 rg -q 'ufw delete allow in on wlo1 from 192.168.1.0/24 to 192.168.1.25 port 47832 proto tcp comment seamlesscontrol' "$FIREWALL_TEST_LOG"
+WAYLAND_DISPLAY=wayland-1 bash "$repo_dir/packaging/firewall-lan.sh" allow 47832 --yes </dev/null >/dev/null
+rg -q 'POLKIT .*/ufw allow in on wlo1 from 192.168.1.0/24 to 192.168.1.25 port 47832 proto tcp comment seamlesscontrol' "$FIREWALL_TEST_LOG"
 printf 'Confirmación y límites de la regla UFW: correcto.\n'

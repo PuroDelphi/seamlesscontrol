@@ -3,9 +3,11 @@ set -euo pipefail
 
 mode=${1:-allow}
 port=${2:-47832}
+confirmed_by_panel=${3:-}
 if [[ $mode != allow && $mode != remove && $mode != show ]] ||
-   [[ ! $port =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)); then
-  printf 'Uso: %s [allow|remove|show] [PUERTO]\n' "$0" >&2
+   [[ ! $port =~ ^[0-9]+$ ]] || ((port < 1 || port > 65535)) ||
+   [[ -n $confirmed_by_panel && $confirmed_by_panel != --yes ]] || (( $# > 3 )); then
+  printf 'Uso: %s [allow|remove|show] [PUERTO] [--yes]\n' "$0" >&2
   exit 2
 fi
 
@@ -66,11 +68,15 @@ else
   prompt='¿Autoriza añadir esta regla solo para la red local? [s/N] '
 fi
 printf '%s' "$prompt"
-read -r answer || exit 1
-case ${answer,,} in
-  s|si|sí|y|yes) ;;
-  *) printf 'Sin cambios en el cortafuegos.\n'; exit 0 ;;
-esac
+if [[ $confirmed_by_panel == --yes ]]; then
+  printf 'confirmado en el panel; solicitando autorización del sistema.\n'
+else
+  read -r answer || exit 1
+  case ${answer,,} in
+    s|si|sí|y|yes) ;;
+    *) printf 'Sin cambios en el cortafuegos.\n'; exit 0 ;;
+  esac
+fi
 
 if command -v pkexec >/dev/null 2>&1 && [[ -n ${WAYLAND_DISPLAY:-}${DISPLAY:-} ]]; then
   pkexec "$(command -v ufw)" "${rule[@]}"
