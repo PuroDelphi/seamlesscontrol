@@ -187,9 +187,12 @@ Panel {
         }
         if (root.activeTab !== "main" || root.keyboardCell < 0) return
         if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
-            || event.key === Qt.Key_Left || event.key === Qt.Key_Right) {
-          root.moveKeyboardCell(event.key === Qt.Key_Left ? -1 : event.key === Qt.Key_Right ? 1 : 0,
-                                event.key === Qt.Key_Up ? -1 : event.key === Qt.Key_Down ? 1 : 0)
+            || event.key === Qt.Key_Left || event.key === Qt.Key_Right
+            || event.text === "h" || event.text === "j" || event.text === "k" || event.text === "l") {
+          root.moveKeyboardCell(event.key === Qt.Key_Left || event.text === "h" ? -1
+                                : event.key === Qt.Key_Right || event.text === "l" ? 1 : 0,
+                                event.key === Qt.Key_Up || event.text === "k" ? -1
+                                : event.key === Qt.Key_Down || event.text === "j" ? 1 : 0)
           event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
           root.activateKeyboardCell()
