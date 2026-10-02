@@ -80,9 +80,20 @@ pub fn parse_session_lock(raw: &[u8]) -> io::Result<SessionLockState> {
     let mut readable = false;
     let mut unknown = false;
     for monitor in monitors {
-        let Some(blockers) = monitor.get("solitaryBlockedBy").and_then(Value::as_array) else {
-            unknown = true;
-            continue;
+        let blockers = match monitor.get("solitaryBlockedBy") {
+            Some(Value::Array(blockers)) => blockers.as_slice(),
+            // Hyprland reports null when nothing blocks the active workspace.
+            // It is not an unknown lock state in this case.
+            Some(Value::Null)
+                if monitor
+                    .get("activeWorkspace")
+                    .and_then(|workspace| workspace.get("id"))
+                    .and_then(Value::as_i64)
+                    .is_some_and(|id| id > 0) => &[],
+            _ => {
+                unknown = true;
+                continue;
+            }
         };
         if blockers.iter().any(|value| value.as_str() == Some("LOCK")) {
             return Ok(SessionLockState::Locked);
@@ -213,6 +224,14 @@ mod tests {
         assert_eq!(
             parse_session_lock(br#"[{"solitaryBlockedBy":["WINDOWED","CANDIDATE"]}]"#).unwrap(),
             SessionLockState::Unlocked
+        );
+        assert_eq!(
+            parse_session_lock(br#"[{"activeWorkspace":{"id":2},"solitaryBlockedBy":null}]"#).unwrap(),
+            SessionLockState::Unlocked
+        );
+        assert_eq!(
+            parse_session_lock(br#"[{"activeWorkspace":{"id":0},"solitaryBlockedBy":null}]"#).unwrap(),
+            SessionLockState::Undetermined
         );
         assert_eq!(
             parse_session_lock(br#"[{"solitaryBlockedBy":["LOCK"]}]"#).unwrap(),

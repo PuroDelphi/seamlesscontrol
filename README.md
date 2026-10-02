@@ -4,7 +4,7 @@ Plugin nuevo para Omarchy que busca compartir un teclado y ratón entre equipos.
 
 ## Estado actual
 
-Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega movimiento relativo del ratón físico por EIS al cruzarla. Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. Las pruebas locales confirmaron captura, canal Noise XX e inyección. En octubre de 2026, dos Omarchy reales en la misma LAN se emparejaron y el ratón físico del origen movió el puntero del receptor. **El retorno por borde y Escape falló en esa primera prueba**; cortar el receptor devolvió el control al origen. Esta revisión amplía el margen del cursor al volver y añade una parada de emergencia en el receptor; ambos cambios aún requieren validación física entre los dos equipos. No hay una versión lista para uso cotidiano.
+Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega movimiento relativo del ratón físico por EIS al cruzarla. Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. Las pruebas locales confirmaron captura, canal Noise XX e inyección. En octubre de 2026, dos Omarchy reales en la misma LAN se emparejaron y el ratón físico del origen movió el puntero del receptor. **El retorno por borde y Escape todavía no funciona de forma fiable**; cortar el receptor devolvió el control al origen. Se corrigió un falso estado de bloqueo al recibir `solitaryBlockedBy: null` de Hyprland, pero falta probar la corrección entre los dos equipos. No hay una versión lista para uso cotidiano.
 
 ## Instalar en cada Omarchy
 
