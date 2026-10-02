@@ -9,7 +9,7 @@ use crate::storage::{
     is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
     relocate_peer_key, remember_peer_key, revoke_peer_key,
 };
-use crate::windows_input::{WindowsInjector, set_dpi_awareness};
+use crate::windows_input::{WindowsInjector, interactive_desktop, set_dpi_awareness};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
@@ -223,6 +223,9 @@ fn serve_connection(
         .write_to(&mut channel)?;
         return Ok(());
     };
+    if !interactive_desktop()? {
+        return Err("Windows desktop is locked; remote input was not enabled".into());
+    }
     Frame {
         kind: Kind::Control,
         epoch: 0,

@@ -10,6 +10,9 @@ use crate::windows_keymap::evdev_to_set1;
 use std::io;
 use std::net::TcpStream;
 use windows_sys::Win32::Foundation::POINT;
+use windows_sys::Win32::System::StationsAndDesktops::{
+    CloseDesktop, DESKTOP_READOBJECTS, GetUserObjectInformationW, OpenInputDesktop, UOI_NAME,
+};
 use windows_sys::Win32::UI::HiDpi::{
     DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
@@ -33,6 +36,34 @@ pub fn set_dpi_awareness() {
     // Call before querying physical screen coordinates. A process manifest may
     // already have selected this context, in which case the call can fail.
     unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
+}
+
+/// Fail closed when the input desktop is the lock screen or cannot be read.
+pub fn interactive_desktop() -> io::Result<bool> {
+    let desktop = unsafe { OpenInputDesktop(0, 0, DESKTOP_READOBJECTS) };
+    if desktop.is_null() {
+        return Err(last_error("OpenInputDesktop failed"));
+    }
+    let mut name = [0u16; 64];
+    let mut needed = 0u32;
+    let result = unsafe {
+        GetUserObjectInformationW(
+            desktop,
+            UOI_NAME,
+            name.as_mut_ptr().cast(),
+            std::mem::size_of_val(&name) as u32,
+            &mut needed,
+        )
+    };
+    unsafe { CloseDesktop(desktop) };
+    if result == 0 {
+        return Err(last_error("cannot identify input desktop"));
+    }
+    let end = name
+        .iter()
+        .position(|value| *value == 0)
+        .unwrap_or(name.len());
+    Ok(String::from_utf16_lossy(&name[..end]).eq_ignore_ascii_case("Default"))
 }
 
 fn screen_rect() -> io::Result<Rect> {
@@ -192,6 +223,12 @@ impl WindowsInjector {
 
 impl Injector for WindowsInjector {
     fn place_cursor(&mut self, entry: EntryPosition) -> io::Result<()> {
+        if !interactive_desktop()? {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "Windows desktop is locked",
+            ));
+        }
         self.screen = screen_rect()?;
         let (x, y) = edge_entry_point(&[self.screen], entry.edge, entry.fraction)
             .ok_or_else(|| io::Error::other("Windows entry edge is unavailable"))?;
@@ -207,6 +244,16 @@ impl Injector for WindowsInjector {
     }
 
     fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
+        if matches!(
+            event,
+            InputEvent::KeyDown(_) | InputEvent::ButtonDown(_) | InputEvent::Motion { .. }
+        ) && !interactive_desktop()?
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "Windows desktop is locked",
+            ));
+        }
         match event {
             InputEvent::KeyDown(value) => key(*value, true),
             InputEvent::KeyUp(value) => key(*value, false),
