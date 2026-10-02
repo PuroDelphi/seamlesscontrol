@@ -964,8 +964,8 @@ mod tests {
     #[test]
     fn machine_slots_swap_and_define_an_edge() {
         let mut topology = Topology::new();
-        let a: IpAddr = "192.168.1.2".parse().unwrap();
-        let b: IpAddr = "192.168.1.3".parse().unwrap();
+        let a: IpAddr = "192.168.50.2".parse().unwrap();
+        let b: IpAddr = "192.168.50.3".parse().unwrap();
         topology
             .place(Machine::Peer(a), Slot::new(1, 0).unwrap())
             .unwrap();
@@ -984,9 +984,9 @@ mod tests {
     #[test]
     fn routing_uses_occupied_neighbors_and_never_jumps_a_diagonal() {
         let mut topology = Topology::new();
-        let right: IpAddr = "192.168.1.2".parse().unwrap();
-        let bottom: IpAddr = "192.168.1.3".parse().unwrap();
-        let diagonal: IpAddr = "192.168.1.4".parse().unwrap();
+        let right: IpAddr = "192.168.50.2".parse().unwrap();
+        let bottom: IpAddr = "192.168.50.3".parse().unwrap();
+        let diagonal: IpAddr = "192.168.50.4".parse().unwrap();
         topology
             .place(Machine::Peer(diagonal), Slot::new(1, 1).unwrap())
             .unwrap();
@@ -1041,12 +1041,12 @@ mod tests {
     #[test]
     fn topology_rejects_occupied_new_peer_and_bad_files() {
         let mut topology = Topology::new();
-        let a: IpAddr = "192.168.1.2".parse().unwrap();
+        let a: IpAddr = "192.168.50.2".parse().unwrap();
         assert_eq!(
             topology.place(Machine::Peer(a), Slot::new(0, 0).unwrap()),
             Err(TopologyError::Occupied)
         );
-        assert!(Topology::decode("SCTO0001\nlocal\t0\t0\npeer\t192.168.1.2\t0\t0\n").is_err());
-        assert!(Topology::decode("SCTO0001\npeer\t192.168.1.2\t1\t0\n").is_err());
+        assert!(Topology::decode("SCTO0001\nlocal\t0\t0\npeer\t192.168.50.2\t0\t0\n").is_err());
+        assert!(Topology::decode("SCTO0001\npeer\t192.168.50.2\t1\t0\n").is_err());
     }
 }

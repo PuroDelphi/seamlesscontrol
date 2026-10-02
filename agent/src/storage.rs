@@ -509,9 +509,9 @@ mod tests {
             std::process::id()
         ));
         let peers = root.join("peers");
-        let old: IpAddr = "192.168.1.10".parse().unwrap();
-        let new: IpAddr = "192.168.1.20".parse().unwrap();
-        let occupied: IpAddr = "192.168.1.30".parse().unwrap();
+        let old: IpAddr = "192.168.50.10".parse().unwrap();
+        let new: IpAddr = "192.168.50.20".parse().unwrap();
+        let occupied: IpAddr = "192.168.50.30".parse().unwrap();
         let key = [7; 32];
         remember_peer_key(&peers, old, &key).unwrap();
         remember_peer_key(&peers, occupied, &[8; 32]).unwrap();
@@ -584,7 +584,7 @@ mod tests {
         ));
         let peers = root.join("peers");
         assert!(list_peer_keys(&peers).unwrap().is_empty());
-        let address: IpAddr = "192.168.1.4".parse().unwrap();
+        let address: IpAddr = "192.168.50.4".parse().unwrap();
         remember_peer_key(&peers, address, &[4; 32]).unwrap();
         assert_eq!(list_peer_keys(&peers).unwrap(), vec![(address, [4; 32])]);
         fs::remove_dir_all(root).unwrap();
@@ -602,7 +602,7 @@ mod tests {
         ));
         let path = root.join("topology");
         let mut layout = load_topology(&path).unwrap();
-        let peer: IpAddr = "192.168.1.7".parse().unwrap();
+        let peer: IpAddr = "192.168.50.7".parse().unwrap();
         layout
             .place(
                 crate::topology::Machine::Peer(peer),

@@ -267,7 +267,7 @@ mod tests {
             size: 8,
             sha256: [0xab; 32],
         };
-        let peer: IpAddr = "192.168.1.10".parse().unwrap();
+        let peer: IpAddr = "192.168.50.10".parse().unwrap();
         let mut output = Vec::new();
         assert!(panel_approval_with_io(&offer, peer, &mut "SI\n".as_bytes(), &mut output).unwrap());
         let line = String::from_utf8(output).unwrap();
@@ -276,7 +276,7 @@ mod tests {
             fields,
             [
                 "OFFER",
-                "192.168.1.10",
+                "192.168.50.10",
                 "informe.txt",
                 "8",
                 &"ab".repeat(32)

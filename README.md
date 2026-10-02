@@ -52,10 +52,10 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh
 
 `show` solo muestra la regla y no cambia nada. `allow` pide responder `s` y luego muestra el diálogo de autorización de Omarchy; si no hay sesión gráfica, usa `sudo`. Desde el panel, la confirmación ocurre con **Autorizar esta regla** y el script pide directamente la autorización del sistema. El script no activa UFW ni abre la regla fuera de la interfaz, subred, IP y puerto detectados. Si UFW no está instalado, informa del problema y deja la configuración intacta. Para retirar **esa misma regla**, ejecute `bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove` en el receptor; también pide confirmación. Si la IP o subred cambiaron desde que se añadió la regla, revise `sudo ufw status numbered` y elimine manualmente la regla antigua.
 
-La regla equivalente, si prefiere configurarla a mano y la interfaz es `wlo1`, la LAN `192.168.1.0/24` y el receptor escucha en `192.168.1.20:47832`, es:
+En los comandos siguientes, `192.168.50.0/24`, `192.168.50.20` y `wlan0` son datos ficticios de ejemplo. Sustitúyalos por la red, IP e interfaz reales que muestra el panel. La regla equivalente, si prefiere configurarla a mano, es:
 
 ```bash
-sudo ufw allow in on wlo1 from 192.168.1.0/24 to 192.168.1.20 port 47832 proto tcp comment seamlesscontrol
+sudo ufw allow in on wlan0 from 192.168.50.0/24 to 192.168.50.20 port 47832 proto tcp comment seamlesscontrol
 ```
 
 Sustituya interfaz, subred e IP por las del destino; `ip -4 route` muestra la interfaz y la subred, y `seamlesscontrold local-address 47832` muestra la dirección elegida por el agente. No abra este puerto a Internet. Si usa la recepción de archivos, autorice también TCP `47833` con la misma restricción: el script acepta `allow 47833` y `remove 47833`.
@@ -73,23 +73,23 @@ seamlesscontrold serve-auto 47832
 En el origen, `seamlesscontrold discover` muestra nombre, IP, puerto y huella anunciados. Use el panel para emparejar sin copiar la IP. La huella del anuncio mDNS es orientativa: compare el código de seis cifras que aparece durante el emparejamiento en ambos equipos. La alternativa manual en el destino es:
 
 ```bash
-seamlesscontrold serve 192.168.1.20:47832
+seamlesscontrold serve 192.168.50.20:47832
 ```
 
-Sustituya `192.168.1.20` por la IP LAN de ese equipo. En el equipo que tiene teclado y ratón físicos, ejecute:
+Sustituya `192.168.50.20` por la IP LAN de ese equipo. En el equipo que tiene teclado y ratón físicos, ejecute:
 
 ```bash
-seamlesscontrold connect 192.168.1.20:47832 right
+seamlesscontrold connect 192.168.50.20:47832 right
 ```
 
-También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 192.168.1.20:47832`, o introducir esa dirección en el campo manual del panel del equipo de origen.
+También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 192.168.50.20:47832`, o introducir esa dirección en el campo manual del panel del equipo de origen.
 
 Después del emparejamiento, coloque ambos equipos en la cuadrícula 2×2 del panel. La misma operación está disponible por terminal:
 
 ```bash
-seamlesscontrold topology set 192.168.1.20 1 0
+seamlesscontrold topology set 192.168.50.20 1 0
 seamlesscontrold topology
-seamlesscontrold connect 192.168.1.20:47832
+seamlesscontrold connect 192.168.50.20:47832
 ```
 
 La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. `topology route <IP>` muestra los saltos por casillas contiguas y comprueba que cada salto tiene un par fijado. Una conexión `connect` sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal. Si se cambia la cuadrícula durante `mesh` o durante ese `connect` deducido, el agente libera la captura activa y la reconstruye con la disposición nueva; `connect` con un borde explícito conserva el borde elegido.
@@ -104,18 +104,18 @@ seamlesscontrold mesh 47832
 
 El origen instala barreras sólo en los bordes que llevan a una casilla vecina. Al entrar en un destino, el agente sitúa el cursor unos píxeles dentro del borde correspondiente y conserva la altura o anchura relativa del cruce entre monitores de distinta resolución. Cuando el cursor de un destino alcanza el borde hacia otro destino, el receptor envía `SWITCH` con la posición; el origen comprueba la vecindad y la época, establece la conexión cifrada al siguiente, pide `RELEASE` al anterior y espera `ENDED` antes de enviar `BEGIN` al nuevo. Las teclas y botones que siguen pulsados se reproducen en el nuevo destino; el movimiento durante esa breve cesión se descarta. `Escape` o el botón **Devolver control al origen** recuperan el puntero. Tras un fallo de transporte, el origen libera el portal, cierra las conexiones, espera de 1 a 30 segundos y vuelve a preparar la captura; un nuevo cruce establece otra sesión cifrada. Esta ruta de malla está implementada y pasa pruebas de política y protocolo, pero **no se ha probado con varios equipos físicos**. También puede iniciarse desde **Compartir en malla** en el panel Omarchy. El origen distribuye el portapapeles de texto UTF-8 entre los destinos conectados; cuando uno se conecta después, recibe el último cambio conocido. No se han probado físicamente las copias simultáneas entre tres o cuatro equipos.
 
-Para que el destino solicite automáticamente la vuelta al cruzar el borde hacia el origen, configure también su mapa en sentido inverso. Si el origen es `192.168.1.10` y queda a la izquierda del destino, ejecute **en el destino**:
+Para que el destino solicite automáticamente la vuelta al cruzar el borde hacia el origen, configure también su mapa en sentido inverso. Si el origen es `192.168.50.10` y queda a la izquierda del destino, ejecute **en el destino**:
 
 ```bash
 seamlesscontrold topology set local 1 0
-seamlesscontrold topology set 192.168.1.10 0 0
+seamlesscontrold topology set 192.168.50.10 0 0
 ```
 
 Durante una captura, el receptor consulta la posición global del cursor a través del [IPC de Hyprland](https://wiki.hypr.land/IPC/). Sólo solicita el retorno después de observar que el puntero se alejó del borde y volvió a él. En el retorno automático envía la posición del cruce para que el origen recupere el cursor a una altura o anchura proporcional. Si el mapa no sitúa al origen como vecino, falta el socket de Hyprland o el monitor tiene una rotación aún no validada, sigue disponible el botón manual del panel.
 
 `seamlesscontrold diagnose` consulta ese IPC sin modificar el escritorio y muestra la posición del cursor, los rectángulos lógicos de los monitores y `LOCK unlocked|locked|undetermined`. Ejecútelo dentro de la sesión gráfica para comprobar que el agente puede leerlos. El receptor sólo acepta entrada cuando Hyprland confirma `unlocked`; si aparece un bloqueo o falla esa lectura, corta el canal y libera teclas y botones retenidos. Si se bloquea el origen, éste suspende la captura y el portapapeles hasta verificar el desbloqueo. Este comportamiento todavía requiere una prueba física de bloqueo durante el control remoto.
 
-Con un par ya emparejado y el receptor `serve` en marcha, `seamlesscontrold latency 192.168.1.20:47832` intercambia veinte solicitudes y respuestas por el mismo canal cifrado. La línea `LATENCY` informa el mínimo, p50, p95 y máximo en microsegundos, en ese orden. La medición excluye el tiempo de emparejamiento y no representa el retraso de captura, inyección ni visualización; esos tiempos requieren dos equipos y entrada física. Este comando no crea un par nuevo.
+Con un par ya emparejado y el receptor `serve` en marcha, `seamlesscontrold latency 192.168.50.20:47832` intercambia veinte solicitudes y respuestas por el mismo canal cifrado. La línea `LATENCY` informa el mínimo, p50, p95 y máximo en microsegundos, en ese orden. La medición excluye el tiempo de emparejamiento y no representa el retraso de captura, inyección ni visualización; esos tiempos requieren dos equipos y entrada física. Este comando no crea un par nuevo.
 
 `right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. En una primera conexión sin emparejamiento previo, el código aparece durante el establecimiento de la conexión en ambos paneles o en `seamlesscontrold status` de cada equipo. Compare y apruebe en ambos extremos como se indica arriba; `seamlesscontrold reject` deniega el par. Las claves y sus IP actuales se guardan en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, o use **Devolver control al origen** en el panel del destino (`seamlesscontrold return` por terminal). **Ctrl+C** en el terminal de origen cierra el agente. `seamlesscontrold pause` y `resume`, o el botón del panel, desactivan y reactivan la captura. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
 
@@ -126,12 +126,12 @@ El portapapeles de **texto UTF-8** se sincroniza durante `connect` y `mesh`, inc
 Después de emparejar los equipos, puede usar la sección **Archivos** del panel Omarchy. En el destino deje vacía la dirección, elija el directorio y pulse **Esperar un archivo**: el agente elegirá su IP LAN y el puerto 47833. En el origen pulse **Enviar a** junto al equipo emparejado, elija el archivo y pulse **Enviar archivo**. El destino verá el equipo, nombre, tamaño y SHA-256 y debe pulsar **Aceptar archivo** o **Rechazar**. El panel conserva el estilo del resto del plugin y utiliza el mismo protocolo cifrado que la CLI. Si prefiere terminal, abra **en el destino** otro terminal y el mismo puerto LAN:
 
 ```bash
-seamlesscontrold receive-file 192.168.1.20:47833 ~/Downloads
+seamlesscontrold receive-file 192.168.50.20:47833 ~/Downloads
 ```
 
 La variante `seamlesscontrold receive-file-auto 47833 ~/Downloads` elige la IP local sin escribirla. El origen aún necesita la dirección del destino si usa la CLI; `seamlesscontrold discover` la muestra mientras su receptor de control esté activo.
 
-En el origen ejecute `seamlesscontrold send-file 192.168.1.20:47833 /ruta/al/archivo`. El destino muestra nombre, tamaño y SHA-256 y sólo escribe el archivo si alguien responde exactamente `SI` en ese terminal. Es una transferencia por comando: cada ejecución de `receive-file` acepta un solo archivo; las conexiones sin autenticación o con un protocolo incompatible se descartan mientras espera al emisor emparejado. Puede ejecutarse junto al agente de control si utiliza **otro puerto**. El archivo llega por un canal Noise autenticado con las claves ya emparejadas; el destino lo guarda temporalmente y verifica tamaño y SHA-256 antes de publicarlo. Si el origen crece durante el envío, la sesión se cancela y el destino elimina el temporal. Si existe un archivo con el mismo nombre, la transferencia falla sin reemplazarlo. El límite predeterminado es 100 MiB en ambos equipos; `SEAMLESSCONTROL_MAX_FILE_BYTES` permite cambiarlo en cada comando o en el entorno de `omarchy-shell`. Ambos agentes deben tener la misma versión del protocolo de archivos.
+En el origen ejecute `seamlesscontrold send-file 192.168.50.20:47833 /ruta/al/archivo`. El destino muestra nombre, tamaño y SHA-256 y sólo escribe el archivo si alguien responde exactamente `SI` en ese terminal. Es una transferencia por comando: cada ejecución de `receive-file` acepta un solo archivo; las conexiones sin autenticación o con un protocolo incompatible se descartan mientras espera al emisor emparejado. Puede ejecutarse junto al agente de control si utiliza **otro puerto**. El archivo llega por un canal Noise autenticado con las claves ya emparejadas; el destino lo guarda temporalmente y verifica tamaño y SHA-256 antes de publicarlo. Si el origen crece durante el envío, la sesión se cancela y el destino elimina el temporal. Si existe un archivo con el mismo nombre, la transferencia falla sin reemplazarlo. El límite predeterminado es 100 MiB en ambos equipos; `SEAMLESSCONTROL_MAX_FILE_BYTES` permite cambiarlo en cada comando o en el entorno de `omarchy-shell`. Ambos agentes deben tener la misma versión del protocolo de archivos.
 
 Ya hay dos sesiones Omarchy reales en la misma LAN; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor `connect` reintenta las pérdidas de red y un receptor ocupado con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación tras una caída de Wi-Fi aún requiere pruebas físicas. El receptor puede atender diagnósticos cifrados de otros pares mientras una sesión conserva la reserva exclusiva de entrada. La captura instala barreras en los tramos exteriores del borde elegido para todos los monitores anunciados y las recalcula cuando el portal notifica un cambio de zonas; falta validar ese flujo con monitores reales. El retorno por borde y Escape ya se comprobaron en la configuración física descrita arriba; la malla, el portapapeles y los archivos siguen pendientes de pruebas físicas entre equipos. Windows sigue pendiente.
 
@@ -145,7 +145,7 @@ El contrato del socket local y los comandos del panel están descritos en [docs/
 
 ## Servicios de usuario
 
-El instalador copia cuatro unidades de `systemd --user` y las deja deshabilitadas. `seamlesscontrol-receiver-auto.service` usa el puerto 47832 y elige la IP LAN sin archivo de entorno. Para la alternativa manual, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.1.20:47832`. Para un solo destino, cree `~/.config/seamlesscontrol/sender.env` en el origen con `SEAMLESSCONTROL_PEER=192.168.1.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Para varios destinos ya emparejados y situados en la cuadrícula, cree `~/.config/seamlesscontrol/mesh.env` en el origen con `SEAMLESSCONTROL_PORT=47832`. Active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` o `seamlesscontrol-mesh.service`, según corresponda. El origen se reinicia tras una caída de red y reutiliza las claves fijadas. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
+El instalador copia cuatro unidades de `systemd --user` y las deja deshabilitadas. `seamlesscontrol-receiver-auto.service` usa el puerto 47832 y elige la IP LAN sin archivo de entorno. Para la alternativa manual, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.50.20:47832`. Para un solo destino, cree `~/.config/seamlesscontrol/sender.env` en el origen con `SEAMLESSCONTROL_PEER=192.168.50.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Para varios destinos ya emparejados y situados en la cuadrícula, cree `~/.config/seamlesscontrol/mesh.env` en el origen con `SEAMLESSCONTROL_PORT=47832`. Active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` o `seamlesscontrol-mesh.service`, según corresponda. El origen se reinicia tras una caída de red y reutiliza las claves fijadas. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
 
 Para actualizar en ambos equipos, ejecute `omarchy plugin update seamlesscontrol.control` y después `bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh`. El instalador reemplaza el ejecutable de forma atómica y conserva `~/.config/seamlesscontrol/`. Un agente que ya estaba en ejecución sigue usando la revisión anterior hasta que se detenga y vuelva a iniciar desde el panel, terminal o servicio de usuario; haga ese reinicio en ambos extremos antes de usar un protocolo nuevo.
 

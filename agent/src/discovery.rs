@@ -212,22 +212,22 @@ mod tests {
         let key = "a".repeat(64);
         let line = |ip: &str, version: &str, advertised: &str| {
             format!(
-                "=;wlo1;IPv4;SeamlessControl\\032sala;{SERVICE_TYPE};local;sala.local;{ip};47832;\"protocol={version}\" \"fingerprint={key}\" \"address={advertised}\""
+                "=;wlan0;IPv4;SeamlessControl\\032sala;{SERVICE_TYPE};local;sala.local;{ip};47832;\"protocol={version}\" \"fingerprint={key}\" \"address={advertised}\""
             )
         };
         let output = [
-            line("192.168.1.20", "5", "192.168.1.20"),
-            line("172.17.0.1", "5", "192.168.1.20"),
-            line("192.168.1.30", "4", "192.168.1.30"),
-            line("192.168.1.40", "5", "8.8.8.8"),
-            line("192.168.1.50", "5", "127.0.0.1"),
+            line("192.168.50.20", "5", "192.168.50.20"),
+            line("172.17.0.1", "5", "192.168.50.20"),
+            line("192.168.50.30", "4", "192.168.50.30"),
+            line("192.168.50.40", "5", "8.8.8.8"),
+            line("192.168.50.50", "5", "127.0.0.1"),
         ]
         .join("\n");
         assert_eq!(
             parse_browse_output(&output),
             vec![DiscoveredServer {
                 name: "SeamlessControl sala".to_owned(),
-                address: "192.168.1.20:47832".parse().unwrap(),
+                address: "192.168.50.20:47832".parse().unwrap(),
                 fingerprint: key,
             }]
         );

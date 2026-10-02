@@ -457,8 +457,8 @@ mod tests {
         let path = dir.join("control.sock");
         let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
         let handle = server.handle();
-        let lease = handle.claim_receiver("192.168.1.2").unwrap();
-        assert!(handle.claim_receiver("192.168.1.3").is_none());
+        let lease = handle.claim_receiver("192.168.50.2").unwrap();
+        assert!(handle.claim_receiver("192.168.50.3").is_none());
         assert!(!handle.confirm_pair(&PeerInfo {
             public_key: [9; 32],
             sas: "123456".to_owned(),
@@ -466,7 +466,7 @@ mod tests {
         assert!(
             request_at(&path, "status")
                 .unwrap()
-                .contains("\tconnected\t192.168.1.2\t")
+                .contains("\tconnected\t192.168.50.2\t")
         );
         drop(lease);
         assert!(
@@ -474,7 +474,7 @@ mod tests {
                 .unwrap()
                 .contains("\tlistening\t\t")
         );
-        assert!(handle.claim_receiver("192.168.1.3").is_some());
+        assert!(handle.claim_receiver("192.168.50.3").is_some());
         drop(server);
         fs::remove_dir_all(dir).unwrap();
     }
@@ -489,16 +489,16 @@ mod tests {
         let path = dir.join("control.sock");
         let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
         let handle = server.handle();
-        let lease = handle.claim_receiver("192.168.1.2").unwrap();
+        let lease = handle.claim_receiver("192.168.50.2").unwrap();
         assert_eq!(request_at(&path, "emergency-stop").unwrap(), "OK\n");
         assert!(handle.disconnect_requested());
         assert!(handle.paused());
         drop(lease);
         assert!(request_at(&path, "status").unwrap().contains("\tpaused\t"));
-        assert!(handle.claim_receiver("192.168.1.2").is_none());
+        assert!(handle.claim_receiver("192.168.50.2").is_none());
         assert_eq!(request_at(&path, "resume").unwrap(), "OK\n");
         assert!(!handle.disconnect_requested());
-        assert!(handle.claim_receiver("192.168.1.2").is_some());
+        assert!(handle.claim_receiver("192.168.50.2").is_some());
         drop(server);
         fs::remove_dir_all(dir).unwrap();
     }
@@ -514,7 +514,7 @@ mod tests {
         let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
         assert!(request_at(&path, "return").unwrap().starts_with("ERR"));
         let handle = server.handle();
-        handle.set_peer("192.168.1.2");
+        handle.set_peer("192.168.50.2");
         handle.set_active_epoch(Some(17));
         handle.set_phase("controlling");
         assert_eq!(request_at(&path, "return").unwrap(), "OK\n");

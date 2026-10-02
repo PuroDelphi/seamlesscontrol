@@ -295,8 +295,8 @@ mod tests {
             fraction: 1234,
         };
         assert_eq!(SwitchRequest::parse(&request.encode()), Ok(request));
-        assert!(SwitchRequest::parse(b"SWITCH\t192.168.1.3\tbottom\t65536").is_err());
-        assert!(SwitchRequest::parse(b"SWITCH\t192.168.1.3\tbottom").is_err());
+        assert!(SwitchRequest::parse(b"SWITCH\t192.168.50.3\tbottom\t65536").is_err());
+        assert!(SwitchRequest::parse(b"SWITCH\t192.168.50.3\tbottom").is_err());
         let returning = ReturnRequest {
             exit_edge: Edge::Left,
             fraction: 55_000,
