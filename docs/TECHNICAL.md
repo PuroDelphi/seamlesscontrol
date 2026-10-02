@@ -65,7 +65,7 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh
 
 ## Protocol and other features
 
-The source captures input through the desktop portal and EIS. The receiver injects it through Hyprland virtual input. Network sessions use Noise XX with pinned peer keys. The receiver permits one input owner at a time and releases held keys/buttons on disconnect. Lock state is checked through Hyprland IPC; unknown or locked state blocks injection. After Escape or a remote return, a 96 pixel rearm distance keeps the edge from capturing immediately again.
+The source captures input through the desktop portal and EIS. The receiver injects it through Hyprland virtual input. Its virtual keyboard uses the compositor's XKB keymap to update Wayland modifier state with each key event, so combinations such as Super+V can reach Hyprland as shortcuts. Network sessions use Noise XX with pinned peer keys. The receiver permits one input owner at a time and releases held keys/buttons on disconnect. Lock state is checked through Hyprland IPC; unknown or locked state blocks injection. After Escape or a remote return, a 96 pixel rearm distance keeps the edge from capturing immediately again.
 
 Text clipboard updates are UTF-8, limited to 256 KiB, and exclude sensitive Wayland selections. The experimental 2×2 mesh mode uses `seamlesscontrold mesh 47832` on the source after all receivers are paired and placed on every layout. It authenticates each destination and releases one input owner before switching to the next. Mesh clipboard, rapid handoffs and network recovery still need physical multi-machine validation.
 

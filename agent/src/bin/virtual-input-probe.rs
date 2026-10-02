@@ -17,6 +17,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         devices.key(1, true, 0)?;
         devices.key(1, false, 1)?;
         println!("Se envió Escape con el teclado virtual.");
+    } else if args.len() == 2 && args[1] == "--shortcut-test" {
+        // Super+F24 is reserved for an isolated temporary Hyprland test bind.
+        devices.key(125, true, 0)?;
+        devices.key(194, true, 1)?;
+        devices.key(194, false, 2)?;
+        devices.key(125, false, 3)?;
+        println!("Se envió Super+F24 con el teclado virtual.");
     } else {
         println!("Hyprland aceptó teclado y puntero virtuales; no se enviaron eventos.");
     }

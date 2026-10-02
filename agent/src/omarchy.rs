@@ -2,7 +2,9 @@
 //! authority for accepting virtual devices. No root or uinput access is used.
 
 use crate::state::InputEvent;
+use std::collections::BTreeSet;
 use std::error::Error;
+use std::io::Read;
 use std::os::fd::AsFd;
 use wayland_client::protocol::{wl_keyboard, wl_pointer, wl_registry, wl_seat};
 use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle, delegate_noop};
@@ -14,6 +16,7 @@ use wayland_protocols_wlr::virtual_pointer::v1::client::{
     zwlr_virtual_pointer_manager_v1::ZwlrVirtualPointerManagerV1,
     zwlr_virtual_pointer_v1::ZwlrVirtualPointerV1,
 };
+use xkbcommon::xkb;
 
 #[derive(Default)]
 struct RegistryState {
@@ -75,6 +78,8 @@ pub struct VirtualInput {
     state: RegistryState,
     pointer: ZwlrVirtualPointerV1,
     keyboard: ZwpVirtualKeyboardV1,
+    keyboard_state: xkb::State,
+    held_keys: BTreeSet<u32>,
 }
 
 impl VirtualInput {
@@ -112,6 +117,25 @@ impl VirtualInput {
             .keymap
             .take()
             .ok_or("compositor did not provide a keyboard keymap")?;
+        if format != 1 || size == 0 || size > 4 * 1024 * 1024 {
+            return Err("unsupported Wayland keyboard keymap".into());
+        }
+        let mut keymap_file = std::fs::File::from(fd.as_fd().try_clone_to_owned()?);
+        let mut keymap_bytes = vec![0; size as usize];
+        keymap_file.read_exact(&mut keymap_bytes)?;
+        if keymap_bytes.last() == Some(&0) {
+            keymap_bytes.pop();
+        }
+        let keymap_text = String::from_utf8(keymap_bytes)?;
+        let xkb_context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let xkb_keymap = xkb::Keymap::new_from_string(
+            &xkb_context,
+            keymap_text,
+            xkb::KEYMAP_FORMAT_TEXT_V1,
+            xkb::KEYMAP_COMPILE_NO_FLAGS,
+        )
+        .ok_or("compositor keyboard keymap is invalid")?;
+        let keyboard_state = xkb::State::new(&xkb_keymap);
 
         let pointer = pointer_manager.create_virtual_pointer(Some(&seat), &qh, ());
         let keyboard = keyboard_manager.create_virtual_keyboard(&seat, &qh, ());
@@ -124,6 +148,8 @@ impl VirtualInput {
             state,
             pointer,
             keyboard,
+            keyboard_state,
+            held_keys: BTreeSet::new(),
         })
     }
 
@@ -153,7 +179,31 @@ impl VirtualInput {
     }
 
     pub fn key(&mut self, key: u32, pressed: bool, time_ms: u32) -> Result<(), Box<dyn Error>> {
+        let code = key.checked_add(8).ok_or("invalid keyboard keycode")?;
+        let changed = if pressed {
+            self.held_keys.insert(key)
+        } else {
+            self.held_keys.remove(&key)
+        };
         self.keyboard.key(time_ms, key, if pressed { 1 } else { 0 });
+        if changed {
+            self.keyboard_state.update_key(
+                code.into(),
+                if pressed {
+                    xkb::KeyDirection::Down
+                } else {
+                    xkb::KeyDirection::Up
+                },
+            );
+        }
+        self.keyboard.modifiers(
+            self.keyboard_state
+                .serialize_mods(xkb::STATE_MODS_DEPRESSED),
+            self.keyboard_state.serialize_mods(xkb::STATE_MODS_LATCHED),
+            self.keyboard_state.serialize_mods(xkb::STATE_MODS_LOCKED),
+            self.keyboard_state
+                .serialize_layout(xkb::STATE_LAYOUT_EFFECTIVE),
+        );
         self.flush()
     }
 
@@ -203,5 +253,44 @@ impl VirtualInput {
     pub fn sync(&mut self) -> Result<(), Box<dyn Error>> {
         self.queue.roundtrip(&mut self.state)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn xkb_tracks_super_for_remote_shortcuts_and_releases_it() {
+        let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+        let keymap = xkb::Keymap::new_from_names(
+            &context,
+            "",
+            "",
+            "us",
+            "",
+            None,
+            xkb::KEYMAP_COMPILE_NO_FLAGS,
+        )
+        .expect("US keymap");
+        let mut state = xkb::State::new(&keymap);
+        let logo = keymap.mod_get_index(xkb::MOD_NAME_LOGO);
+        assert_ne!(logo, xkb::MOD_INVALID);
+        state.update_key((125u32 + 8).into(), xkb::KeyDirection::Down);
+        assert_ne!(
+            state.serialize_mods(xkb::STATE_MODS_DEPRESSED) & (1 << logo),
+            0
+        );
+        state.update_key((47u32 + 8).into(), xkb::KeyDirection::Down);
+        assert_ne!(
+            state.serialize_mods(xkb::STATE_MODS_DEPRESSED) & (1 << logo),
+            0
+        );
+        state.update_key((47u32 + 8).into(), xkb::KeyDirection::Up);
+        state.update_key((125u32 + 8).into(), xkb::KeyDirection::Up);
+        assert_eq!(
+            state.serialize_mods(xkb::STATE_MODS_DEPRESSED) & (1 << logo),
+            0
+        );
     }
 }

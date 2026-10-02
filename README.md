@@ -80,5 +80,12 @@ If you authorized a firewall rule, remove it **before** removing the widget from
 - [Illustrated panel guide and feature reference](docs/USER-GUIDE.md)
 - [Known limitations and physical test results](docs/TEST-RESULTS.md)
 - [Roadmap (Spanish)](PLAN.md)
+- [Publishing and exact marketplace SHA](docs/PUBLISHING.md)
 
 MIT licensed. See [LICENSE](LICENSE).
+
+## Support this project
+
+If SeamlessControl helps you, you can support its maintenance through [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) or [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ). Donations are optional and do not change the MIT license.
+
+[![Scan to donate through PayPal](docs/images/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ)

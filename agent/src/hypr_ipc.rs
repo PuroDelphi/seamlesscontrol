@@ -89,7 +89,10 @@ pub fn parse_session_lock(raw: &[u8]) -> io::Result<SessionLockState> {
                     .get("activeWorkspace")
                     .and_then(|workspace| workspace.get("id"))
                     .and_then(Value::as_i64)
-                    .is_some_and(|id| id > 0) => &[],
+                    .is_some_and(|id| id > 0) =>
+            {
+                &[]
+            }
             _ => {
                 unknown = true;
                 continue;
@@ -226,11 +229,13 @@ mod tests {
             SessionLockState::Unlocked
         );
         assert_eq!(
-            parse_session_lock(br#"[{"activeWorkspace":{"id":2},"solitaryBlockedBy":null}]"#).unwrap(),
+            parse_session_lock(br#"[{"activeWorkspace":{"id":2},"solitaryBlockedBy":null}]"#)
+                .unwrap(),
             SessionLockState::Unlocked
         );
         assert_eq!(
-            parse_session_lock(br#"[{"activeWorkspace":{"id":0},"solitaryBlockedBy":null}]"#).unwrap(),
+            parse_session_lock(br#"[{"activeWorkspace":{"id":0},"solitaryBlockedBy":null}]"#)
+                .unwrap(),
             SessionLockState::Undetermined
         );
         assert_eq!(

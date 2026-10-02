@@ -54,7 +54,7 @@ if [[ ${SEAMLESSCONTROL_INSTALL_DEPS:-1} == 1 ]]; then
   fi
 fi
 
-"$cargo_bin" build --release --manifest-path "$repo_dir/agent/Cargo.toml" --bin seamlesscontrold
+"$cargo_bin" build --release --locked --manifest-path "$repo_dir/agent/Cargo.toml" --bin seamlesscontrold
 install -d -m 755 "$install_dir"
 temp_bin=$(mktemp "$install_dir/.seamlesscontrold.XXXXXXXX")
 trap 'rm -f -- "$temp_bin"' EXIT

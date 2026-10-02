@@ -80,5 +80,12 @@ Si autorizaste una regla de firewall, retírala **antes** de quitar el widget en
 - [Guía ilustrada del panel y sus funciones](docs/USER-GUIDE.es.md)
 - [Límites actuales y resultados de pruebas físicas](docs/TEST-RESULTS.es.md)
 - [Plan](PLAN.md)
+- [Publicación y SHA exacto para el mercado de plugins](docs/PUBLISHING.es.md)
 
 Licencia MIT. Consulta [LICENSE](LICENSE).
+
+## Apoya este proyecto
+
+Si SeamlessControl te resulta útil, puedes apoyar su mantenimiento mediante [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) o [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ). Las donaciones son opcionales y no cambian la licencia MIT.
+
+[![Escanea para donar por PayPal](docs/images/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ)
