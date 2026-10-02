@@ -8,6 +8,7 @@ scratch=$(mktemp -d /tmp/seamlesscontrol-uninstall-XXXXXX)
 server_pid=
 cleanup() {
   if [[ -n "$server_pid" ]]; then
+    kill -CONT "$server_pid" 2>/dev/null || true
     kill -INT "$server_pid" 2>/dev/null || true
     wait "$server_pid" 2>/dev/null || true
   fi
@@ -28,9 +29,16 @@ cat >"$scratch/mock/systemctl" <<'MOCK'
 printf '%s\n' "$*" >>"$SC_SYSTEMCTL_LOG"
 MOCK
 chmod 755 "$scratch/mock/systemctl"
+cat >"$scratch/mock/omarchy" <<'MOCK'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$SC_OMARCHY_LOG"
+MOCK
+chmod 755 "$scratch/mock/omarchy"
+mkdir -m 700 -p "$fake_home/.local/state/seamlesscontrol"
+printf 'rust\navahi\nnot-a-plugin-package\n' >"$fake_home/.local/state/seamlesscontrol/installed-packages"
 
 port=$((49000 + RANDOM % 8000))
-HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_RUNTIME_DIR="$scratch/run" \
+HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
   "$bin" serve "127.0.0.1:$port" >"$scratch/server.log" 2>&1 &
 server_pid=$!
 for _ in {1..100}; do
@@ -41,7 +49,7 @@ XDG_RUNTIME_DIR="$scratch/run" "$bin" status >/dev/null
 identity="$fake_home/.config/seamlesscontrol/identity"
 before=$(sha256sum "$identity" | cut -d ' ' -f1)
 
-if HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_RUNTIME_DIR="$scratch/run" \
+if HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
   SC_SYSTEMCTL_LOG="$scratch/systemctl.log" PATH="$scratch/mock:$PATH" \
   bash "$repo_dir/packaging/uninstall-agent.sh" >"$scratch/blocked.log" 2>&1; then
   printf 'El desinstalador quitó un agente activo\n' >&2
@@ -51,10 +59,21 @@ fi
 [[ -f "$plugin_dir/marker" ]]
 [[ "$(sha256sum "$identity" | cut -d ' ' -f1)" == "$before" ]]
 
+kill -STOP "$server_pid"
+set +e
+HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
+  SC_SYSTEMCTL_LOG="$scratch/systemctl.log" PATH="$scratch/mock:$PATH" \
+  timeout 5 bash "$repo_dir/packaging/uninstall-agent.sh" >"$scratch/stopped.log" 2>&1
+stopped_code=$?
+set -e
+[[ $stopped_code -ne 0 && $stopped_code -ne 124 ]]
+[[ -x "$bin" ]]
+kill -CONT "$server_pid"
+
 kill -INT "$server_pid"
 wait "$server_pid"
 server_pid=
-HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_RUNTIME_DIR="$scratch/run" \
+HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
   SC_SYSTEMCTL_LOG="$scratch/systemctl.log" PATH="$scratch/mock:$PATH" \
   bash "$repo_dir/packaging/uninstall-agent.sh" >"$scratch/uninstall.log" 2>&1
 [[ ! -e "$bin" ]]
@@ -62,15 +81,23 @@ HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_RUNTIME_DIR="$scratch
 [[ -f "$plugin_dir/marker" ]]
 [[ "$(sha256sum "$identity" | cut -d ' ' -f1)" == "$before" ]]
 [[ $(wc -l <"$scratch/systemctl.log") -eq 5 ]]
+[[ -f "$fake_home/.local/state/seamlesscontrol/installed-packages" ]]
+[[ ! -e "$scratch/omarchy.log" ]]
 
 custom_bin="$scratch/custom-bin"
 mkdir -m 700 "$custom_bin"
 install -m 755 "$repo_dir/agent/target/release/seamlesscontrold" "$custom_bin/seamlesscontrold"
-HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_RUNTIME_DIR="$scratch/run" \
+HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
   XDG_BIN_HOME="$custom_bin" SC_SYSTEMCTL_LOG="$scratch/systemctl.log" \
   PATH="$scratch/mock:$PATH" bash "$repo_dir/packaging/uninstall-agent.sh" \
   >"$scratch/custom-uninstall.log" 2>&1
 [[ ! -e "$custom_bin/seamlesscontrold" ]]
 [[ $(wc -l <"$scratch/systemctl.log") -eq 5 ]]
 [[ "$(sha256sum "$identity" | cut -d ' ' -f1)" == "$before" ]]
+HOME="$fake_home" XDG_CONFIG_HOME="$fake_home/.config" XDG_STATE_HOME="$fake_home/.local/state" XDG_RUNTIME_DIR="$scratch/run" \
+  SC_SYSTEMCTL_LOG="$scratch/systemctl.log" SC_OMARCHY_LOG="$scratch/omarchy.log" \
+  PATH="$scratch/mock:$PATH" bash "$repo_dir/packaging/uninstall-agent.sh" --remove-deps \
+  >"$scratch/deps-uninstall.log" 2>&1
+[[ $(cat "$scratch/omarchy.log") == 'pkg drop rust avahi' ]]
+[[ ! -e "$fake_home/.local/state/seamlesscontrol/installed-packages" ]]
 printf 'Retirada segura de unidades y binario; identidad y widget conservados: correcto\n'

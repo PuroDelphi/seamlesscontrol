@@ -6,6 +6,7 @@ import QtCore as Core
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "Translations.js" as Tr
 
 Panel {
   id: root
@@ -17,6 +18,7 @@ Panel {
   property var backend: null
   property string revokeCandidate: ""
   property string selectedMachine: ""
+  property bool confirmRemoveAgent: false
   readonly property var ownerItem: hostWidget || root
   readonly property color ink: bar ? bar.foreground : Color.foreground
   readonly property color muted: Qt.darker(ink, 1.5)
@@ -24,6 +26,18 @@ Panel {
   readonly property var unassignedPeers: backend ? backend.peers.filter(function(peer) {
     return !backend.topology.some(function(slot) { return slot.id === peer.ip })
   }) : []
+
+  function t(spanish) { return Tr.text(spanish, backend ? backend.language : "en") }
+
+  function formatFirewallPreview(rule) {
+    return String(rule || "")
+      .replace(/^(Proposed UFW rule: |Regla UFW propuesta: )/, "")
+      .replace(" from ", "\nfrom ")
+      .replace(" to ", "\nto ")
+      .replace(" port ", "\nport ")
+      .replace(" proto ", "\nproto ")
+      .replace(" comment ", "\ncomment ")
+  }
 
   function machineAt(column, row) {
     if (!backend) return ""
@@ -80,14 +94,14 @@ Panel {
 
   Dialogs.FileDialog {
     id: sourceChooser
-    title: "Archivo para SeamlessControl"
+    title: root.t("Archivo para SeamlessControl")
     fileMode: Dialogs.FileDialog.OpenFile
     onAccepted: fileSourcePath.text = root.localPath(selectedFile)
   }
 
   Dialogs.FolderDialog {
     id: destinationChooser
-    title: "Guardar archivos de SeamlessControl"
+    title: root.t("Guardar archivos de SeamlessControl")
     onAccepted: fileDirectory.text = root.localPath(selectedFolder)
   }
 
@@ -133,8 +147,8 @@ Panel {
         PanelHero {
           Layout.fillWidth: true
           title: "SeamlessControl"
-          meta: "OMARCHY  ·  " + (root.backend && !root.backend.installed ? "SIN AGENTE"
-            : root.backend && root.backend.available ? root.backend.phaseText.toUpperCase() : "SIN SESIÓN")
+          meta: "OMARCHY  ·  " + (root.backend && !root.backend.installed ? root.t("SIN AGENTE")
+            : root.backend && root.backend.available ? root.backend.phaseText.toUpperCase() : root.t("SIN SESIÓN"))
           foreground: root.ink
           fontFamily: root.face
           iconComponent: Component {
@@ -148,6 +162,134 @@ Panel {
           }
         }
 
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Text {
+            Layout.fillWidth: true
+            text: root.t("IDIOMA")
+            color: root.muted
+            font.family: root.face
+            font.pixelSize: Style.font.caption
+          }
+          Button {
+            text: "English"
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.language !== "en"
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.setLanguage("en")
+          }
+          Button {
+            text: "Español"
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.language !== "es"
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.setLanguage("es")
+          }
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: root.t("PREPARAR ESTE EQUIPO")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Después de añadir el plugin con Omarchy, instale aquí el agente y los paquetes que falten. Se abrirá una terminal para mostrar el progreso y pedir autorización si hace falta.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Instalar agente")
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.installed && !root.backend.setupBusy
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.runSetup("install")
+          }
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Retirar agente")
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.installed && !root.backend.available
+              && !root.backend.setupBusy && !root.backend.managedAgentRunning
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.confirmRemoveAgent = true
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.confirmRemoveAgent
+          text: root.t("Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.confirmRemoveAgent
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Confirmar retirada")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.urgent
+            fontFamily: root.face
+            onClicked: {
+              root.confirmRemoveAgent = false
+              if (root.backend) root.backend.runSetup("remove")
+            }
+          }
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Cancelar")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.confirmRemoveAgent = false
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.setupMessage !== "" || root.backend.setupError !== "")
+          text: root.backend ? root.t(root.backend.setupError !== "" ? root.backend.setupError : root.backend.setupMessage) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.setupError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
         PanelSeparator {
           Layout.fillWidth: true
           foreground: root.ink
@@ -156,7 +298,7 @@ Panel {
         PanelSectionHeader {
           Layout.fillWidth: true
           visible: root.backend && root.backend.pairSas !== ""
-          text: "CONFIRMAR EMPAREJAMIENTO · ESTE EQUIPO"
+          text: root.t("CONFIRMAR EMPAREJAMIENTO · ESTE EQUIPO")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -164,8 +306,8 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.pairSas !== ""
-          text: root.backend ? "Código de este equipo: " + root.backend.pairSas
-            + "\nCompárelo con el que aparece en el otro Omarchy. Se genera automáticamente; no hay que escribirlo ni cambiarlo."
+          text: root.backend ? root.t("Código de este equipo: ") + root.backend.pairSas
+            + root.t("\nCompárelo con el que aparece en el otro Omarchy. Se genera automáticamente; no hay que escribirlo ni cambiarlo.")
             : ""
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
@@ -180,7 +322,7 @@ Panel {
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
-            text: "Coincide · aprobar aquí"
+            text: root.t("Coincide · aprobar aquí")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -190,7 +332,7 @@ Panel {
           }
           Button {
             Layout.fillWidth: true
-            text: "No coincide · rechazar"
+            text: root.t("No coincide · rechazar")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -202,21 +344,21 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: "HASTA CUATRO EQUIPOS · UNA ENTRADA"
+          text: root.t("HASTA CUATRO EQUIPOS · UNA ENTRADA")
           foreground: root.ink
           fontFamily: root.face
         }
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: "MAPA DE EQUIPOS · 2 × 2"
+          text: root.t("MAPA DE EQUIPOS · 2 × 2")
           foreground: root.ink
           fontFamily: root.face
         }
 
         Text {
           Layout.fillWidth: true
-          text: "Ubique el otro equipo junto a ESTE EQUIPO en ambos Omarchy. En el receptor, esa posición permite volver cruzando el borde hacia el origen; sin ella, use Escape o «Devolver control al origen»."
+          text: root.t("Ubique el otro equipo junto a ESTE EQUIPO en ambos Omarchy. En el receptor, esa posición permite volver cruzando el borde hacia el origen; sin ella, use Escape o «Devolver control al origen».")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -273,7 +415,7 @@ Panel {
                 Text {
                   anchors.centerIn: parent
                   width: parent.width - Style.space(8)
-                  text: gridTile.machineId === "local" ? "● ESTE EQUIPO" : "󰍹 " + gridTile.machineId
+                  text: gridTile.machineId === "local" ? root.t("● ESTE EQUIPO") : "󰍹 " + gridTile.machineId
                   textFormat: Text.PlainText
                   horizontalAlignment: Text.AlignHCenter
                   elide: Text.ElideMiddle
@@ -308,8 +450,8 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.unassignedPeers.length > 0
-          text: "SIN POSICIÓN · " + root.unassignedPeers.map(function(peer) { return peer.ip }).join(" · ")
-            + "\nUbique este equipo en la cuadrícula antes de probar el regreso por el borde."
+          text: root.t("SIN POSICIÓN · ") + root.unassignedPeers.map(function(peer) { return peer.ip }).join(" · ")
+            + root.t("\nUbique este equipo en la cuadrícula antes de probar el regreso por el borde.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
@@ -322,7 +464,7 @@ Panel {
           delegate: Button {
             required property int index
             Layout.fillWidth: true
-            text: "Ubicar " + root.unassignedPeers[index].ip
+            text: root.t("Ubicar ") + root.unassignedPeers[index].ip
             bordered: true
             focusable: true
             foreground: root.ink
@@ -334,7 +476,7 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: "EQUIPOS EN LA RED"
+          text: root.t("EQUIPOS EN LA RED")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -347,8 +489,8 @@ Panel {
             text: root.backend && root.backend.discoveryError !== ""
               ? root.backend.discoveryError
               : root.backend && root.backend.discovered.length > 0
-                ? "Compare el código al emparejar. Una IP nueva se verifica con la clave guardada."
-                : "Sin receptores encontrados. Abra Recibir control en el otro Omarchy."
+                ? root.t("Compare el código al emparejar. Una IP nueva se verifica con la clave guardada.")
+                : root.t("Sin receptores encontrados. Abra Recibir control en el otro Omarchy.")
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
             color: root.muted
@@ -356,7 +498,7 @@ Panel {
             font.pixelSize: Style.font.caption
           }
           Button {
-            text: "Buscar"
+            text: root.t("Buscar")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed
@@ -386,10 +528,10 @@ Panel {
             }
             Button {
               Layout.preferredWidth: Style.space(108)
-              text: root.changedServerKey(discoveredRow.server) ? "Clave cambió"
+              text: root.changedServerKey(discoveredRow.server) ? root.t("Clave cambió")
                 : root.knownServer(discoveredRow.server)
-                  ? root.adjacentServer(discoveredRow.server) ? "Compartir" : "Ubicar"
-                  : root.previousServerIp(discoveredRow.server) !== "" ? "Actualizar IP" : "Emparejar"
+                  ? root.adjacentServer(discoveredRow.server) ? root.t("Compartir") : root.t("Ubicar")
+                  : root.previousServerIp(discoveredRow.server) !== "" ? "Actualizar IP" : root.t("Emparejar")
               bordered: true
               focusable: true
               enabled: root.backend && root.backend.installed && !root.backend.available
@@ -417,7 +559,7 @@ Panel {
           Controls.TextField {
             id: pairAddress
             Layout.fillWidth: true
-            placeholderText: "Alternativa manual · IP:puerto"
+            placeholderText: root.t("Alternativa manual · IP:puerto")
             color: root.ink
             font.family: root.face
             background: Rectangle {
@@ -428,7 +570,7 @@ Panel {
             }
           }
           Button {
-            text: root.backend && root.backend.pairingRunning ? "Conectando…" : "Emparejar"
+            text: root.backend && root.backend.pairingRunning ? root.t("Conectando…") : root.t("Emparejar")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && pairAddress.text !== ""
@@ -442,7 +584,7 @@ Panel {
         PanelSectionHeader {
           Layout.fillWidth: true
           visible: root.backend && root.backend.peers.length > 0
-          text: "EQUIPOS EMPAREJADOS"
+          text: root.t("EQUIPOS EMPAREJADOS")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -465,7 +607,7 @@ Panel {
               font.pixelSize: Style.font.caption
             }
             Button {
-              text: "Revocar"
+              text: root.t("Revocar")
               bordered: true
               focusable: true
               foreground: root.ink
@@ -482,7 +624,7 @@ Panel {
           spacing: Style.space(8)
           Text {
             Layout.fillWidth: true
-            text: "¿Revocar " + root.revokeCandidate + "? Esa clave no podrá volver a conectarse."
+            text: root.t("¿Revocar ") + root.revokeCandidate + root.t("? Esa clave no podrá volver a conectarse.")
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
             color: Color.urgent
@@ -490,7 +632,7 @@ Panel {
             font.pixelSize: Style.font.caption
           }
           Button {
-            text: "Confirmar"
+            text: root.t("Confirmar")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -502,7 +644,7 @@ Panel {
             }
           }
           Button {
-            text: "Cancelar"
+            text: root.t("Cancelar")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -526,12 +668,12 @@ Panel {
         Text {
           Layout.fillWidth: true
           text: root.backend && root.backend.available
-            ? "Agente " + (root.backend.role === "serve" ? "receptor" : "emisor")
+            ? root.t("Agente ") + (root.backend.role === "serve" ? root.t("receptor") : root.t("emisor"))
               + (root.backend.peer !== "" ? " · " + root.backend.peer : "")
-              + (root.backend.paused ? " · en pausa" : "")
+              + (root.backend.paused ? root.t(" · en pausa") : "")
             : root.backend && !root.backend.installed
-              ? "Falta el agente. Ejecute bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh; el panel lo detectará automáticamente."
-              : "No hay sesión activa. Iníciela desde este panel o desde un terminal."
+              ? root.t("Falta el agente. Pulse Instalar agente arriba; el panel lo detectará automáticamente.")
+              : root.t("No hay sesión activa. Iníciela desde este panel o desde un terminal.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.ink
@@ -541,7 +683,7 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: "INICIAR SESIÓN"
+          text: root.t("INICIAR SESIÓN")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -553,7 +695,7 @@ Panel {
           Controls.TextField {
             id: listenAddress
             Layout.fillWidth: true
-            placeholderText: "Automático · 47832 (o puerto / IP:puerto)"
+            placeholderText: root.t("Automático · 47832 (o puerto / IP:puerto)")
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
@@ -565,7 +707,7 @@ Panel {
             }
           }
           Button {
-            text: "Recibir control"
+            text: root.t("Recibir control")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning
@@ -584,7 +726,7 @@ Panel {
         PanelSectionHeader {
           Layout.fillWidth: true
           visible: root.backend && root.backend.installed
-          text: "FIREWALL · SOLO EN EL RECEPTOR"
+          text: root.t("FIREWALL · SOLO EN EL RECEPTOR")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -592,7 +734,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.installed
-          text: "Si el otro equipo agota el tiempo de conexión, permita aquí el mismo puerto TCP elegido para «Recibir control». Primero verá la regla limitada a esta red local; Omarchy pedirá autorización antes de aplicarla."
+          text: root.t("Si el otro equipo agota el tiempo de conexión, permita aquí el mismo puerto TCP elegido para «Recibir control». Primero verá la regla limitada a esta red local; Omarchy pedirá autorización antes de aplicarla.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -608,14 +750,14 @@ Panel {
             id: firewallPortField
             Layout.fillWidth: true
             text: "47832"
-            placeholderText: "Puerto TCP del receptor"
+            placeholderText: root.t("Puerto TCP del receptor")
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
             onTextChanged: if (root.backend) root.backend.cancelFirewall()
           }
           Button {
-            text: root.backend && root.backend.firewallBusy ? "Comprobando…" : "Preparar regla LAN"
+            text: root.backend && root.backend.firewallBusy ? root.t("Comprobando…") : root.t("Preparar regla LAN")
             bordered: true
             focusable: true
             enabled: root.backend && !root.backend.firewallBusy
@@ -629,7 +771,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.firewallPreview !== ""
-          text: root.backend ? root.backend.firewallPreview : ""
+          text: root.backend ? root.formatFirewallPreview(root.backend.firewallPreview) : ""
           textFormat: Text.PlainText
           wrapMode: Text.WrapAnywhere
           color: Color.accent
@@ -643,7 +785,7 @@ Panel {
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
-            text: "Autorizar esta regla"
+            text: root.t("Autorizar esta regla")
             bordered: true
             focusable: true
             enabled: root.backend && !root.backend.firewallBusy
@@ -653,7 +795,7 @@ Panel {
             onClicked: if (root.backend) root.backend.allowFirewall()
           }
           Button {
-            text: "Cancelar"
+            text: root.t("Cancelar")
             bordered: true
             focusable: true
             enabled: root.backend && !root.backend.firewallBusy
@@ -682,13 +824,13 @@ Panel {
           Controls.TextField {
             id: connectAddress
             Layout.fillWidth: true
-            placeholderText: "IP del vecino:47832"
+            placeholderText: root.t("IP del vecino:47832")
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: "Compartir entrada"
+            text: root.t("Compartir entrada")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && connectAddress.text.trim() !== ""
@@ -707,13 +849,13 @@ Panel {
             id: meshPort
             Layout.fillWidth: true
             text: "47832"
-            placeholderText: "Puerto común de los destinos"
+            placeholderText: root.t("Puerto común de los destinos")
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: "Compartir en malla"
+            text: root.t("Compartir en malla")
             bordered: true
             focusable: true
             enabled: root.backend && root.backend.installed && !root.backend.pairingRunning
@@ -729,7 +871,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
-          text: "Malla experimental: empareje y ubique todos los equipos; cada destino debe estar escuchando en el mismo puerto. El origen distribuye el portapapeles de texto entre los destinos conectados."
+          text: root.t("Malla experimental: empareje y ubique todos los equipos; cada destino debe estar escuchando en el mismo puerto. El origen distribuye el portapapeles de texto entre los destinos conectados.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -740,7 +882,7 @@ Panel {
         Button {
           Layout.fillWidth: true
           visible: root.backend && root.backend.managedAgentRunning
-          text: "Terminar sesión iniciada desde el panel"
+          text: root.t("Terminar sesión iniciada desde el panel")
           bordered: true
           focusable: true
           foreground: root.ink
@@ -751,7 +893,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Compartir»."
+          text: root.t("1  En el destino, inicie «Recibir control».\n2  En el origen, pulse «Emparejar» junto al destino.\n3  Compare el código en ambos equipos y pulse «Coincide · aprobar aquí» en cada uno.\n4  Ubique el destino junto al origen y pulse «Compartir».")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -762,7 +904,7 @@ Panel {
         Button {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "connect"
-          text: root.backend && root.backend.paused ? "Reanudar captura" : "Pausar captura"
+          text: root.backend && root.backend.paused ? root.t("Reanudar captura") : root.t("Pausar captura")
           bordered: true
           focusable: true
           foreground: root.ink
@@ -774,7 +916,7 @@ Panel {
         Button {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve" && root.backend.phase === "controlling"
-          text: "Devolver control al origen"
+          text: root.t("Devolver control al origen")
           bordered: true
           focusable: true
           foreground: root.ink
@@ -787,7 +929,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve"
             && !root.backend.paused && (root.backend.phase === "controlling" || root.backend.phase === "connected")
-          text: "Cortar entrada remota · emergencia"
+          text: root.t("Cortar entrada remota · emergencia")
           bordered: true
           focusable: true
           foreground: root.ink
@@ -799,7 +941,7 @@ Panel {
         Button {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve" && root.backend.paused
-          text: "Reanudar recepción"
+          text: root.t("Reanudar recepción")
           bordered: true
           focusable: true
           foreground: root.ink
@@ -810,7 +952,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen. Si el retorno falla, use «Cortar entrada remota · emergencia» en este receptor; reanude cuando sea seguro."
+          text: root.t("Escape devuelve el control local desde el origen. Con los mapas configurados en ambos equipos, vuelva por el borde hacia el origen. Si el retorno falla, use «Cortar entrada remota · emergencia» en este receptor; reanude cuando sea seguro.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
@@ -825,14 +967,14 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: "ARCHIVOS · ENTRE EQUIPOS EMPAREJADOS"
+          text: root.t("ARCHIVOS · ENTRE EQUIPOS EMPAREJADOS")
           foreground: root.ink
           fontFamily: root.face
         }
 
         Text {
           Layout.fillWidth: true
-          text: "En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Límite predeterminado: 100 MiB."
+          text: root.t("En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Límite predeterminado: 100 MiB.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -843,7 +985,7 @@ Panel {
         Controls.TextField {
           id: fileListenAddress
           Layout.fillWidth: true
-          placeholderText: "Automático · 47833 (o IP:puerto)"
+          placeholderText: root.t("Automático · 47833 (o IP:puerto)")
           color: root.ink
           font.family: root.face
           background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
@@ -855,14 +997,14 @@ Panel {
           Controls.TextField {
             id: fileDirectory
             Layout.fillWidth: true
-            placeholderText: "Directorio de destino"
+            placeholderText: root.t("Directorio de destino")
             color: root.ink
             font.family: root.face
             Component.onCompleted: text = Core.StandardPaths.writableLocation(Core.StandardPaths.DownloadLocation)
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: "Elegir"
+            text: root.t("Elegir")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -874,7 +1016,7 @@ Panel {
 
         Button {
           Layout.fillWidth: true
-          text: root.backend && root.backend.receivingFile ? "Dejar de esperar archivo" : "Esperar un archivo"
+          text: root.backend && root.backend.receivingFile ? root.t("Dejar de esperar archivo") : root.t("Esperar un archivo")
           bordered: true
           focusable: true
           enabled: root.backend && (root.backend.receivingFile
@@ -895,8 +1037,8 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.fileOffer !== null
           text: root.backend && root.backend.fileOffer
-            ? "De " + root.backend.fileOffer.peer + ": " + root.backend.fileOffer.name
-              + " (" + root.backend.fileOffer.size + " bytes)\nSHA-256 " + root.backend.fileOffer.hash
+            ? root.t("De ") + root.backend.fileOffer.peer + ": " + root.backend.fileOffer.name
+              + " (" + root.backend.fileOffer.size + root.t(" bytes)\nSHA-256 ") + root.backend.fileOffer.hash
             : ""
           textFormat: Text.PlainText
           wrapMode: Text.WrapAnywhere
@@ -911,7 +1053,7 @@ Panel {
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
-            text: "Aceptar archivo"
+            text: root.t("Aceptar archivo")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -921,7 +1063,7 @@ Panel {
           }
           Button {
             Layout.fillWidth: true
-            text: "Rechazar"
+            text: root.t("Rechazar")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -933,7 +1075,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: "En el origen, elija un equipo emparejado y un archivo local."
+          text: root.t("En el origen, elija un equipo emparejado y un archivo local.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -944,7 +1086,7 @@ Panel {
         Controls.TextField {
           id: fileSendAddress
           Layout.fillWidth: true
-          placeholderText: "IP del destino:47833"
+          placeholderText: root.t("IP del destino:47833")
           color: root.ink
           font.family: root.face
           background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
@@ -955,7 +1097,7 @@ Panel {
           delegate: Button {
             required property int index
             Layout.fillWidth: true
-            text: "Enviar a " + root.backend.peers[index].ip
+            text: root.t("Enviar a ") + root.backend.peers[index].ip
             bordered: true
             focusable: true
             foreground: root.ink
@@ -971,13 +1113,13 @@ Panel {
           Controls.TextField {
             id: fileSourcePath
             Layout.fillWidth: true
-            placeholderText: "Ruta absoluta del archivo"
+            placeholderText: root.t("Ruta absoluta del archivo")
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
           Button {
-            text: "Elegir"
+            text: root.t("Elegir")
             bordered: true
             focusable: true
             foreground: root.ink
@@ -989,7 +1131,7 @@ Panel {
 
         Button {
           Layout.fillWidth: true
-          text: root.backend && root.backend.sendingFile ? "Enviando…" : "Enviar archivo"
+          text: root.backend && root.backend.sendingFile ? root.t("Enviando…") : root.t("Enviar archivo")
           bordered: true
           focusable: true
           enabled: root.backend && root.backend.installed && !root.backend.sendingFile
@@ -1014,7 +1156,7 @@ Panel {
 
         Button {
           Layout.fillWidth: true
-          text: "Abrir guía completa"
+          text: root.t("Abrir guía completa")
           bordered: true
           focusable: true
           foreground: root.ink

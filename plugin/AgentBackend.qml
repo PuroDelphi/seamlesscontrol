@@ -1,25 +1,34 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
+import "Translations.js" as Tr
 
 Item {
   id: root
+  property string language: "en"
+  function t(spanish) { return Tr.text(spanish, language) }
+  function setLanguage(next) {
+    if (next !== "en" && next !== "es") return
+    language = next
+    languageFile.setText(next + "\n")
+  }
   property bool installed: false
   property bool available: false
   property string role: ""
   property string phase: ""
   readonly property string phaseText: ({
-    connecting: "conectando",
-    reconnecting: "reconectando",
-    pairing: "emparejando",
-    ready: "listo",
-    rearming: "aleja el puntero del borde",
-    controlling: "control remoto",
-    handoff: "cediendo control",
-    connected: "conectado",
-    listening: "disponible",
-    locked: "bloqueado",
-    paused: "en pausa",
-    disconnected: "desconectado"
+    connecting: root.t("conectando"),
+    reconnecting: root.t("reconectando"),
+    pairing: root.t("emparejando"),
+    ready: root.t("listo"),
+    rearming: root.t("aleja el puntero del borde"),
+    controlling: root.t("control remoto"),
+    handoff: root.t("cediendo control"),
+    connected: root.t("conectado"),
+    listening: root.t("disponible"),
+    locked: root.t("bloqueado"),
+    paused: root.t("en pausa"),
+    disconnected: root.t("desconectado")
   })[phase] || phase
   property string peer: ""
   property bool paused: false
@@ -42,6 +51,10 @@ Item {
   property bool stoppingManagedAgent: false
   property string lastAgentError: ""
   readonly property string firewallScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/firewall-lan.sh")).replace(/^file:\/\//, ""))
+  readonly property string setupScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/setup-agent.sh")).replace(/^file:\/\//, ""))
+  property bool setupBusy: false
+  property string setupMessage: ""
+  property string setupError: ""
   property bool firewallBusy: false
   property string firewallPreview: ""
   property string firewallMessage: ""
@@ -50,6 +63,40 @@ Item {
   property string firewallStep: ""
   property string firewallOutput: ""
   property string firewallStderr: ""
+
+  FileView {
+    id: languageFile
+    path: Quickshell.env("HOME") + "/.config/seamlesscontrol-language"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: root.language = String(text() || "").trim() === "es" ? "es" : "en"
+    onFileChanged: reload()
+  }
+
+  function runSetup(action) {
+    if (setupProcess.running || (action !== "install" && action !== "remove")) return
+    if (action === "remove" && available) {
+      setupError = "Termine la sesión antes de retirar el agente."
+      return
+    }
+    setupBusy = true
+    setupError = ""
+    setupMessage = "Se abrió una terminal de Omarchy. Autorice los cambios allí y vuelva a este panel."
+    setupProcess.command = ["omarchy", "launch", "tui",
+      "--app-id=io.github.purodelphi.seamlesscontrol.setup", "bash", setupScript, action, language]
+    setupProcess.running = true
+  }
+
+  Process {
+    id: setupProcess
+    onExited: function(code) {
+      root.setupBusy = false
+      if (code !== 0)
+        root.setupError = "No se pudo abrir la terminal de Omarchy. Use el comando manual de la guía."
+      if (!executableProbe.running) executableProbe.running = true
+    }
+  }
 
   function startReceiver(address) {
     if (!installed || agentProcess.running || available || pairingRunning || !address) return
@@ -175,35 +222,35 @@ Item {
 
   function togglePause() {
     if (actionProcess.running || role !== "connect") return
-    actionName = paused ? "reanudar" : "pausar"
+    actionName = paused ? root.t("reanudar") : root.t("pausar")
     actionProcess.command = ["seamlesscontrold", paused ? "resume" : "pause"]
     actionProcess.running = true
   }
 
   function requestReturn() {
     if (actionProcess.running || role !== "serve" || phase !== "controlling") return
-    actionName = "devolver el control"
+    actionName = root.t("devolver el control")
     actionProcess.command = ["seamlesscontrold", "return"]
     actionProcess.running = true
   }
 
   function stopRemoteInput() {
     if (actionProcess.running || role !== "serve") return
-    actionName = "cortar la entrada remota"
+    actionName = root.t("cortar la entrada remota")
     actionProcess.command = ["seamlesscontrold", "emergency-stop"]
     actionProcess.running = true
   }
 
   function resumeReceiver() {
     if (actionProcess.running || role !== "serve" || !paused) return
-    actionName = "reanudar la recepción"
+    actionName = root.t("reanudar la recepción")
     actionProcess.command = ["seamlesscontrold", "resume"]
     actionProcess.running = true
   }
 
   function decidePair(accept) {
     if (actionProcess.running || phase !== "pairing") return
-    actionName = accept ? "aprobar" : "rechazar"
+    actionName = accept ? root.t("aprobar") : root.t("rechazar")
     actionProcess.command = accept
       ? ["seamlesscontrold", "approve", pairSas]
       : ["seamlesscontrold", "reject"]
@@ -221,7 +268,7 @@ Item {
 
   function revoke(address) {
     if (!installed || actionProcess.running || !address) return
-    actionName = "revocar"
+    actionName = root.t("revocar")
     actionProcess.command = ["seamlesscontrold", "revoke", address]
     actionProcess.running = true
   }
@@ -233,7 +280,7 @@ Item {
     firewallMessage = ""
     firewallError = ""
     if (!/^[0-9]{1,5}$/.test(port) || number < 1 || number > 65535) {
-      firewallError = "Indique un puerto TCP entre 1 y 65535."
+      firewallError = root.t("Indique un puerto TCP entre 1 y 65535.")
       return
     }
     firewallPort = String(number)
@@ -241,7 +288,8 @@ Item {
     firewallOutput = ""
     firewallStderr = ""
     firewallBusy = true
-    firewallProcess.command = ["bash", firewallScript, "show", firewallPort]
+    firewallProcess.command = ["env", "SEAMLESSCONTROL_LANG=" + language,
+      "bash", firewallScript, "show", firewallPort]
     firewallProcess.running = true
   }
 
@@ -252,7 +300,8 @@ Item {
     firewallStderr = ""
     firewallError = ""
     firewallBusy = true
-    firewallProcess.command = ["bash", firewallScript, "allow", firewallPort, "--yes"]
+    firewallProcess.command = ["env", "SEAMLESSCONTROL_LANG=" + language,
+      "bash", firewallScript, "allow", firewallPort, "--yes"]
     firewallProcess.running = true
   }
 
@@ -270,11 +319,13 @@ Item {
       root.installed = code === 0
       if (root.installed && !wasInstalled) {
         root.error = ""
+        root.setupMessage = "Agente instalado. Ya puede iniciar una sesión."
         root.refresh()
         root.refreshPeers()
         root.refreshDiscovery()
         root.refreshTopology()
       } else if (!root.installed) {
+        if (wasInstalled) root.setupMessage = "Agente retirado."
         root.available = false
         root.peers = []
         root.discovered = []
@@ -294,7 +345,7 @@ Item {
         var fields = line.split("\t")
         if (fields.length !== 7 || fields[0] !== "STATUS") {
           root.available = false
-          root.error = "Respuesta inválida del agente"
+          root.error = root.t("Respuesta inválida del agente")
           return
         }
         root.role = fields[1]
@@ -322,7 +373,7 @@ Item {
   Process {
     id: actionProcess
     onExited: function(code) {
-      root.error = code !== 0 ? "No se pudo " + root.actionName : ""
+      root.error = code !== 0 ? root.t("No se pudo ") + root.actionName : ""
       root.refresh()
       root.refreshPeers()
       root.refreshTopology()
@@ -341,13 +392,13 @@ Item {
       root.firewallBusy = false
       if (code !== 0) {
         root.firewallError = root.firewallStderr !== "" ? root.firewallStderr
-          : "No se pudo configurar UFW; compruebe la autorización y la red local."
+          : root.t("No se pudo configurar UFW; compruebe la autorización y la red local.")
         return
       }
       if (root.firewallStep === "preview") {
         root.firewallPreview = root.firewallOutput
       } else if (root.firewallStep === "allow") {
-        root.firewallMessage = "Regla LAN aplicada para TCP " + root.firewallPort + "."
+        root.firewallMessage = root.t("Regla LAN aplicada para TCP ") + root.firewallPort + "."
         root.firewallPreview = ""
       }
     }
@@ -390,7 +441,7 @@ Item {
       }
     }
     onExited: function(code) {
-      root.discoveryError = code === 0 ? "" : "Búsqueda local no disponible. Puede usar una IP manual."
+      root.discoveryError = code === 0 ? "" : root.t("Búsqueda local no disponible. Puede usar una IP manual.")
       if (code !== 0) root.discovered = []
     }
   }
@@ -415,7 +466,7 @@ Item {
   Process {
     id: topologyAction
     onExited: function(code) {
-      if (code !== 0) root.error = "No se pudo guardar la posición del equipo"
+      if (code !== 0) root.error = root.t("No se pudo guardar la posición del equipo")
       root.refreshTopology()
     }
   }
@@ -428,8 +479,8 @@ Item {
     onExited: function(code) {
       root.pairingRunning = false
       if (code !== 0) root.error = root.pairError !== ""
-        ? "No se pudo emparejar: " + root.pairError
-        : "No se pudo emparejar. Revise IP, red y aprobación en ambos equipos."
+        ? root.t("No se pudo emparejar: ") + root.pairError
+        : root.t("No se pudo emparejar. Revise IP, red y aprobación en ambos equipos.")
       root.refresh()
       root.refreshPeers()
       root.refreshTopology()
@@ -446,7 +497,7 @@ Item {
       root.managedAgentRunning = false
       if (code !== 0 && !root.stoppingManagedAgent)
         root.error = root.lastAgentError !== "" ? root.lastAgentError
-          : "El agente terminó con error. Revise la dirección y la topología."
+          : root.t("El agente terminó con error. Revise la dirección y la topología.")
       root.stoppingManagedAgent = false
       root.refresh()
     }
@@ -454,7 +505,7 @@ Item {
       if (!running && root.managedAgentRunning) {
         root.managedAgentRunning = false
         if (!root.stoppingManagedAgent)
-          root.error = "No se pudo mantener el agente en ejecución. Compruebe que está instalado y revise la dirección."
+          root.error = root.t("No se pudo mantener el agente en ejecución. Compruebe que está instalado y revise la dirección.")
       }
     }
   }
@@ -473,9 +524,9 @@ Item {
             hash: fields[4]
           }
         } else if (line.indexOf("Archivo guardado en ") === 0) {
-          root.fileResult = String(line)
+          root.fileResult = String(line).replace(/^Archivo guardado en /, root.t("Archivo guardado en "))
         } else if (line.indexOf("Archivo rechazado") === 0) {
-          root.fileResult = "Archivo rechazado o cancelado"
+          root.fileResult = root.t("Archivo rechazado o cancelado")
         }
       }
     }
@@ -483,7 +534,7 @@ Item {
       root.receivingFile = false
       root.fileOffer = null
       if (code !== 0 && !root.stoppingFileReceiver)
-        root.error = "La recepción de archivos terminó con error. Revise IP, puerto y directorio."
+        root.error = root.t("La recepción de archivos terminó con error. Revise IP, puerto y directorio.")
       root.stoppingFileReceiver = false
     }
   }
@@ -491,11 +542,11 @@ Item {
   Process {
     id: sendFileProcess
     stdout: SplitParser {
-      onRead: function(line) { root.fileResult = String(line) }
+      onRead: function(line) { root.fileResult = root.t(String(line)) }
     }
     onExited: function(code) {
       root.sendingFile = false
-      if (code !== 0) root.error = "No se entregó el archivo. Revise el par, la red y la aceptación del destino."
+      if (code !== 0) root.error = root.t("No se entregó el archivo. Revise el par, la red y la aceptación del destino.")
     }
   }
 

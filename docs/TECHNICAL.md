@@ -1,0 +1,84 @@
+# SeamlessControl technical guide
+
+[User guide](../README.md) · [Español](TECHNICAL.es.md) · [Physical test results](TEST-RESULTS.md) · [Detailed log (Spanish)](FEASIBILITY.md) · [Test plan (Spanish)](TESTING.md) · [Local control protocol (Spanish)](IPC.md)
+
+This guide covers manual operation, packaging, security, and current limits. The addresses below are **fictional examples**: source `192.168.50.10`, receiver `192.168.50.20`, LAN `192.168.50.0/24`, interface `wlan0`.
+
+## Packaging and updates
+
+`omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` installs the Omarchy widget. Omarchy does not run repository install hooks. The widget's **Install agent** button opens an Omarchy terminal and runs `packaging/install-agent.sh`. This installs missing `rust`, `avahi` and `wl-clipboard` packages with `omarchy pkg add`, builds the release binary, and installs it in `~/.local/bin`. The installer records only packages it installed under `~/.local/state/seamlesscontrol/installed-packages`. Avahi is enabled for mDNS discovery when needed. Four user services are copied but left disabled.
+
+The terminal fallback is:
+
+```bash
+bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh
+```
+
+To update the widget on **each** machine, run `omarchy plugin update seamlesscontrol.control`. For agent code changes, run **Install agent** again (or the terminal command), then restart any running agent on both ends. An already running process keeps using its old binary until restarted. Pairing keys and layout are preserved.
+
+**Remove agent** in the panel runs `uninstall-agent.sh --remove-deps` in an Omarchy terminal. It stops installed user services, removes the binary and removes only packages recorded as installed by this plugin. Pacman will refuse removals needed by other packages. Packages that predated the plugin are never recorded. The default CLI uninstall, without `--remove-deps`, leaves packages installed. Neither path deletes `~/.config/seamlesscontrol/` (identity, peers, layout). Remove a firewall rule separately before `omarchy plugin remove seamlesscontrol.control`.
+
+## Manual connection
+
+Start the receiver, then discover and pair from the mouse computer:
+
+```bash
+seamlesscontrold serve-auto 47832
+seamlesscontrold local-address 47832
+seamlesscontrold discover
+seamlesscontrold pair 192.168.50.20:47832
+```
+
+The first command runs on the receiver; the last two run on the source. `serve-auto` selects an IPv4 address using the mDNS route and advertises `_seamlesscontrol._tcp` through Avahi. Discovery requires multicast mDNS; use `seamlesscontrold serve 192.168.50.20:47832` and a manual IP if multicast is blocked. An mDNS fingerprint is only a hint. Pairing uses Noise XX and a six digit comparison code; approve **on both computers** in the panel or with `seamlesscontrold status` followed by `seamlesscontrold approve <six-digit-code>`. `status` shows `serve pairing` on the receiver while approval is pending. `seamlesscontrold reject` cancels it. The 64 character local identity is a persistent public fingerprint, not the comparison code.
+
+Place each computer next to the other on both layouts. On the source, for a receiver to the right:
+
+```bash
+seamlesscontrold topology set 192.168.50.20 1 0
+seamlesscontrold connect 192.168.50.20:47832
+```
+
+On the receiver, place itself on the right and the source on the left:
+
+```bash
+seamlesscontrold topology set local 1 0
+seamlesscontrold topology set 192.168.50.10 0 0
+```
+
+`connect` infers the edge from adjacent layout cells; an explicit `right`, `left`, `top`, or `bottom` argument overrides it. Return by crossing the receiver edge toward the source, pressing Escape on the physical keyboard, or running `seamlesscontrold return` on the receiver. `seamlesscontrold emergency-stop` on the receiver disconnects and pauses new input until `seamlesscontrold resume`. On the source, `pause` and `resume` toggle capture. Stop a terminal agent with Ctrl+C.
+
+Other useful commands: `seamlesscontrold peers`, `topology`, `topology route <IP>`, `revoke <IP>`, `diagnose`, and `latency <IP:port>`. `diagnose` reports cursor, monitor rectangles and `LOCK unlocked|locked|undetermined`; run it in the graphical session. `latency` reports encrypted round trip min/p50/p95/max, excluding capture and display delay. `rotate-key` requires a stopped agent and forces remote machines to pair again.
+
+## Firewall
+
+The receiver's TCP port must be reachable **from the LAN only**. The panel previews the exact detected interface, subnet, receiver IP and selected port before requesting system authorization. Its script supports `show`, `allow` and `remove` with a port argument:
+
+```bash
+bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh show 47832
+bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh allow 47832
+bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove 47832
+```
+
+`allow` and `remove` ask for confirmation, then use Polkit in a graphical session or sudo in a terminal. The panel has already shown the rule and confirmed the click, so it passes `--yes`; system authorization is still required. The script does not enable UFW. If the receiver address or subnet later changes, inspect `sudo ufw status numbered` and remove stale rules manually. File receiving normally uses TCP `47833` and needs a separate scoped rule if blocked.
+
+## Protocol and other features
+
+The source captures input through the desktop portal and EIS. The receiver injects it through Hyprland virtual input. Network sessions use Noise XX with pinned peer keys. The receiver permits one input owner at a time and releases held keys/buttons on disconnect. Lock state is checked through Hyprland IPC; unknown or locked state blocks injection. After Escape or a remote return, a 96 pixel rearm distance keeps the edge from capturing immediately again.
+
+Text clipboard updates are UTF-8, limited to 256 KiB, and exclude sensitive Wayland selections. The experimental 2×2 mesh mode uses `seamlesscontrold mesh 47832` on the source after all receivers are paired and placed on every layout. It authenticates each destination and releases one input owner before switching to the next. Mesh clipboard, rapid handoffs and network recovery still need physical multi-machine validation.
+
+Files use a separate Noise session and receiver approval. In the panel, start **Wait for a file** on the receiver, choose a paired destination and a file on the source, then approve the offer on the receiver. CLI equivalents are `receive-file-auto 47833 ~/Downloads` and `send-file 192.168.50.20:47833 /path/to/file`. The default limit is 100 MiB; size and SHA-256 are verified before publication. Files are never overwritten. Physical transfer between two Omarchy machines is still unverified.
+
+User services installed but not enabled: `seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service`, and `seamlesscontrol-mesh.service`. The auto receiver uses `47832`. Manual service environment files in `~/.config/seamlesscontrol/` can set `SEAMLESSCONTROL_LISTEN`, `SEAMLESSCONTROL_PEER`, `SEAMLESSCONTROL_EDGE`, or `SEAMLESSCONTROL_PORT`. Enable only the chosen service per machine.
+
+## Verification and limits
+
+```bash
+bash tests/firewall_lan.sh
+bash tests/agent_setup_packages.sh
+bash tests/uninstall_agent.sh
+cargo test --manifest-path agent/Cargo.toml
+cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
+```
+
+Loopback pairing, discovery, file, reconnect and roaming scripts are listed in [TESTING.md](TESTING.md). Integrated capture and injection tests require a real Omarchy session without another active agent. The observed physical success covers two Omarchy machines with one known monitor layout and right/left edge return. Keyboard, file transfer, multi-machine mesh, different monitor layouts, sleep and network loss need further physical testing. Windows support remains planned.

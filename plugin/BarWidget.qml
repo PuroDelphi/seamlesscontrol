@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "Translations.js" as Tr
 
 BarWidget {
   id: root
@@ -9,17 +10,18 @@ BarWidget {
   implicitWidth: label.implicitWidth + Style.space(12)
   implicitHeight: barSize
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened : false
-  readonly property string stateLabel: backend.fileOffer ? "archivo pendiente"
-    : backend.receivingFile ? "esperando archivo"
-    : backend.sendingFile ? "enviando archivo"
-    : !backend.installed ? "sin agente"
-    : !backend.available ? "sin sesión"
-    : backend.paused ? "pausa"
-    : backend.phase === "controlling" ? "remoto"
-    : backend.phase === "connected" ? "conectado"
-    : backend.phase === "ready" ? "listo"
-    : backend.phase === "rearming" ? "alejar del borde"
-    : backend.phase === "listening" ? "disponible" : backend.phaseText
+  function t(spanish) { return Tr.text(spanish, backend.language) }
+  readonly property string stateLabel: backend.fileOffer ? root.t("archivo pendiente")
+    : backend.receivingFile ? root.t("esperando archivo")
+    : backend.sendingFile ? root.t("enviando archivo")
+    : !backend.installed ? root.t("sin agente")
+    : !backend.available ? root.t("sin sesión")
+    : backend.paused ? root.t("pausa")
+    : backend.phase === "controlling" ? root.t("remoto")
+    : backend.phase === "connected" ? root.t("conectado")
+    : backend.phase === "ready" ? root.t("listo")
+    : backend.phase === "rearming" ? root.t("alejar del borde")
+    : backend.phase === "listening" ? root.t("disponible") : backend.phaseText
 
   function open() { if (panelLoader.item) panelLoader.item.open() }
   function close() { if (panelLoader.item) panelLoader.item.close() }

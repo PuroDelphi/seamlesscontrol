@@ -1,187 +1,62 @@
-# SeamlessControl
+# SeamlessControl for Omarchy
 
-Plugin nuevo para Omarchy que busca compartir un teclado y ratón entre equipos. El primer objetivo es Omarchy ↔ Omarchy; después se ampliará a Windows ↔ Omarchy. [Plan completo](./PLAN.md) · [Plan visual](./index.html).
+Use one mouse and keyboard across nearby Omarchy computers. Move the pointer through a screen edge to control the next computer, then move back to return. The first release focuses on Omarchy to Omarchy; Windows support is planned later.
 
-## Estado actual
+**Language:** English · [Español](README.es.md)
+**For developers:** [Technical guide](docs/TECHNICAL.md) · [Test results](docs/TEST-RESULTS.md) · [Roadmap (Spanish)](PLAN.md)
 
-Se ha validado en un Omarchy 4.0.4 con Hyprland 0.56.2 que el portal `InputCapture` acepta una barrera y entrega movimiento relativo del ratón físico por EIS al cruzarla. Hyprland permite crear dispositivos virtuales de teclado y puntero sin privilegios de sistema. Las pruebas locales confirmaron captura, canal Noise XX e inyección. En octubre de 2026, dos Omarchy reales en la misma LAN se emparejaron. Con la revisión `d9079bf` instalada en ambos, el usuario confirmó dos idas y vueltas con el ratón físico: cruzó al receptor por la derecha y volvió al origen por la izquierda, pudiendo seguir usando el ratón allí. Escape físico también restauró el control. La barrera espera a que el puntero se aleje 96 píxeles del borde antes de permitir otro cruce. Estas pruebas cubren dos equipos concretos; las demás funciones siguen en evaluación.
+> SeamlessControl is experimental. Two physical Omarchy computers have completed two mouse round trips and an Escape return. Other layouts and features still need physical testing.
 
-## Instalar en cada Omarchy
+Panel screenshots use fictional computer names and network addresses.
 
-Use los comandos habituales de plugins de Omarchy y luego instale el agente desde el plugin recién descargado:
+## Install on both computers
+
+Use the standard Omarchy plugin command:
 
 ```bash
 omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable
-bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh
 ```
 
-Omarchy no ejecuta scripts del repositorio al usar `plugin add`; por eso se necesita el segundo comando para preparar el agente.
+Open **SeamlessControl** from the Omarchy bar. The panel starts in English; select **Español** at the top if you prefer Spanish. Under **Set up this computer**, select **Install agent**. An Omarchy terminal opens, installs any missing packages, builds the agent, and asks for authorization if needed. Return to the panel when the terminal says installation is complete. Repeat on the second computer.
 
-El instalador compila el agente e instala automáticamente, si faltan, Rust, Avahi y `wl-clipboard` mediante `omarchy pkg add`; activa Avahi para descubrir equipos en la red. Puede pedir la contraseña de `sudo` para paquetes o el servicio. La primera compilación descarga dependencias de Cargo. El binario queda en `~/.local/bin/seamlesscontrold` y las unidades de usuario se copian sin activarlas. Si la sesión gráfica no incluye `~/.local/bin` en `PATH`, añádalo y vuelva a iniciar la sesión para que el panel encuentre el agente.
+![The SeamlessControl language and setup controls in the Omarchy panel](docs/images/setup-en.png)
 
-Para desinstalar, termine primero la sesión de control desde el panel o el terminal y ejecute, en este orden:
+The first build downloads Rust dependencies and can take a while. The panel detects the agent automatically. The installed widget alone cannot share input until the agent is installed.
+
+## Connect two Omarchy computers
+
+1. On the computer **to be controlled**, select **Receive control**. Leave the address blank to use the local network address and the default TCP port `47832`.
+2. On the computer with the physical mouse, find the receiver under **Computers on the network** and select **Pair**. If it does not appear, select **Scan** or enter its `IP:port` in the manual field.
+3. **Both panels** show a six digit code. Compare them and select **Codes match · approve here** on **both computers**. The code is generated automatically; you cannot set or type it. The longer **Local identity** is the computer's fingerprint, not the pairing code. If the receiver still says `serve listening`, the connection has not reached it; check the network and firewall.
+4. In **Computer layout**, place the other computer next to **This computer** on **both computers**, matching their physical positions. For example, if the receiver is to the right of the mouse computer, place it to the right on the source; place the source to the left on the receiver. This lets the pointer return by crossing the receiver's left edge.
+5. On the mouse computer, select **Share** beside the discovered receiver. Move the pointer across the chosen edge. To return, cross the edge toward the source or press **Escape** on the physical keyboard.
+
+![The computer layout and discovered receivers in the panel](docs/images/layout-en.png)
+
+If the pointer does not return, choose **Return control to source** on the receiver. **Cut remote input · emergency** on the receiver disconnects and pauses receiving; choose **Resume receiving** afterward. Stop a session started from the panel with **Stop session started here**.
+
+## If pairing times out
+
+The firewall change belongs on the **receiver**. Under **Firewall · receiver only**, enter the same TCP port used by **Receive control**, select **Preview LAN rule**, and read the interface, subnet and destination shown. Select **Authorize this rule** to approve it in Omarchy. The rule is limited to the detected local network; the panel does not open it to the Internet.
+
+![Reviewing a LAN firewall rule in the receiver panel](docs/images/firewall-en.png)
+
+If you choose a different receiver port, enter that port in the firewall section too. The file receiver uses `47833` by default and needs its own rule if the firewall blocks it.
+
+## Remove
+
+Stop any active session. In **Set up this computer**, choose **Remove agent** and confirm. The terminal removes the agent and only packages SeamlessControl itself recorded as newly installed. It keeps pairing keys and computer positions so a later reinstall can reuse them. Then remove the widget with the standard Omarchy command:
 
 ```bash
-bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/uninstall-agent.sh
 omarchy plugin remove seamlesscontrol.control
 ```
 
-La retirada conserva la identidad, los pares y la cuadrícula en `~/.config/seamlesscontrol/`; puede reinstalar sin volver a emparejar. Si hay un agente activo fuera de las unidades de usuario, el script pide cerrarlo antes de quitar el binario.
+If you authorized a firewall rule, remove it **before** removing the widget from the receiver: `bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove <PORT>`. The script asks for confirmation and system authorization.
 
-Si añadió una regla UFW con la ayuda de firewall descrita abajo y también quiere retirarla, ejecute **antes** de desinstalar el agente `bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove` en el receptor. El script pide confirmación y autorización del sistema.
+## More
 
-## Probar el agente experimental entre dos Omarchy
+- [Technical guide: manual commands, security, services and tests](docs/TECHNICAL.md)
+- [Known limitations and physical test results](docs/TEST-RESULTS.md)
+- [Roadmap (Spanish)](PLAN.md)
 
-Instale la misma revisión en ambos equipos con los comandos anteriores. Para el primer emparejamiento:
-
-1. En el **destino**, abra el panel SeamlessControl y pulse **Recibir control** con el campo de dirección vacío. Déjelo en estado **disponible**; el agente elige su IP LAN y anuncia el receptor mediante Avahi/mDNS.
-2. En el **origen** (el equipo con el ratón físico), abra **Equipos en la red** y pulse **Emparejar** junto al destino. Aún no pulse **Compartir**.
-3. Aparecerá **CONFIRMAR EMPAREJAMIENTO · ESTE EQUIPO** arriba del panel en **ambos Omarchy**. Cada uno muestra su código de seis cifras. Compárelos; si son iguales, pulse **Coincide · aprobar aquí** **en los dos equipos**. No se introduce ni se cambia ningún código: ambos lo calculan a partir de la conexión cifrada. Si son distintos, rechace el emparejamiento.
-4. Cuando termine el emparejamiento, ubique el destino junto al origen en la cuadrícula del origen. En el destino, ubique también el origen en la casilla vecina correcta: este mapa permite volver cruzando el borde hacia el equipo físico. Después pulse **Compartir** en el origen. Si cambia el mapa del receptor mientras hay una conexión activa, termine esa conexión y vuelva a iniciarla para que cargue las posiciones nuevas. **Escape** en el teclado físico y **Devolver control al origen** en el receptor permiten regresar manualmente. Si el control queda atrapado, pulse **Cortar entrada remota · emergencia** en el panel del receptor: desconecta la sesión y mantiene la recepción en pausa hasta pulsar **Reanudar recepción**. Por terminal, los mismos comandos son `seamlesscontrold emergency-stop` y `seamlesscontrold resume` en el receptor.
-
-Si no se ve la confirmación en el destino, abra su panel desde el widget de la barra. También puede abrir un terminal **en el destino** y ejecutar `seamlesscontrold status`: cuando muestre `STATUS` seguido de `serve` y `pairing`, el **sexto campo**, separado por tabulaciones, es el código. Tras compararlo con el del origen, ejecute `seamlesscontrold approve 123456` en el destino, sustituyendo `123456` por **su propio código mostrado**; apruebe también en el origen. El código caduca tras cinco minutos. La línea **Identidad local** con 64 caracteres hexadecimales es la huella permanente de ese equipo, **no** el código de seis cifras. No hay que copiar ni cambiar ninguno de los dos: el código aparece automáticamente en ambos equipos solo durante el intento de emparejamiento. Si el destino sigue en `serve listening` y nunca muestra `pairing`, el intento ni siquiera llegó: compruebe la dirección y el firewall del destino. La búsqueda sólo propone una dirección; no reemplaza la aprobación ni el cifrado.
-
-Si el origen informa `connection timed out` y el destino permanece en `serve listening`, compruebe el cortafuegos del **destino**. En el panel SeamlessControl del **receptor**, sección **FIREWALL · SOLO EN EL RECEPTOR**, escriba el mismo puerto TCP que usará **Recibir control** (predeterminado `47832`) y pulse **Preparar regla LAN**. El panel mostrará la regla completa con interfaz, subred e IP detectadas. Pulse **Autorizar esta regla**: Omarchy pedirá autorización de administrador y aplicará la regla solo para esa red. Puede cancelar tras ver la regla; no se ejecuta ningún cambio hasta autorizarla.
-
-El botón llama a un script del propio plugin. También puede usarlo por terminal si lo prefiere:
-
-```bash
-bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh show
-bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh allow
-```
-
-`show` solo muestra la regla y no cambia nada. `allow` pide responder `s` y luego muestra el diálogo de autorización de Omarchy; si no hay sesión gráfica, usa `sudo`. Desde el panel, la confirmación ocurre con **Autorizar esta regla** y el script pide directamente la autorización del sistema. El script no activa UFW ni abre la regla fuera de la interfaz, subred, IP y puerto detectados. Si UFW no está instalado, informa del problema y deja la configuración intacta. Para retirar **esa misma regla**, ejecute `bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove` en el receptor; también pide confirmación. Si la IP o subred cambiaron desde que se añadió la regla, revise `sudo ufw status numbered` y elimine manualmente la regla antigua.
-
-En los comandos siguientes, `192.168.50.0/24`, `192.168.50.20` y `wlan0` son datos ficticios de ejemplo. Sustitúyalos por la red, IP e interfaz reales que muestra el panel. La regla equivalente, si prefiere configurarla a mano, es:
-
-```bash
-sudo ufw allow in on wlan0 from 192.168.50.0/24 to 192.168.50.20 port 47832 proto tcp comment seamlesscontrol
-```
-
-Sustituya interfaz, subred e IP por las del destino; `ip -4 route` muestra la interfaz y la subred, y `seamlesscontrold local-address 47832` muestra la dirección elegida por el agente. No abra este puerto a Internet. Si usa la recepción de archivos, autorice también TCP `47833` con la misma restricción: el script acepta `allow 47833` y `remove 47833`.
-
-Si cambia la IP de un equipo emparejado y conserva su identidad, **Recibir control** detecta la dirección nueva, vuelve a escuchar y actualiza el anuncio mDNS automáticamente. El panel del origen mostrará **Actualizar IP**. Una conexión Noise comprueba la clave ya fijada antes de trasladar el par y su posición en la cuadrícula; no se repite el código. Si aparece **Clave cambió** en una IP ya ocupada, el panel impide la conexión hasta que se resuelva el conflicto. El anuncio mDNS por sí solo nunca modifica un par guardado.
-
-La detección automática necesita multicast mDNS disponible en la LAN. Si la red lo bloquea, el panel conserva los campos de IP manual. También puede usar terminales o servicios de usuario. Para iniciar un receptor sin escribir su IP:
-
-Con varias interfaces, el agente intenta elegir la IP de la ruta multicast mDNS. Puede comprobar la dirección elegida con `seamlesscontrold local-address 47832`; si la red no permite esta detección, use la alternativa manual.
-
-```bash
-seamlesscontrold serve-auto 47832
-```
-
-En el origen, `seamlesscontrold discover` muestra nombre, IP, puerto y huella anunciados. Use el panel para emparejar sin copiar la IP. La huella del anuncio mDNS es orientativa: compare el código de seis cifras que aparece durante el emparejamiento en ambos equipos. La alternativa manual en el destino es:
-
-```bash
-seamlesscontrold serve 192.168.50.20:47832
-```
-
-Sustituya `192.168.50.20` por la IP LAN de ese equipo. En el equipo que tiene teclado y ratón físicos, ejecute:
-
-```bash
-seamlesscontrold connect 192.168.50.20:47832 right
-```
-
-También puede emparejar antes de iniciar la captura con `seamlesscontrold pair 192.168.50.20:47832`, o introducir esa dirección en el campo manual del panel del equipo de origen.
-
-Después del emparejamiento, coloque ambos equipos en la cuadrícula 2×2 del panel. La misma operación está disponible por terminal:
-
-```bash
-seamlesscontrold topology set 192.168.50.20 1 0
-seamlesscontrold topology
-seamlesscontrold connect 192.168.50.20:47832
-```
-
-La posición local inicial es `(0,0)`. En este ejemplo, el borde de salida se deduce como `right`. `topology set local <columna> <fila>` mueve este equipo; si ambas casillas están ocupadas, intercambia sus posiciones. `topology remove <IP>` quita un par del mapa sin revocar su clave. Las posiciones se guardan en `~/.config/seamlesscontrol/topology`. `topology route <IP>` muestra los saltos por casillas contiguas y comprueba que cada salto tiene un par fijado. Una conexión `connect` sin borde explícito requiere que el par esté en una casilla contigua, nunca diagonal. Si se cambia la cuadrícula durante `mesh` o durante ese `connect` deducido, el agente libera la captura activa y la reconstruye con la disposición nueva; `connect` con un borde explícito conserva el borde elegido.
-
-### Malla experimental de hasta cuatro Omarchy
-
-Empareje previamente **desde el equipo con teclado y ratón físicos** cada destino y guarde las mismas posiciones de la cuadrícula 2×2 en todos los equipos (cada uno con su propia casilla `local` y las IP de los otros). Todos deben usar esta misma revisión del agente y escuchar en el mismo puerto. En cada destino, inicie `seamlesscontrold serve <IP-del-destino>:47832`; en el origen, ejecute:
-
-```bash
-seamlesscontrold mesh 47832
-```
-
-El origen instala barreras sólo en los bordes que llevan a una casilla vecina. Al entrar en un destino, el agente sitúa el cursor unos píxeles dentro del borde correspondiente y conserva la altura o anchura relativa del cruce entre monitores de distinta resolución. Cuando el cursor de un destino alcanza el borde hacia otro destino, el receptor envía `SWITCH` con la posición; el origen comprueba la vecindad y la época, establece la conexión cifrada al siguiente, pide `RELEASE` al anterior y espera `ENDED` antes de enviar `BEGIN` al nuevo. Las teclas y botones que siguen pulsados se reproducen en el nuevo destino; el movimiento durante esa breve cesión se descarta. `Escape` o el botón **Devolver control al origen** recuperan el puntero. Tras un fallo de transporte, el origen libera el portal, cierra las conexiones, espera de 1 a 30 segundos y vuelve a preparar la captura; un nuevo cruce establece otra sesión cifrada. Esta ruta de malla está implementada y pasa pruebas de política y protocolo, pero **no se ha probado con varios equipos físicos**. También puede iniciarse desde **Compartir en malla** en el panel Omarchy. El origen distribuye el portapapeles de texto UTF-8 entre los destinos conectados; cuando uno se conecta después, recibe el último cambio conocido. No se han probado físicamente las copias simultáneas entre tres o cuatro equipos.
-
-Para que el destino solicite automáticamente la vuelta al cruzar el borde hacia el origen, configure también su mapa en sentido inverso. Si el origen es `192.168.50.10` y queda a la izquierda del destino, ejecute **en el destino**:
-
-```bash
-seamlesscontrold topology set local 1 0
-seamlesscontrold topology set 192.168.50.10 0 0
-```
-
-Durante una captura, el receptor consulta la posición global del cursor a través del [IPC de Hyprland](https://wiki.hypr.land/IPC/). Sólo solicita el retorno después de observar que el puntero se alejó del borde y volvió a él. En el retorno automático envía la posición del cruce para que el origen recupere el cursor a una altura o anchura proporcional. Si el mapa no sitúa al origen como vecino, falta el socket de Hyprland o el monitor tiene una rotación aún no validada, sigue disponible el botón manual del panel.
-
-`seamlesscontrold diagnose` consulta ese IPC sin modificar el escritorio y muestra la posición del cursor, los rectángulos lógicos de los monitores y `LOCK unlocked|locked|undetermined`. Ejecútelo dentro de la sesión gráfica para comprobar que el agente puede leerlos. El receptor sólo acepta entrada cuando Hyprland confirma `unlocked`; si aparece un bloqueo o falla esa lectura, corta el canal y libera teclas y botones retenidos. Si se bloquea el origen, éste suspende la captura y el portapapeles hasta verificar el desbloqueo. Este comportamiento todavía requiere una prueba física de bloqueo durante el control remoto.
-
-Con un par ya emparejado y el receptor `serve` en marcha, `seamlesscontrold latency 192.168.50.20:47832` intercambia veinte solicitudes y respuestas por el mismo canal cifrado. La línea `LATENCY` informa el mínimo, p50, p95 y máximo en microsegundos, en ese orden. La medición excluye el tiempo de emparejamiento y no representa el retraso de captura, inyección ni visualización; esos tiempos requieren dos equipos y entrada física. Este comando no crea un par nuevo.
-
-`right` puede cambiarse por `left`, `top` o `bottom` según el borde de salida. En una primera conexión sin emparejamiento previo, el código aparece durante el establecimiento de la conexión en ambos paneles o en `seamlesscontrold status` de cada equipo. Compare y apruebe en ambos extremos como se indica arriba; `seamlesscontrold reject` deniega el par. Las claves y sus IP actuales se guardan en `~/.config/seamlesscontrol/peers/`, con permisos privados. La captura puede solicitar consentimiento del portal. Cruce el borde elegido para enviar teclado y ratón al destino; pulse **Escape** para devolver el control local, o use **Devolver control al origen** en el panel del destino (`seamlesscontrold return` por terminal). **Ctrl+C** en el terminal de origen cierra el agente. `seamlesscontrold pause` y `resume`, o el botón del panel, desactivan y reactivan la captura. La conexión termina si fallan los latidos; el receptor libera teclas y botones que hayan quedado pulsados.
-
-El portapapeles de **texto UTF-8** se sincroniza durante `connect` y `mesh`, incluso cuando el puntero permanece en el origen. El instalador incluye `wl-copy` y `wl-paste` mediante `wl-clipboard`. Cada cambio viaja por un canal cifrado, con límite de 256 KiB; se ignoran contenidos mayores, otros formatos y selecciones que Wayland marque como sensibles. En `connect`, una revisión y la identidad del par resuelven las copias simultáneas. En `mesh`, el origen autentica cada emisor y publica una revisión nueva para los demás destinos; las copias simultáneas en varios equipos requieren validación física. Instale esta misma revisión del agente en todos los extremos: el saludo de aplicación `seamlesscontrol/5` rechaza agentes anteriores.
-
-## Enviar un archivo con confirmación
-
-Después de emparejar los equipos, puede usar la sección **Archivos** del panel Omarchy. En el destino deje vacía la dirección, elija el directorio y pulse **Esperar un archivo**: el agente elegirá su IP LAN y el puerto 47833. En el origen pulse **Enviar a** junto al equipo emparejado, elija el archivo y pulse **Enviar archivo**. El destino verá el equipo, nombre, tamaño y SHA-256 y debe pulsar **Aceptar archivo** o **Rechazar**. El panel conserva el estilo del resto del plugin y utiliza el mismo protocolo cifrado que la CLI. Si prefiere terminal, abra **en el destino** otro terminal y el mismo puerto LAN:
-
-```bash
-seamlesscontrold receive-file 192.168.50.20:47833 ~/Downloads
-```
-
-La variante `seamlesscontrold receive-file-auto 47833 ~/Downloads` elige la IP local sin escribirla. El origen aún necesita la dirección del destino si usa la CLI; `seamlesscontrold discover` la muestra mientras su receptor de control esté activo.
-
-En el origen ejecute `seamlesscontrold send-file 192.168.50.20:47833 /ruta/al/archivo`. El destino muestra nombre, tamaño y SHA-256 y sólo escribe el archivo si alguien responde exactamente `SI` en ese terminal. Es una transferencia por comando: cada ejecución de `receive-file` acepta un solo archivo; las conexiones sin autenticación o con un protocolo incompatible se descartan mientras espera al emisor emparejado. Puede ejecutarse junto al agente de control si utiliza **otro puerto**. El archivo llega por un canal Noise autenticado con las claves ya emparejadas; el destino lo guarda temporalmente y verifica tamaño y SHA-256 antes de publicarlo. Si el origen crece durante el envío, la sesión se cancela y el destino elimina el temporal. Si existe un archivo con el mismo nombre, la transferencia falla sin reemplazarlo. El límite predeterminado es 100 MiB en ambos equipos; `SEAMLESSCONTROL_MAX_FILE_BYTES` permite cambiarlo en cada comando o en el entorno de `omarchy-shell`. Ambos agentes deben tener la misma versión del protocolo de archivos.
-
-Ya hay dos sesiones Omarchy reales en la misma LAN; la lista de pruebas físicas está en [docs/TESTING.md](./docs/TESTING.md). El emisor `connect` reintenta las pérdidas de red y un receptor ocupado con esperas de 1 a 30 segundos y reutiliza el par fijado; su recuperación tras una caída de Wi-Fi aún requiere pruebas físicas. El receptor puede atender diagnósticos cifrados de otros pares mientras una sesión conserva la reserva exclusiva de entrada. La captura instala barreras en los tramos exteriores del borde elegido para todos los monitores anunciados y las recalcula cuando el portal notifica un cambio de zonas; falta validar ese flujo con monitores reales. El retorno por borde y Escape ya se comprobaron en la configuración física descrita arriba; la malla, el portapapeles y los archivos siguen pendientes de pruebas físicas entre equipos. Windows sigue pendiente.
-
-## Widget de Omarchy
-
-El repositorio incluye un `manifest.json` válido y un widget que muestra el estado real del agente, descubre receptores LAN, permite iniciar y terminar una sesión, emparejar, aprobar, pausar la captura, devolver el control desde el destino, organizar la cuadrícula y revocar equipos. Instálelo con los comandos del inicio. Si falta el ejecutable, el panel indica cómo instalarlo y lo detecta automáticamente después. Tras actualizar el código QML, `omarchy restart shell` fuerza la carga de la revisión nueva si la recarga en caliente conserva un componente anterior. El borde se deduce de la casilla vecina; una sesión iniciada por terminal o servicio de usuario se detiene desde ese mismo medio. Por CLI, `seamlesscontrold peers` enumera los equipos y `seamlesscontrold revoke <IP>` impide que la clave revocada vuelva a conectarse y quita su posición. Con el agente detenido, `seamlesscontrold rotate-key` reemplaza la identidad local; cada equipo remoto deberá revocar la clave anterior y emparejar de nuevo.
-
-Los comandos de desinstalación están al inicio de esta guía. El script deshabilita y detiene las cuatro unidades de usuario instaladas, elimina sus archivos y el binario, y conserva `~/.config/seamlesscontrol/` con identidad, pares y cuadrícula.
-
-El contrato del socket local y los comandos del panel están descritos en [docs/IPC.md](./docs/IPC.md).
-
-## Servicios de usuario
-
-El instalador copia cuatro unidades de `systemd --user` y las deja deshabilitadas. `seamlesscontrol-receiver-auto.service` usa el puerto 47832 y elige la IP LAN sin archivo de entorno. Para la alternativa manual, cree `~/.config/seamlesscontrol/receiver.env` con `SEAMLESSCONTROL_LISTEN=192.168.50.20:47832`. Para un solo destino, cree `~/.config/seamlesscontrol/sender.env` en el origen con `SEAMLESSCONTROL_PEER=192.168.50.20:47832` y `SEAMLESSCONTROL_EDGE=right`. Para varios destinos ya emparejados y situados en la cuadrícula, cree `~/.config/seamlesscontrol/mesh.env` en el origen con `SEAMLESSCONTROL_PORT=47832`. Active **una** unidad por equipo con `systemctl --user enable --now seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` o `seamlesscontrol-mesh.service`, según corresponda. El origen se reinicia tras una caída de red y reutiliza las claves fijadas. Consulte su estado con `systemctl --user status ...` y sus registros con `journalctl --user -u ...`.
-
-Para actualizar en ambos equipos, ejecute `omarchy plugin update seamlesscontrol.control` y después `bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/install-agent.sh`. El instalador reemplaza el ejecutable de forma atómica y conserva `~/.config/seamlesscontrol/`. Un agente que ya estaba en ejecución sigue usando la revisión anterior hasta que se detenga y vuelva a iniciar desde el panel, terminal o servicio de usuario; haga ese reinicio en ambos extremos antes de usar un protocolo nuevo.
-
-## Compilar y probar
-
-Con Rust estable y Cargo instalados:
-
-```bash
-cargo test --manifest-path agent/Cargo.toml
-cargo clippy --manifest-path agent/Cargo.toml --all-targets -- -D warnings
-CARGO=cargo bash tests/pair_loopback.sh
-CARGO=cargo bash tests/reconnect_wait.sh
-CARGO=cargo bash tests/file_loopback.sh
-CARGO=cargo bash tests/discovery_lan.sh
-CARGO=cargo bash tests/roaming_loopback.sh
-CARGO=cargo bash tests/update_installed_agent.sh
-CARGO=cargo bash tests/uninstall_agent.sh
-cargo build --manifest-path agent/Cargo.toml --bin seamlesscontrold
-bash tests/integrated_capture_local.sh --synthetic
-bash tests/integrated_capture_local.sh --escape
-bash tests/integrated_injection_local.sh
-cargo build --release --manifest-path agent/Cargo.toml --bin seamlesscontrold
-SC_IDLE_SECONDS=30 bash tests/idle_receiver.sh
-```
-
-Las pruebas criptográficas usan sockets en `127.0.0.1`; el entorno debe permitirlo. Las dos pruebas `integrated_*_local.sh` requieren una sesión Omarchy sin otro agente activo. La primera abre el portal de captura y usa un receptor que sólo cuenta eventos. La segunda usa el receptor normal, sin abrir el portal, y verifica un movimiento virtual de cuatro píxeles y su restauración. El medidor de reposo inicia un receptor con identidad y directorios temporales, informa ticks de CPU, RSS y descriptores, y lo detiene al terminar; requiere un binario release compilado. No incluye el consumo del daemon Avahi compartido. En un Omarchy con sesión gráfica se pueden ejecutar los probes:
-
-```bash
-cargo run --manifest-path agent/Cargo.toml --bin virtual-input-probe
-cargo run --manifest-path agent/Cargo.toml --bin capture-probe
-cargo run --manifest-path agent/Cargo.toml --bin capture-probe -- --listen
-cargo run --manifest-path agent/Cargo.toml --bin capture-probe -- --listen --verify-input
-```
-
-El primer probe crea y cierra dispositivos virtuales sin enviar eventos. El segundo solicita permiso al portal, instala temporalmente una barrera en el borde derecho del primer monitor y comprueba la conexión EIS. Con `--listen`, espera hasta 20 segundos por una activación, lee un evento durante un máximo de cinco segundos y libera la captura. `--verify-input` espera hasta ocho segundos tras la activación para confirmar que llegaron teclado y botón. Imprime sólo tipos de eventos, sin registrar la tecla ni el clic. Consulte [los resultados locales](./docs/FEASIBILITY.md).
-
-## Licencia
-
-MIT. Consulte [LICENSE](./LICENSE).
+MIT licensed. See [LICENSE](LICENSE).
