@@ -66,7 +66,7 @@ The firewall change belongs on the **receiver**. Under **Firewall · receiver on
 
 ![Reviewing a LAN firewall rule in the receiver panel](docs/images/firewall-en.png)
 
-If you choose a different receiver port, enter that port in the firewall section too. The file receiver uses `47833` by default and needs its own rule if the firewall blocks it.
+If you choose a different receiver port, enter that port in the firewall section too. File receiving uses `47833` by default. The **Files** section has its own **Preview file LAN rule** button for that port; authorize it on the receiving computer if sending times out.
 
 ## Remove
 

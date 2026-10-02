@@ -129,11 +129,13 @@ pub fn receive_once(
     peers: &Path,
     limit: u64,
     mut approve: impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    ready: impl FnOnce(SocketAddr) -> io::Result<()>,
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
     if !directory.is_dir() {
         return Err("destination directory does not exist".into());
     }
     let listener = TcpListener::bind(address)?;
+    ready(listener.local_addr()?)?;
     receive_with_listener(listener, directory, identity, peers, limit, &mut approve)
 }
 

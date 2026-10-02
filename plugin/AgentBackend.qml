@@ -43,12 +43,17 @@ Item {
   property string discoveryError: ""
   property var topology: []
   property bool receivingFile: false
+  property bool fileListening: false
+  property string fileListenEndpoint: ""
+  property string fileReceiveError: ""
+  property string fileSendError: ""
   property bool sendingFile: false
   property bool pickerBusy: false
   property string pickerKind: ""
   signal pathChosen(string kind, string path)
   property var fileOffer: null
   property string fileResult: ""
+  property string fileError: ""
   property bool stoppingFileReceiver: false
   property bool managedAgentRunning: false
   property bool stoppingManagedAgent: false
@@ -174,7 +179,11 @@ Item {
     if (!installed || receiveFileProcess.running || !address || !directory) return
     error = ""
     fileResult = ""
+    fileError = ""
     fileOffer = null
+    fileListening = false
+    fileListenEndpoint = ""
+    fileReceiveError = ""
     stoppingFileReceiver = false
     receiveFileProcess.command = ["seamlesscontrold", "receive-file-ui", address, directory]
     receiveFileProcess.running = true
@@ -185,7 +194,11 @@ Item {
     if (!installed || receiveFileProcess.running || !directory) return
     error = ""
     fileResult = ""
+    fileError = ""
     fileOffer = null
+    fileListening = false
+    fileListenEndpoint = ""
+    fileReceiveError = ""
     stoppingFileReceiver = false
     receiveFileProcess.command = ["seamlesscontrold", "receive-file-auto-ui", "47833", directory]
     receiveFileProcess.running = true
@@ -197,6 +210,8 @@ Item {
     stoppingFileReceiver = true
     receiveFileProcess.running = false
     receivingFile = false
+    fileListening = false
+    fileListenEndpoint = ""
     fileOffer = null
   }
 
@@ -210,6 +225,8 @@ Item {
     if (!installed || sendFileProcess.running || !address || !path) return
     error = ""
     fileResult = ""
+    fileError = ""
+    fileSendError = ""
     sendFileProcess.command = ["seamlesscontrold", "send-file", address, path]
     sendFileProcess.running = true
     sendingFile = true
@@ -580,7 +597,10 @@ Item {
     stdout: SplitParser {
       onRead: function(line) {
         var fields = String(line).split("\t")
-        if (fields.length === 5 && fields[0] === "OFFER") {
+        if (fields.length === 2 && fields[0] === "LISTENING") {
+          root.fileListening = true
+          root.fileListenEndpoint = fields[1]
+        } else if (fields.length === 5 && fields[0] === "OFFER") {
           root.fileOffer = {
             peer: fields[1],
             name: fields[2],
@@ -594,11 +614,17 @@ Item {
         }
       }
     }
+    stderr: SplitParser {
+      onRead: function(line) { root.fileReceiveError = String(line).trim() }
+    }
     onExited: function(code) {
       root.receivingFile = false
+      root.fileListening = false
+      root.fileListenEndpoint = ""
       root.fileOffer = null
       if (code !== 0 && !root.stoppingFileReceiver)
-        root.error = root.t("La recepción de archivos terminó con error. Revise IP, puerto y directorio.")
+        root.fileError = root.fileReceiveError !== "" ? root.fileReceiveError
+          : root.t("La recepción de archivos terminó con error. Revise IP, puerto y directorio.")
       root.stoppingFileReceiver = false
     }
   }
@@ -630,9 +656,17 @@ Item {
     stdout: SplitParser {
       onRead: function(line) { root.fileResult = root.t(String(line)) }
     }
+    stderr: SplitParser {
+      onRead: function(line) { root.fileSendError = String(line).trim() }
+    }
     onExited: function(code) {
       root.sendingFile = false
-      if (code !== 0) root.error = root.t("No se entregó el archivo. Revise el par, la red y la aceptación del destino.")
+      if (code !== 0) {
+        root.fileError = /timed out|time.?out/i.test(root.fileSendError)
+          ? root.t("Se agotó el tiempo en el puerto de archivos. En el receptor, prepare y autorice su regla LAN para archivos.")
+          : root.fileSendError !== "" ? root.fileSendError
+          : root.t("No se entregó el archivo. Revise el par, la red y la aceptación del destino.")
+      }
     }
   }
 

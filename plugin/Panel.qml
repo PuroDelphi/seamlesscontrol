@@ -42,6 +42,13 @@ Panel {
       .replace(" comment ", "\ncomment ")
   }
 
+  function fileReceivePort() {
+    var address = fileListenAddress.text.trim()
+    if (address === "") return "47833"
+    var match = address.match(/:([0-9]{1,5})$/)
+    return match ? match[1] : ""
+  }
+
   function machineAt(column, row) {
     if (!backend) return ""
     for (var i = 0; i < backend.topology.length; i++) {
@@ -1207,6 +1214,94 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          visible: root.backend && root.backend.receivingFile
+          text: root.backend && root.backend.fileListening
+            ? root.t("Esperando archivo en ") + root.backend.fileListenEndpoint
+            : root.t("Preparando la recepción de archivos…")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Los archivos usan un puerto distinto al del control. En este receptor, prepare y autorice una regla LAN para el puerto de archivos si el envío agota el tiempo.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          Layout.fillWidth: true
+          text: root.t("Preparar regla LAN para archivos")
+          bordered: true
+          focusable: true
+          enabled: root.backend && root.backend.installed && !root.backend.firewallBusy
+            && root.fileReceivePort() !== ""
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.previewFirewall(root.fileReceivePort())
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== ""
+            && root.backend.firewallPort === root.fileReceivePort()
+          text: root.backend ? root.formatFirewallPreview(root.backend.firewallPreview) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== ""
+            && root.backend.firewallPort === root.fileReceivePort()
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Autorizar esta regla")
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.firewallBusy
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.allowFirewall()
+          }
+          Button {
+            text: root.t("Cancelar")
+            bordered: true
+            focusable: true
+            enabled: root.backend && !root.backend.firewallBusy
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.cancelFirewall()
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPort === root.fileReceivePort()
+            && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
+          text: root.backend ? (root.backend.firewallError !== "" ? root.backend.firewallError : root.backend.firewallMessage) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.firewallError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.backend && root.backend.fileOffer !== null
           text: root.backend && root.backend.fileOffer
             ? root.t("De ") + root.backend.fileOffer.peer + ": " + root.backend.fileOffer.name
@@ -1323,6 +1418,17 @@ Panel {
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.ink
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.fileError !== ""
+          text: root.backend ? root.backend.fileError : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
           font.family: root.face
           font.pixelSize: Style.font.caption
         }

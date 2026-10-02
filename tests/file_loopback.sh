@@ -62,6 +62,7 @@ for _ in {1..100}; do
   sleep 0.05
 done
 [[ -n $(ss -ltnH "( sport = :$file_port )") ]]
+[[ $(<"$scratch/receive.log") == *$'LISTENING\t127.0.0.1:'* ]]
 XDG_CONFIG_HOME="$scratch/client/config" "$agent" send-file "$file_address" "$scratch/ejemplo.txt" \
   >"$scratch/send.log" 2>&1 &
 sender_pid=$!

@@ -2180,16 +2180,25 @@ mod linux {
                 )?;
                 println!("Archivo entregado y verificado por el destino.");
             } else {
+                let panel_mode =
+                    matches!(args[1].as_str(), "receive-file-ui" | "receive-file-auto-ui");
                 let result = file_session::receive_once(
                     address,
                     std::path::Path::new(&args[3]),
                     &identity,
                     &config.join("peers"),
                     limit,
-                    if matches!(args[1].as_str(), "receive-file-ui" | "receive-file-auto-ui") {
+                    if panel_mode {
                         file_session::panel_approval
                     } else {
                         file_session::terminal_approval
+                    },
+                    |bound| {
+                        if panel_mode {
+                            println!("LISTENING\t{bound}");
+                            io::stdout().flush()?;
+                        }
+                        Ok(())
                     },
                 )?;
                 match result {
