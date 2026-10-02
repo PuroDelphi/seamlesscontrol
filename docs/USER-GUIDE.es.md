@@ -4,6 +4,8 @@
 
 SeamlessControl permite controlar otro Omarchy (el **receptor**) desde el equipo que tiene el ratón y teclado físicos (el **origen**). Primero instala el plugin y el agente en ambos equipos. Todos los pasos siguientes se hacen desde el panel SeamlessControl. Las capturas usan nombres y direcciones ficticios.
 
+El panel abre en **Principal**. Allí están la instalación del agente, el emparejamiento, el mapa, la conexión, los archivos y ambas acciones del firewall LAN. **Más** reúne la retirada del agente, la revocación de un equipo, la conexión manual por IP, la malla experimental y el enlace a la guía completa. Si llega un código de emparejamiento o una oferta de archivo mientras está abierta **Más**, el panel vuelve a **Principal** para que puedas responder.
+
 ## Primera conexión, paso a paso
 
 1. **Inicia el receptor.** En el equipo que quieres controlar, abre SeamlessControl. En **Iniciar sesión**, deja vacía la dirección y pulsa **Recibir control**. La parte superior del panel debe indicar **Disponible**. Deja esta sesión abierta.

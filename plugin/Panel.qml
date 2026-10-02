@@ -19,6 +19,7 @@ Panel {
   property string selectedMachine: ""
   property int keyboardCell: -1
   property bool confirmRemoveAgent: false
+  property string activeTab: "main"
   readonly property var ownerItem: hostWidget || root
   readonly property color ink: bar ? bar.foreground : Color.foreground
   readonly property color muted: Qt.darker(ink, 1.5)
@@ -31,6 +32,18 @@ Panel {
   }).length : 0
 
   function t(spanish) { return Tr.text(spanish, backend ? backend.language : "en") }
+
+  function switchTab(tab) {
+    if (tab !== "main" && tab !== "more") return
+    activeTab = tab
+    selectedMachine = ""
+    keyboardCell = -1
+    if (tab !== "more") {
+      confirmRemoveAgent = false
+      revokeCandidate = ""
+    }
+    scroller.contentY = 0
+  }
 
   function formatFirewallPreview(rule) {
     return String(rule || "")
@@ -131,7 +144,10 @@ Panel {
     return ""
   }
 
-  function open() { controller.show() }
+  function open() {
+    switchTab("main")
+    controller.show()
+  }
   function close() {
     keyboardCell = -1
     selectedMachine = ""
@@ -160,8 +176,10 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
+      blocked: root.activeTab === "more"
       onTabRequested: function(direction) {
-        root.focusCell(root.keyboardCell < 0 ? (direction > 0 ? 0 : 3) : (root.keyboardCell + direction + 4) % 4)
+        if (root.activeTab === "main")
+          root.focusCell(root.keyboardCell < 0 ? (direction > 0 ? 0 : 3) : (root.keyboardCell + direction + 4) % 4)
       }
       onMoveRequested: function(dx, dy) { root.moveKeyboardCell(dx, dy) }
       onActivateRequested: root.activateKeyboardCell()
@@ -183,8 +201,15 @@ Panel {
           target: root.backend
           function onPairSasChanged() {
             if (root.backend && root.backend.pairSas !== "") {
-              scroller.contentY = 0
               root.open()
+            }
+          }
+          function onFileOfferChanged() {
+            if (root.backend && root.backend.fileOffer !== null) {
+              root.open()
+              Qt.callLater(function() {
+                scroller.contentY = Math.max(0, scroller.contentHeight - scroller.height)
+              })
             }
           }
         }
@@ -244,8 +269,34 @@ Panel {
           }
         }
 
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: (root.activeTab === "main" ? "● " : "") + root.t("Principal")
+            bordered: true
+            focusable: true
+            foreground: root.activeTab === "main" ? Color.accent : root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.switchTab("main")
+          }
+          Button {
+            Layout.fillWidth: true
+            text: (root.activeTab === "more" ? "● " : "") + root.t("Más")
+            bordered: true
+            focusable: true
+            foreground: root.activeTab === "more" ? Color.accent : root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.switchTab("more")
+          }
+        }
+
         PanelSectionHeader {
           Layout.fillWidth: true
+          visible: root.activeTab === "main"
           text: root.t("PREPARAR ESTE EQUIPO")
           foreground: root.ink
           fontFamily: root.face
@@ -253,6 +304,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          visible: root.activeTab === "main"
           text: root.backend && root.backend.installed
             ? root.t("El agente ya está instalado. Detenga las sesiones activas antes de actualizarlo. Se abrirá una terminal para mostrar el progreso.")
             : root.t("Después de añadir el plugin con Omarchy, instale aquí el agente y los paquetes que falten. Se abrirá una terminal para mostrar el progreso y pedir autorización si hace falta.")
@@ -263,11 +315,20 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          visible: root.activeTab === "more"
+          text: root.t("ADMINISTRAR AGENTE")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
+            visible: root.activeTab === "main"
             text: root.backend && root.backend.installed
               ? root.t("Actualizar agente") : root.t("Instalar agente")
             bordered: true
@@ -281,6 +342,7 @@ Panel {
           }
           Button {
             Layout.fillWidth: true
+            visible: root.activeTab === "more"
             text: root.t("Retirar agente")
             bordered: true
             focusable: true
@@ -295,7 +357,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          visible: root.confirmRemoveAgent
+          visible: root.activeTab === "more" && root.confirmRemoveAgent
           text: root.t("Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
@@ -306,7 +368,7 @@ Panel {
 
         RowLayout {
           Layout.fillWidth: true
-          visible: root.confirmRemoveAgent
+          visible: root.activeTab === "more" && root.confirmRemoveAgent
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
@@ -343,6 +405,11 @@ Panel {
           font.family: root.face
           font.pixelSize: Style.font.caption
         }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "main"
+          spacing: Style.space(12)
 
         PanelSeparator {
           Layout.fillWidth: true
@@ -747,6 +814,13 @@ Panel {
           }
         }
 
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "more"
+          spacing: Style.space(12)
+
         PanelSectionHeader {
           Layout.fillWidth: true
           visible: root.backend && root.backend.peers.length > 0
@@ -819,6 +893,13 @@ Panel {
             onClicked: root.revokeCandidate = ""
           }
         }
+
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "main"
+          spacing: Style.space(12)
 
         Text {
           Layout.fillWidth: true
@@ -983,6 +1064,20 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "more"
+          spacing: Style.space(12)
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: root.t("OPCIONES AVANZADAS")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
         RowLayout {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
@@ -1056,6 +1151,13 @@ Panel {
           font.family: root.face
           font.pixelSize: Style.font.caption
         }
+
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "main"
+          spacing: Style.space(12)
 
         Button {
           Layout.fillWidth: true
@@ -1433,8 +1535,11 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        }
+
         Button {
           Layout.fillWidth: true
+          visible: root.activeTab === "more"
           text: root.t("Abrir guía completa")
           bordered: true
           focusable: true

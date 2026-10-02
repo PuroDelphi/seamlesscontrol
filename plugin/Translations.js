@@ -3,6 +3,10 @@
 // Spanish source strings are kept here so both languages share the same UI layout.
 var english = {
   "IDIOMA": "LANGUAGE",
+  "Principal": "Main",
+  "Más": "More",
+  "ADMINISTRAR AGENTE": "MANAGE AGENT",
+  "OPCIONES AVANZADAS": "ADVANCED OPTIONS",
   "PREPARAR ESTE EQUIPO": "SET UP THIS COMPUTER",
   "Después de añadir el plugin con Omarchy, instale aquí el agente y los paquetes que falten. Se abrirá una terminal para mostrar el progreso y pedir autorización si hace falta.": "After adding the plugin with Omarchy, install the agent and any missing packages here. A terminal opens to show progress and request authorization if needed.",
   "El agente ya está instalado. Detenga las sesiones activas antes de actualizarlo. Se abrirá una terminal para mostrar el progreso.": "The agent is already installed. Stop active sessions before updating it. A terminal opens to show progress.",
