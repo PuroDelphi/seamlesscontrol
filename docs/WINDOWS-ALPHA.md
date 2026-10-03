@@ -1,68 +1,55 @@
-# Windows x64 agent · alpha
+# SeamlessControl on Windows x64
 
-[Español](WINDOWS-ALPHA.es.md) · [Omarchy guide](../README.md) · [Test results](TEST-RESULTS.md)
+[Español](WINDOWS-ALPHA.es.md) · [Home](../README.md) · [Technical guide](TECHNICAL.md)
 
-The Windows console agent uses the same pinned Noise identity, pairing code, protocol version and file-transfer format as Omarchy. This alpha targets **64-bit Windows 10/11 on x86-64**. It lets an Omarchy computer control the Windows desktop and return across the entry edge. **Text** clipboard synchronization has been physically confirmed in both directions. Windows can also pair and send or receive an approved file. Windows can also be the **source** of mouse and keyboard input; edge crossing, click, key delivery, edge return and Escape return have been physically confirmed. Automatic discovery and a graphical Windows panel are next steps.
+The Windows app uses the same trusted identities and control protocol as the Omarchy plugin. It can receive control from Omarchy, control Omarchy from the physical Windows mouse and keyboard, synchronize text clipboard content and send or receive approved files. The window can be hidden in the system tray while the agent stays active.
 
-## Get the x64 build
+![Windows overview with receiver and connection controls](images/windows-panel.png)
 
-Open the [verified Windows x64 build](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37098835696) from `alpha`. At the bottom of the page, under **Artifacts**, download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. There is no installer: run the executable from that folder. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; it is an unsigned test artifact. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
+## Install
 
-You can also build from the `alpha` source on a Windows x64 computer with Rust installed:
+1. From [Windows x64 builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha), open the most recent **successful** run and download the `seamlesscontrol-windows-x64-alpha` artifact.
+2. Extract `seamlesscontrol.exe` and `seamlesscontrold.exe` into the **same folder**. The two adjacent `.sha256` files let you compare their hashes if you wish. Keep the folder somewhere you own, such as Downloads or Documents.
+3. Double click `seamlesscontrol.exe`. **Receive control** starts automatically on TCP `47832`. The app advertises this Windows computer to nearby SeamlessControl panels. If Windows asks about network access, choose **Private networks**.
+4. Close the window to leave it running in the tray. Click the tray icon to open it again. Choose **Exit SeamlessControl** from the tray menu to end sessions and exit.
 
-```powershell
-cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
-```
+Windows 11 typically includes WebView2; if the app says it is missing, install [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The app and agent are currently distributed as unsigned executables.
 
-### Update the Windows agent
+## Pair once
 
-First end the session in the Omarchy panel. On Windows, stop `serve` and `receive-file` with Ctrl+C. Download the artifact from the build linked above, check its SHA-256, replace `seamlesscontrold.exe` in the folder you already use, and restart `serve`. Your identity and pairings under `%LOCALAPPDATA%\SeamlessControl` remain in place. Pairing again is unnecessary.
+1. Make sure both computers are on the same private LAN. On the **receiver**, leave **Receive control** active. Windows starts it when the app opens; on Omarchy, select **Receive control** in the panel.
+2. On the computer with your physical mouse, open **Computers**. Select the nearby receiver and choose **Pair**. If it does not appear, enter its private LAN `IP:47832` under **Manual address**.
+3. Compare the **six digit pairing code** shown on both computers. Approve it on both. In Windows, enter the six digits shown in the app and choose **Codes match · approve**. The longer identity fingerprint is different; it is not a code you choose or edit.
+4. The computer now appears as paired. Discovery only supplies an address; the identity check and code still authorize trust.
 
-## Connect Omarchy to Windows
+If an IP was reused by a different computer and the app reports **PeerKey changed**, check which machine owns that address. The old identity is deliberately protected. [Technical details](TECHNICAL.md) explain how peer keys are stored.
 
-1. Put both computers on the same private LAN. In Windows, open PowerShell in the folder where you extracted the `.exe` and start the receiver: `.\seamlesscontrold.exe serve 0.0.0.0:47832`. Keep the terminal open. Windows may ask to allow network access; choose **Private networks** only. If a private firewall rule is needed, use the rule below in an **Administrator PowerShell** window after reviewing its scope.
-2. On Windows, run `ipconfig` in a second terminal and note the LAN **IPv4 address**. On Omarchy, open SeamlessControl. In **Computers on the network**, enter that address with port `47832` in the manual `IP:port` field, then choose **Pair**. Windows does not announce itself through mDNS yet.
-3. Both computers display a six digit code. Compare them. Enter that exact code in the Windows terminal and approve it in the Omarchy panel. The long identity fingerprint is a different value and cannot replace the pairing code.
-4. Once paired, under **Computer layout** on Omarchy, place Windows next to **This computer** on the side you will cross. Open **More**, enter the paired Windows `IP:47832` under **Connect by IP**, and select that button. Wait for **Ready**, then cross the chosen outside edge with the physical mouse. To return, move the cursor at least 17 pixels into Windows and then cross back over the edge where it entered; **Escape** on the Omarchy keyboard is another return path.
+## Omarchy controls Windows
 
-The Windows receiver infers its return edge from the authenticated `BEGIN` message. Its monitor geometry currently uses the virtual desktop bounds; test one ordinary monitor layout first. Keep an Omarchy terminal accessible while testing so you can stop its connection if needed.
+On Omarchy, put Windows on the correct side of **Computer layout**. Select **Connect** for the paired Windows computer and wait for **Ready**. Cross the **outer edge** of your Omarchy display in that direction. The Windows mouse and keyboard now respond to Omarchy input. To return, cross the entry edge in Windows or press **Escape** on the physical Omarchy keyboard. Stop the session from the Omarchy panel when finished.
 
-If Omarchy reports `PeerKeyChanged` before displaying a code, the Windows IP is already pinned to a different paired identity. This can happen when Windows and another Omarchy get the same DHCP address at different times. The check protects the previous pairing. **Do not revoke an Omarchy you intend to reuse**: revocation blocks its key. To preserve both pairings in this alpha, use distinct IP addresses or a temporary, reversible peer-profile switch; selecting profiles in the UI is still pending.
+## Windows controls Omarchy
 
-### Optional, scoped Windows firewall rules
+On Omarchy, select **Receive control** and wait for **Available**. In the Windows app's **Overview**, enter the paired Omarchy `IP:47832` under **Control another computer**. Choose the **Windows screen edge** that faces Omarchy and select **Connect**. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session.
 
-Run only if the Windows firewall blocked the receiver and you approve these Private-LAN rules. They allow inbound TCP from the local subnet on the two distinct ports. Port `47833` is needed only when Windows receives a file.
+A Windows app can receive or initiate control. Starting **Connect** stops this app's receiver so the physical Windows keyboard has one clear owner. Stopping Connect leaves the receiver stopped until you choose **Start receiving** again or reopen the app.
 
-```powershell
-New-NetFirewallRule -DisplayName 'SeamlessControl control (Private LAN)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 47832 -Profile Private -RemoteAddress LocalSubnet
-New-NetFirewallRule -DisplayName 'SeamlessControl files (Private LAN)' -Direction Inbound -Action Allow -Protocol TCP -LocalPort 47833 -Profile Private -RemoteAddress LocalSubnet
-```
+## Clipboard and files
 
-Remove them later with `Remove-NetFirewallRule -DisplayName 'SeamlessControl control (Private LAN)'` and the equivalent command for `SeamlessControl files (Private LAN)`.
+While a control session is active, copy text on one computer and paste it on the other. Text can synchronize in either direction; images and rich clipboard formats are outside this feature.
 
-## Control Omarchy from Windows · new alpha test
+To receive a file on Windows, open **Files**, choose the destination folder, and select **Wait for a file**. The sender must be paired and must send to the Windows `IP:47833` using its **Files** screen. Review the offer in Windows and choose **Accept file**. Reception waits for one offer; select **Wait for a file** again for the next one. To send from Windows, start **Wait for a file** on Omarchy, enter its `IP:47833` in the Windows **Files** screen, choose a file and select **Send file**. The recipient approves it.
 
-1. In the Omarchy panel, end any **Connect** session started there. Select **Receive control** and wait for **Available**. The control port is `47832`; if the panel reports a firewall block, use **Firewall · receiver only → Preview LAN rule → Authorize this rule** for that port.
-2. Update the Windows `.exe` from the build linked above. In another PowerShell in the same folder, run `.\seamlesscontrold.exe connect OMARCHY_IP:47832 left` if Omarchy is physically to the left of Windows. Use `right`, `top`, or `bottom` for another arrangement. Existing pairing remains valid. The terminal should print `Ready to control`.
-3. Move the physical mouse across the selected **outer edge** of Windows. Check pointer movement, then a click and harmless key on Omarchy. Return to Windows by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Windows restores local input if the connection is lost.
+## Firewall and discovery
 
-This mode uses Windows mouse and keyboard hooks. A physical Windows 11 x64 and Omarchy pair confirmed crossing, click, a key, the tested Windows/Super shortcuts, text paste, edge return and Escape return on 2026-10-03. Keep the Windows terminal open for the test; Ctrl+C ends `connect`. Do not start an Omarchy→Windows connection from the panel at the same time.
+Use **Settings → Windows firewall** when another computer cannot reach this Windows receiver. **Allow control port** requests Windows administrator approval for inbound TCP on the currently displayed control port. **Allow file port** does the same for the separate file port. The generated rule is limited to the **Private** network profile and **LocalSubnet** addresses. If you change either port, change it in the relevant field before pressing its firewall button. The app reports that approval was *requested*; the elevated Windows console reports the result. You can remove rules named `SeamlessControl TCP … Private LAN` in Windows Firewall.
 
-## Test text clipboard synchronization
+Discovery uses mDNS on the private LAN. It does not replace the pairing code. If routers, Wi-Fi isolation or multicast filtering hide a computer, enter its private `IP:port` manually. If pairing times out, verify that the receiver is active and its control port is permitted. File transfers need the separate file port permitted on the file **receiver**.
 
-With Windows `serve` running and the Omarchy connection **Ready**, copy a harmless phrase on Omarchy and paste it into a Windows application. Then copy a different phrase on Windows and paste it on Omarchy. Allow up to two seconds after each copy for the receiver to observe the change. Synchronization covers text; images and other formats are not transferred. The user physically confirmed both directions on 2026-10-03.
+## Update or remove
 
-## File transfer from either side
+To update, choose **Exit SeamlessControl** from the tray, download the newest successful Windows x64 artifact, replace **both** `.exe` files in the same folder and open the app again. Existing pairing data under `%LOCALAPPDATA%\SeamlessControl` stays intact.
 
-Pair the two computers first. To receive **one** file on Windows, open another PowerShell in the `.exe` directory and run `.\seamlesscontrold.exe receive-file 0.0.0.0:47833 "$env:USERPROFILE\Downloads"`. Keep the `serve` terminal open. On Omarchy, open **More → Files → Send files**, choose Windows and a local file, and use port `47833`. Windows prints the offer and asks for **SI** before writing. Repeat `receive-file` for another file.
+To remove it, exit from the tray and delete the folder containing the executables. `%LOCALAPPDATA%\SeamlessControl` keeps your local identity and pairings for a later reinstall. Delete that data folder too only if you want a new identity; other computers will then need to pair again. Remove any firewall rules you authorized in Windows Firewall.
 
-To send from Windows to an Omarchy receiver already waiting on its file port, run `./seamlesscontrold.exe send-file OMARCHY_IP:47833 C:\path\to\file.txt`. Approve the offer on Omarchy. The destination checks size and SHA-256 before publishing the file.
-
-## Test scope and safety
-
-- This is a console build intended for a signed-in, unlocked Windows desktop. Before granting control and while applying new input, it checks that the active input desktop is the normal interactive desktop; an unknown or locked state stops injection. Windows can reject `SendInput` into applications running at a higher integrity level; the agent reports the failure and releases its tracked input on a normal disconnect.
-- Common physical keys, modifiers, pointer buttons and relative motion are mapped to Windows input. Unmapped keys are logged and ignored. Scroll conversion is approximate and needs a physical test.
-- On 2026-10-02, a physical Windows 11 x64 computer paired with Omarchy through the manual address field and matching code. The connection stayed **Ready** for over 20 seconds. The user confirmed an Omarchy→Windows crossing, edge return, a click, one key, Escape return, and that Super+E opened Windows File Explorer. The user also tried several additional key combinations, and all worked in that session. A text file sent from the Omarchy UI appeared as an offer, was accepted, and was saved on Windows; Omarchy reported verified delivery. An authenticated latency probe completed 20 exchanges. On 2026-10-03, the user confirmed that text clipboard changes synchronized and pasted successfully in both directions. Untested keys or layouts, wheel, dragging, Windows→Omarchy files, large or interrupted files, locking, sleep and other screen layouts remain to be tested.
-- Peer identities and keys are stored under `%LOCALAPPDATA%\SeamlessControl` for the Windows user. `seamlesscontrold.exe peers` lists trusted peers; `seamlesscontrold.exe revoke PEER_IP` revokes one.
-
-Windows API choices: [SendInput and UIPI](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [scan-code keyboard input](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput), [input desktop detection](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-openinputdesktop), [virtual screen coordinates](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsystemmetrics), and [per-monitor DPI awareness](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext).
+For manual commands, security design and physical verification, see the [technical guide](TECHNICAL.md) and [test record](TEST-RESULTS.md).

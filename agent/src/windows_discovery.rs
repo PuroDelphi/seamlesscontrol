@@ -80,7 +80,7 @@ impl ServiceAdvertisement {
             SERVICE_TYPE,
             &instance,
             &host,
-            ip,
+            IpAddr::V4(ip),
             address.port(),
             &properties[..],
         )
