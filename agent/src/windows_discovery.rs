@@ -129,7 +129,6 @@ impl ServiceAdvertisement {
             &properties[..],
         )
         .map_err(io::Error::other)?;
-        let fullname = info.get_fullname().to_owned();
         let daemon = ServiceDaemon::new().map_err(io::Error::other)?;
         let events = daemon.monitor().map_err(io::Error::other)?;
         daemon.register(info).map_err(io::Error::other)?;
@@ -141,7 +140,7 @@ impl ServiceAdvertisement {
                 break;
             }
             match events.recv_timeout(remaining) {
-                Ok(DaemonEvent::Announce(service, interface)) if service == fullname => {
+                Ok(DaemonEvent::Announce(_, interface)) => {
                     if !interface.is_empty() {
                         println!(
                             "mDNS announcement sent for {ip}:{} via {interface}.",
