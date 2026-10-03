@@ -19,7 +19,7 @@ Panel {
   property string selectedMachine: ""
   property int keyboardCell: -1
   property bool confirmRemoveAgent: false
-  property string activeTab: "main"
+  property string activeTab: "home"
   readonly property var ownerItem: hostWidget || root
   readonly property color ink: bar ? bar.foreground : Color.foreground
   readonly property color muted: Qt.darker(ink, 1.5)
@@ -34,15 +34,24 @@ Panel {
   function t(spanish) { return Tr.text(spanish, backend ? backend.language : "en") }
 
   function switchTab(tab) {
-    if (tab !== "main" && tab !== "more") return
+    if (!["home", "computers", "files", "settings"].includes(tab)) return
     activeTab = tab
     selectedMachine = ""
     keyboardCell = -1
-    if (tab !== "more") {
+    if (tab !== "settings") {
       confirmRemoveAgent = false
       revokeCandidate = ""
     }
     scroller.contentY = 0
+  }
+
+  function openCopiedFirewall() {
+    root.switchTab("settings")
+    if (root.backend) root.backend.previewFirewall("47834")
+    Qt.callLater(function() {
+      scroller.contentY = Math.max(0, Math.min(scroller.contentHeight - scroller.height,
+        copiedFirewallHeader.mapToItem(content, 0, 0).y - Style.space(12)))
+    })
   }
 
   function formatFirewallPreview(rule) {
@@ -185,7 +194,7 @@ Panel {
           event.accepted = true
           return
         }
-        if (root.activeTab !== "main" || root.keyboardCell < 0) return
+        if (root.activeTab !== "computers" || root.keyboardCell < 0) return
         if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
             || event.key === Qt.Key_Left || event.key === Qt.Key_Right
             || event.text === "h" || event.text === "j" || event.text === "k" || event.text === "l") {
@@ -213,11 +222,13 @@ Panel {
           target: root.backend
           function onPairSasChanged() {
             if (root.backend && root.backend.pairSas !== "") {
+              root.switchTab("computers")
               root.open()
             }
           }
           function onFileOfferChanged() {
             if (root.backend && root.backend.fileOffer !== null) {
+              root.switchTab("files")
               root.open()
               Qt.callLater(function() {
                 scroller.contentY = Math.max(0, scroller.contentHeight - scroller.height)
@@ -281,34 +292,101 @@ Panel {
           }
         }
 
-        RowLayout {
+        GridLayout {
           Layout.fillWidth: true
+          columns: 2
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
-            text: (root.activeTab === "main" ? "● " : "") + root.t("Principal")
+            text: (root.activeTab === "home" ? "● " : "") + root.t("Inicio")
             bordered: true
             focusable: true
-            foreground: root.activeTab === "main" ? Color.accent : root.ink
+            foreground: root.activeTab === "home" ? Color.accent : root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: root.switchTab("main")
+            onClicked: root.switchTab("home")
           }
           Button {
             Layout.fillWidth: true
-            text: (root.activeTab === "more" ? "● " : "") + root.t("Más")
+            text: (root.activeTab === "computers" ? "● " : "") + root.t("Equipos")
             bordered: true
             focusable: true
-            foreground: root.activeTab === "more" ? Color.accent : root.ink
+            foreground: root.activeTab === "computers" ? Color.accent : root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: root.switchTab("more")
+            onClicked: root.switchTab("computers")
+          }
+          Button {
+            Layout.fillWidth: true
+            text: (root.activeTab === "files" ? "● " : "") + root.t("Archivos")
+            bordered: true
+            focusable: true
+            foreground: root.activeTab === "files" ? Color.accent : root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.switchTab("files")
+          }
+          Button {
+            Layout.fillWidth: true
+            text: (root.activeTab === "settings" ? "● " : "") + root.t("Ajustes")
+            bordered: true
+            focusable: true
+            foreground: root.activeTab === "settings" ? Color.accent : root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.switchTab("settings")
+          }
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.clipboardOffer !== null
+          spacing: Style.space(8)
+          PanelSectionHeader {
+            Layout.fillWidth: true
+            text: root.t("ARCHIVO ENTRANTE · DECIDA AHORA")
+            foreground: Color.urgent
+            fontFamily: root.face
+          }
+          Text {
+            Layout.fillWidth: true
+            text: root.backend && root.backend.clipboardOffer
+              ? root.backend.clipboardOffer.name + " · " + root.backend.clipboardOffer.peer : ""
+            textFormat: Text.PlainText
+            wrapMode: Text.WrapAnywhere
+            color: root.ink
+            font.family: root.face
+            font.pixelSize: Style.font.body
+          }
+          RowLayout {
+            Layout.fillWidth: true
+            spacing: Style.space(8)
+            Button {
+              Layout.fillWidth: true
+              text: root.t("Aceptar archivo")
+              bordered: true
+              focusable: true
+              foreground: root.ink
+              accent: Color.accent
+              fontFamily: root.face
+              onClicked: if (root.backend) root.backend.decideClipboardFile(true)
+            }
+            Button {
+              Layout.fillWidth: true
+              text: root.t("Rechazar")
+              bordered: true
+              focusable: true
+              foreground: root.ink
+              accent: Color.urgent
+              fontFamily: root.face
+              onClicked: if (root.backend) root.backend.decideClipboardFile(false)
+            }
           }
         }
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          visible: root.activeTab === "main"
+          visible: root.activeTab === "home"
           text: root.t("PREPARAR ESTE EQUIPO")
           foreground: root.ink
           fontFamily: root.face
@@ -316,7 +394,7 @@ Panel {
 
         HelpDisclosure {
           Layout.fillWidth: true
-          visible: root.activeTab === "main"
+          visible: root.activeTab === "home"
           title: root.t("Ayuda · Instalación del agente")
           description: root.backend && root.backend.installed
             ? root.t("El agente ya está instalado. Detenga las sesiones activas antes de actualizarlo. Se abrirá una terminal para mostrar el progreso.")
@@ -327,7 +405,7 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          visible: root.activeTab === "more"
+          visible: root.activeTab === "settings"
           text: root.t("ADMINISTRAR AGENTE")
           foreground: root.ink
           fontFamily: root.face
@@ -338,7 +416,7 @@ Panel {
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
-            visible: root.activeTab === "main"
+            visible: root.activeTab === "home"
             text: root.backend && root.backend.installed
               ? root.t("Actualizar agente") : root.t("Instalar agente")
             bordered: true
@@ -352,7 +430,7 @@ Panel {
           }
           Button {
             Layout.fillWidth: true
-            visible: root.activeTab === "more"
+            visible: root.activeTab === "settings"
             text: root.t("Retirar agente")
             bordered: true
             focusable: true
@@ -367,7 +445,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          visible: root.activeTab === "more" && root.confirmRemoveAgent
+          visible: root.activeTab === "settings" && root.confirmRemoveAgent
           text: root.t("Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
@@ -378,7 +456,7 @@ Panel {
 
         RowLayout {
           Layout.fillWidth: true
-          visible: root.activeTab === "more" && root.confirmRemoveAgent
+          visible: root.activeTab === "settings" && root.confirmRemoveAgent
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
@@ -416,9 +494,21 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        Button {
+          Layout.fillWidth: true
+          visible: root.activeTab === "home" && root.backend && root.backend.installed
+          text: root.t("Preparar recepción de archivos copiados · TCP 47834 →")
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: root.openCopiedFirewall()
+        }
+
         ColumnLayout {
           Layout.fillWidth: true
-          visible: root.activeTab === "main"
+          visible: root.activeTab === "computers"
           spacing: Style.space(12)
 
         PanelSeparator {
@@ -812,7 +902,7 @@ Panel {
 
         ColumnLayout {
           Layout.fillWidth: true
-          visible: root.activeTab === "more"
+          visible: root.activeTab === "computers"
           spacing: Style.space(12)
 
         PanelSectionHeader {
@@ -892,7 +982,7 @@ Panel {
 
         ColumnLayout {
           Layout.fillWidth: true
-          visible: root.activeTab === "main"
+          visible: root.activeTab === "home"
           spacing: Style.space(12)
 
         Text {
@@ -964,6 +1054,13 @@ Panel {
           }
         }
 
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "settings"
+          spacing: Style.space(12)
+
         PanelSectionHeader {
           Layout.fillWidth: true
           visible: root.backend && root.backend.installed
@@ -1010,6 +1107,7 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.firewallPreview !== ""
+            && root.backend.firewallPort === firewallPortField.text.trim()
           text: root.backend ? root.formatFirewallPreview(root.backend.firewallPreview) : ""
           textFormat: Text.PlainText
           wrapMode: Text.WrapAnywhere
@@ -1021,6 +1119,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           visible: root.backend && root.backend.firewallPreview !== ""
+            && root.backend.firewallPort === firewallPortField.text.trim()
           spacing: Style.space(8)
           Button {
             Layout.fillWidth: true
@@ -1047,7 +1146,8 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          visible: root.backend && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
+          visible: root.backend && root.backend.firewallPort === firewallPortField.text.trim()
+            && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
           text: root.backend ? (root.backend.firewallError !== "" ? root.backend.firewallError : root.backend.firewallMessage) : ""
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
@@ -1060,8 +1160,72 @@ Panel {
 
         ColumnLayout {
           Layout.fillWidth: true
-          visible: root.activeTab === "more"
+          visible: root.activeTab === "settings"
           spacing: Style.space(12)
+
+        PanelSectionHeader {
+          id: copiedFirewallHeader
+          Layout.fillWidth: true
+          text: root.t("ARCHIVOS COPIADOS · PREPARAR RECEPCIÓN")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        HelpDisclosure {
+          Layout.fillWidth: true
+          title: root.t("Ayuda · Puerto de archivos copiados")
+          description: root.t("Autorice TCP 47834 una vez en este receptor para recibir archivos copiados desde equipos emparejados. Después podrá aceptar o rechazar cada archivo desde la notificación, incluso en otro workspace.")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Button {
+          Layout.fillWidth: true
+          text: root.t("Preparar regla LAN para pegar archivos · 47834")
+          bordered: true
+          focusable: true
+          enabled: root.backend && root.backend.installed && !root.backend.firewallBusy
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.previewFirewall("47834")
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
+          text: root.backend ? root.formatFirewallPreview(root.backend.firewallPreview) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
+          text: root.t("Autorizar esta regla")
+          bordered: true
+          focusable: true
+          enabled: root.backend && !root.backend.firewallBusy
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.allowFirewall()
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPort === "47834"
+            && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
+          text: root.backend ? (root.backend.firewallError !== "" ? root.backend.firewallError : root.backend.firewallMessage) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.firewallError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
 
         PanelSectionHeader {
           Layout.fillWidth: true
@@ -1144,7 +1308,7 @@ Panel {
 
         ColumnLayout {
           Layout.fillWidth: true
-          visible: root.activeTab === "main"
+          visible: root.activeTab === "home"
           spacing: Style.space(12)
 
         Button {
@@ -1224,6 +1388,13 @@ Panel {
           fontFamily: root.face
           detailColor: Color.accent
         }
+
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "files"
+          spacing: Style.space(12)
 
         PanelSeparator {
           Layout.fillWidth: true
@@ -1312,54 +1483,6 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.decideClipboardFile(false)
           }
-        }
-
-        Button {
-          Layout.fillWidth: true
-          text: root.t("Preparar regla LAN para pegar archivos · 47834")
-          bordered: true
-          focusable: true
-          enabled: root.backend && root.backend.installed && !root.backend.firewallBusy
-          foreground: root.ink
-          accent: Color.accent
-          fontFamily: root.face
-          onClicked: if (root.backend) root.backend.previewFirewall("47834")
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
-          text: root.backend ? root.formatFirewallPreview(root.backend.firewallPreview) : ""
-          textFormat: Text.PlainText
-          wrapMode: Text.WrapAnywhere
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
-        }
-
-        Button {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
-          text: root.t("Autorizar esta regla")
-          bordered: true
-          focusable: true
-          enabled: root.backend && !root.backend.firewallBusy
-          foreground: root.ink
-          accent: Color.accent
-          fontFamily: root.face
-          onClicked: if (root.backend) root.backend.allowFirewall()
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.firewallPort === "47834"
-            && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
-          text: root.backend ? (root.backend.firewallError !== "" ? root.backend.firewallError : root.backend.firewallMessage) : ""
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: root.backend && root.backend.firewallError !== "" ? Color.urgent : Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
         }
 
         Text {
@@ -1699,7 +1822,7 @@ Panel {
 
         Button {
           Layout.fillWidth: true
-          visible: root.activeTab === "more"
+          visible: root.activeTab === "settings"
           text: root.t("Abrir guía completa")
           bordered: true
           focusable: true

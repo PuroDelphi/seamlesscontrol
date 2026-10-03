@@ -4,7 +4,7 @@
 
 This guide shows the Omarchy panel with two Omarchy computers: the **source** has the physical mouse and keyboard, and the **receiver** accepts control. SeamlessControl also connects Omarchy and Windows; follow the [Windows guide](WINDOWS-ALPHA.md) for that setup. Set up the plugin and agent on both Omarchy computers first. The screenshots show fictional computer names and addresses.
 
-The panel opens on **Main**. It contains agent installation, pairing, the computer layout, connecting, file transfer and both LAN firewall actions. **More** contains agent removal, revoking a paired computer, manual connection by IP, experimental mesh and the full-guide link. If a pairing code or file offer arrives while **More** is open, the panel returns to **Main** so you can respond.
+The panel has four sections. **Home** shows agent installation, control status and immediate session actions. **Computers** contains discovery, pairing, trusted peers and the screen layout. **Files** contains copied-file offers, manual transfers and the size limit. **Settings** contains receiver firewall rules, agent removal and advanced connection options. Home has a shortcut to set up the copied-file port. Incoming copied-file offers also appear at the top of every section with **Accept** and **Decline** buttons; pairing codes and manual file offers open their relevant section automatically.
 
 ## First connection, one step at a time
 
@@ -12,13 +12,13 @@ The panel opens on **Main**. It contains agent installation, pairing, the comput
 
    ![Receiver's Receive control button](images/firewall-en.png)
 
-2. **Find and pair it.** On the source, look under **Computers on the network**. Select **Scan** if it is not listed. Select **Pair** beside the receiver. A six digit code appears on **both** computers. Compare the codes and select **Codes match · approve here** on each. You pair a trusted computer once; later sessions reuse its saved key. The much longer **Local identity** is a fingerprint, not the code to type.
+2. **Find and pair it.** On the source, open **Computers** and look under **Computers on the network**. Select **Scan** if it is not listed. Select **Pair** beside the receiver. A six digit code appears on **both** computers. Compare the codes and select **Codes match · approve here** on each. You pair a trusted computer once; later sessions reuse its saved key. The much longer **Local identity** is a fingerprint, not the code to type.
 
    **Pair** authorizes this receiver once. **Connect** starts a new control session whenever you want to use it.
 
    ![The panel explains Pair and Connect](images/connect-context-en.png)
 
-3. **Place the computers.** In **Computer layout**, place the receiver in the cell beside **This computer** that matches its real position. Do the reverse on the receiver, placing the source beside **This computer**. Select a computer tile, then select the destination cell, or drag it. With the panel open, press Tab to highlight a cell (more presses cycle through the four cells), Enter to select its tile, the arrow keys to reach the target cell, and Enter again to place it. Escape cancels a selection. This only saves the crossing direction; it does not start control.
+3. **Place the computers.** In **Computers → Computer layout**, place the receiver in the cell beside **This computer** that matches its real position. Do the reverse on the receiver, placing the source beside **This computer**. Select a computer tile, then select the destination cell, or drag it. With the panel open, press Tab to highlight a cell (more presses cycle through the four cells), Enter to select its tile, the arrow keys to reach the target cell, and Enter again to place it. Escape cancels a selection. This only saves the crossing direction; it does not start control.
 
 4. **Connect from the source.** On the source, select **Connect** beside the discovered receiver. Wait for **Ready** at the top. The panel names the edge to cross. If the source has several monitors, use the **outer edge of the whole source desktop**, not a seam between its monitors. Move the pointer through that edge to enter the receiver.
 
@@ -35,7 +35,7 @@ The [README](../README.md) explains installation, updating and removal. Pairing,
 | What the panel shows | What to do in the panel |
 | --- | --- |
 | No receiver in **Computers on the network** | Keep **Receive control** active on the receiver, then select **Scan** on the source. For a new computer, enter its `IP:port` in the manual **Pair** field. For an already paired and placed computer, use **Connect by IP**. |
-| Pairing times out | On the receiver, use **Firewall · receiver only**: preview the LAN rule for the same port as **Receive control**, then authorize it. Retry **Pair** on the source and approve the new code on both computers. |
+| Pairing times out | On the receiver, open **Settings → Firewall · receiver only**: preview the LAN rule for the same port as **Receive control**, then authorize it. Retry **Pair** on the source and approve the new code on both computers. |
 | **Connecting**, without a network connection | Check that **Receive control** is still active on the receiver and that its firewall permits the selected port. Stop the source session and select **Connect** again. |
 | **Network connected. Preparing mouse and keyboard capture…** for more than 15 seconds | On the source, select **Restart capture on this computer**. This ends the stuck attempt and restarts Omarchy's input capture service. It can interrupt other screen-sharing apps on that computer. When the panel says capture restarted, select **Connect** again. |
 | **Ready**, but the pointer does not cross | Check the receiver's position in **Computer layout** on the source. Cross the indicated **outer** edge of all source monitors. If the panel says **Move pointer away from edge**, move inward first, then cross again. |
@@ -61,7 +61,7 @@ The capture repair button appears only when a panel-started source session has a
 
 ### Copy a file and paste it on another computer
 
-1. Keep SeamlessControl running on both paired computers. On the **receiver**, allow the LAN rule for **TCP 47834**: use **Preview LAN rule for pasted files** in the Omarchy panel or **Settings → Windows firewall → Allow pasted-file port 47834** in Windows. This is separate from control (`47832`) and manual file sending (`47833`).
+1. Keep SeamlessControl running on both paired computers. On the **receiver**, allow the LAN rule for **TCP 47834**: use **Home → Set up copied-file receiving** or **Settings → Copied files → Preview LAN rule for pasted files** in the Omarchy panel; on Windows use **Settings → Windows firewall → Allow pasted-file port 47834**. This is separate from control (`47832`) and manual file sending (`47833`).
 2. Copy **one local file** in the source file manager. With exactly one paired computer, SeamlessControl offers it automatically. With more than one, open **Files** and choose **Offer copied file to…**. The source need not start a control session.
 3. On the receiver, a prominent notification appears even when the Omarchy panel is closed or the Windows app is in the tray. Select **Accept** or **Decline** there; the same buttons remain in **Files**. Nothing is downloaded before acceptance.
 4. After verification, open the destination folder in the receiver's file manager and press **Paste**. The verified file stays in SeamlessControl's private staging folder until pasted; files are kept for up to seven days and staging is size limited. To send several files, copy and approve them one at a time.

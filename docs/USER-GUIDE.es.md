@@ -4,7 +4,7 @@
 
 Esta guía muestra el panel Omarchy con dos equipos Omarchy: el **origen** tiene el ratón y teclado físicos, y el **receptor** acepta el control. SeamlessControl también conecta Omarchy con Windows; sigue la [guía Windows](WINDOWS-ALPHA.es.md) para esa combinación. Primero instala el plugin y el agente en ambos Omarchy. Las capturas usan nombres y direcciones ficticios.
 
-El panel abre en **Principal**. Allí están la instalación del agente, el emparejamiento, el mapa, la conexión, los archivos y ambas acciones del firewall LAN. **Más** reúne la retirada del agente, la revocación de un equipo, la conexión manual por IP, la malla experimental y el enlace a la guía completa. Si llega un código de emparejamiento o una oferta de archivo mientras está abierta **Más**, el panel vuelve a **Principal** para que puedas responder.
+El panel tiene cuatro secciones. **Inicio** muestra la instalación del agente, el estado del control y las acciones inmediatas de la sesión. **Equipos** reúne búsqueda, emparejamiento, pares de confianza y mapa de pantallas. **Archivos** contiene ofertas de archivos copiados, envíos manuales y límite de tamaño. **Ajustes** reúne las reglas del firewall receptor, la retirada del agente y las opciones avanzadas. Inicio tiene un acceso directo para preparar el puerto de archivos copiados. Una oferta de archivo copiado también aparece arriba de cualquier sección con botones **Aceptar** y **Rechazar**; los códigos de emparejamiento y las ofertas manuales abren automáticamente su sección.
 
 ## Primera conexión, paso a paso
 
@@ -12,13 +12,13 @@ El panel abre en **Principal**. Allí están la instalación del agente, el empa
 
    ![Botón Recibir control del receptor](images/firewall-es.png)
 
-2. **Encuéntralo y emparéjalo.** En el origen, busca el receptor en **Equipos en la red**. Pulsa **Buscar** si no aparece. Pulsa **Emparejar** junto al receptor. Aparecerá un código de seis cifras en **ambos** equipos. Compáralo y pulsa **Coincide · aprobar aquí** en cada uno. Solo necesitas emparejar cada equipo de confianza una vez; las sesiones siguientes usan su clave guardada. La **Identidad local**, mucho más larga, es una huella, no el código que debas escribir.
+2. **Encuéntralo y emparéjalo.** En el origen, abre **Equipos** y busca el receptor en **Equipos en la red**. Pulsa **Buscar** si no aparece. Pulsa **Emparejar** junto al receptor. Aparecerá un código de seis cifras en **ambos** equipos. Compáralo y pulsa **Coincide · aprobar aquí** en cada uno. Solo necesitas emparejar cada equipo de confianza una vez; las sesiones siguientes usan su clave guardada. La **Identidad local**, mucho más larga, es una huella, no el código que debas escribir.
 
    **Emparejar** autoriza ese receptor una vez. **Conectar** inicia una sesión nueva cada vez que quieras usarlo.
 
    ![El panel explica Emparejar y Conectar](images/connect-context-es.png)
 
-3. **Ubica los equipos.** En **Mapa de equipos**, coloca el receptor junto a **Este equipo** según su posición real. En el receptor haz lo inverso: coloca el origen junto a **Este equipo**. Pulsa una ficha y luego la casilla de destino, o arrástrala. Con el panel abierto, pulsa Tab para resaltar una casilla (más pulsaciones recorren las cuatro), Enter para seleccionar la ficha, las flechas para llegar a la casilla de destino y Enter otra vez para colocarla. Escape cancela la selección. Este paso solo guarda la dirección del cruce; todavía no inicia el control.
+3. **Ubica los equipos.** En **Equipos → Mapa de equipos**, coloca el receptor junto a **Este equipo** según su posición real. En el receptor haz lo inverso: coloca el origen junto a **Este equipo**. Pulsa una ficha y luego la casilla de destino, o arrástrala. Con el panel abierto, pulsa Tab para resaltar una casilla (más pulsaciones recorren las cuatro), Enter para seleccionar la ficha, las flechas para llegar a la casilla de destino y Enter otra vez para colocarla. Escape cancela la selección. Este paso solo guarda la dirección del cruce; todavía no inicia el control.
 
 4. **Conecta desde el origen.** En el origen, pulsa **Conectar** junto al receptor descubierto. Espera a que arriba diga **Listo**. El panel indica qué borde debes cruzar. Si el origen tiene varios monitores, usa el **borde exterior de todo el escritorio**, no la separación entre sus monitores. Cruza ese borde con el puntero para entrar al receptor.
 
@@ -35,7 +35,7 @@ El [README](../README.es.md) explica instalación, actualización y retirada. Em
 | Lo que muestra el panel | Qué hacer desde el panel |
 | --- | --- |
 | El receptor no aparece en **Equipos en la red** | Deja **Recibir control** activo en el receptor y pulsa **Buscar** en el origen. Si es un equipo nuevo, escribe su `IP:puerto` en **Emparejar** manual. Si ya está emparejado y ubicado, usa **Conectar por IP**. |
-| El emparejamiento agota el tiempo | En el receptor, ve a **Firewall · solo en el receptor**: prepara la regla LAN con el mismo puerto de **Recibir control** y autorízala. Vuelve a **Emparejar** en el origen y aprueba el nuevo código en ambos equipos. |
+| El emparejamiento agota el tiempo | En el receptor, ve a **Ajustes → Firewall · solo en el receptor**: prepara la regla LAN con el mismo puerto de **Recibir control** y autorízala. Vuelve a **Emparejar** en el origen y aprueba el nuevo código en ambos equipos. |
 | **Conectando**, sin conexión de red | Comprueba que **Recibir control** sigue activo en el receptor y que su firewall permite ese puerto. Termina la sesión del origen y vuelve a pulsar **Conectar**. |
 | **Red conectada. Preparando la captura del ratón y teclado…** durante más de 15 segundos | En el origen, pulsa **Reiniciar captura de este equipo**. Se cierra el intento atascado y se reinicia el servicio de captura de Omarchy. Esto puede interrumpir otras aplicaciones que compartan pantalla en ese equipo. Cuando el panel indique que terminó, pulsa **Conectar** otra vez. |
 | **Listo**, pero el puntero no cruza | Revisa la posición del receptor en el **Mapa de equipos** del origen. Cruza el borde **exterior** indicado de todos sus monitores. Si el panel pide alejar el puntero del borde, muévelo hacia dentro y vuelve a cruzar. |
@@ -61,7 +61,7 @@ El botón de reparar la captura solo aparece cuando una sesión iniciada desde e
 
 ### Copiar un archivo y pegarlo en otro equipo
 
-1. Mantén SeamlessControl abierto en ambos equipos emparejados. En el **receptor**, permite la regla LAN de **TCP 47834**: usa **Preparar regla LAN para pegar archivos** en Omarchy o **Ajustes → Firewall de Windows → Permitir puerto de archivos copiados 47834**. Es distinto del control (`47832`) y del envío manual (`47833`).
+1. Mantén SeamlessControl abierto en ambos equipos emparejados. En el **receptor**, permite la regla LAN de **TCP 47834**: usa **Inicio → Preparar recepción de archivos copiados** o **Ajustes → Archivos copiados → Preparar regla LAN para pegar archivos** en Omarchy; en Windows usa **Ajustes → Firewall de Windows → Permitir puerto de archivos copiados 47834**. Es distinto del control (`47832`) y del envío manual (`47833`).
 2. Copia **un archivo local** en el explorador del origen. Si hay un solo equipo emparejado, SeamlessControl lo ofrece automáticamente. Si hay varios, abre **Archivos** y elige **Ofrecer archivo copiado a…**. No hace falta iniciar una sesión de control.
 3. En el receptor aparece una notificación visible aunque el panel Omarchy esté cerrado o la ventana Windows esté en la bandeja. Pulsa **Aceptar** o **Rechazar**; los mismos botones siguen en **Archivos**. No se descarga nada antes de aprobar.
 4. Tras la verificación, abre la carpeta deseada en el explorador del receptor y pulsa **Pegar**. El archivo verificado permanece en la carpeta temporal privada de SeamlessControl hasta pegarlo; se conserva hasta siete días y la carpeta tiene un límite de tamaño. Para varios archivos, cópialos y apruébalos uno por uno.
