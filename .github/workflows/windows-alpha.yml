@@ -21,10 +21,10 @@ jobs:
         run: cargo fmt --manifest-path agent/Cargo.toml --check
       - name: Test portable core on Windows x64
         run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
-      - name: Build Windows x64 console agent
+      - name: Build Windows x64 app and agent
         env:
           RUSTFLAGS: -C target-feature=+crt-static
-        run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
+        run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrol --bin seamlesscontrold
       - name: Start the Windows executable
         shell: pwsh
         run: |
@@ -34,16 +34,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Identity startup failed' }
           & $exe peers
           if ($LASTEXITCODE -ne 0) { throw 'Peer listing startup failed' }
-      - name: Write executable checksum
+      - name: Write executable checksums
         shell: pwsh
         run: |
           $output = 'agent/target/x86_64-pc-windows-msvc/release'
-          $digest = (Get-FileHash -Algorithm SHA256 "$output/seamlesscontrold.exe").Hash.ToLowerInvariant()
-          "$digest  seamlesscontrold.exe" | Set-Content -Encoding ascii -Path "$output/seamlesscontrold.exe.sha256"
+          foreach ($name in @('seamlesscontrol.exe', 'seamlesscontrold.exe')) {
+            $digest = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash.ToLowerInvariant()
+            "$digest  $name" | Set-Content -Encoding ascii -Path "$output/$name.sha256"
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: seamlesscontrol-windows-x64-alpha
           path: |
             agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe
             agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe.sha256
+            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol.exe
+            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol.exe.sha256
           if-no-files-found: error

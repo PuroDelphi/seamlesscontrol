@@ -13,11 +13,13 @@ use crate::storage::{
 use crate::topology::Edge;
 use crate::windows_capture::{CaptureEvent, CaptureHandle};
 use crate::windows_clipboard::WindowsClipboard;
+use crate::windows_discovery::ServiceAdvertisement;
 use crate::windows_input::{WindowsInjector, interactive_desktop, set_dpi_awareness};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{RecvTimeoutError, sync_channel};
 use std::sync::{Arc, Mutex};
@@ -33,6 +35,48 @@ fn config_dir() -> Result<PathBuf, Box<dyn Error>> {
     Ok(PathBuf::from(local).join("SeamlessControl"))
 }
 
+fn firewall_allow(port: u16) -> Result<(), Box<dyn Error>> {
+    if port == 0 {
+        return Err("firewall port must be between 1 and 65535".into());
+    }
+    let name = format!("SeamlessControl TCP {port} Private LAN");
+    let existing = Command::new("netsh")
+        .args([
+            "advfirewall",
+            "firewall",
+            "show",
+            "rule",
+            &format!("name={name}"),
+        ])
+        .output()?;
+    if existing.status.success() {
+        println!("Firewall rule already exists: {name}");
+        return Ok(());
+    }
+    let result = Command::new("netsh")
+        .args([
+            "advfirewall",
+            "firewall",
+            "add",
+            "rule",
+            &format!("name={name}"),
+            "dir=in",
+            "action=allow",
+            "protocol=TCP",
+            &format!("localport={port}"),
+            "profile=private",
+            "remoteip=localsubnet",
+        ])
+        .status()?;
+    if !result.success() {
+        return Err(
+            format!("Windows did not apply the Private LAN firewall rule for TCP {port}").into(),
+        );
+    }
+    println!("Private LAN firewall rule applied for TCP {port}.");
+    Ok(())
+}
+
 fn local_address(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(value) => value.is_private() || value.is_loopback() || value.is_link_local(),
@@ -46,7 +90,7 @@ fn local_address(ip: IpAddr) -> bool {
 
 fn confirm_pair(peer: &PeerInfo) -> bool {
     eprintln!("\nPAIRING CODE: {}", peer.sas);
-    eprintln!("Compare it with the code on the Omarchy computer.");
+    eprintln!("Compare it with the code on the other computer.");
     eprint!("If both match, type the six digits here and press Enter: ");
     if io::stderr().flush().is_err() {
         return false;
@@ -257,6 +301,18 @@ fn serve_connection(
 fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Box<dyn Error>> {
     set_dpi_awareness();
     let listener = TcpListener::bind(bind)?;
+    let _advertisement = match ServiceAdvertisement::publish(listener.local_addr()?, &identity) {
+        Ok(advertisement) => {
+            println!("This Windows receiver is visible to SeamlessControl on the private LAN.");
+            Some(advertisement)
+        }
+        Err(error) => {
+            eprintln!(
+                "SeamlessControl discovery unavailable: {error}; manual IP pairing still works."
+            );
+            None
+        }
+    };
     let occupied = Arc::new(AtomicBool::new(false));
     let prompt = Arc::new(Mutex::new(()));
     println!(
@@ -543,7 +599,8 @@ fn usage() {
          seamlesscontrold.exe send-file <PEER_IP:PORT> <FILE>\n\
          seamlesscontrold.exe identity                    Show this computer's identity\n\
          seamlesscontrold.exe peers                       List paired computers\n\
-         seamlesscontrold.exe revoke <PEER_IP>            Revoke a computer"
+         seamlesscontrold.exe revoke <PEER_IP>            Revoke a computer\n\
+         seamlesscontrold.exe firewall-allow <PORT>        Permit Private LAN inbound TCP (admin)"
     );
 }
 
@@ -553,6 +610,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     let identity = load_or_create_identity(&config.join("identity"))?;
     let peers = config.join("peers");
     match args.as_slice() {
+        [_, command, port] if command == "firewall-allow" => {
+            firewall_allow(port.parse()?)?;
+        }
         [_, command] if command == "identity" => {
             println!("Local identity: {}", key_fingerprint(&identity.public));
         }

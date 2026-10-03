@@ -20,6 +20,8 @@ pub mod windows_capture;
 #[cfg(target_os = "windows")]
 pub mod windows_clipboard;
 #[cfg(target_os = "windows")]
+pub mod windows_discovery;
+#[cfg(target_os = "windows")]
 pub mod windows_input;
 
 #[cfg(target_os = "linux")]

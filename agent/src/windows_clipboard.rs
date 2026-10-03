@@ -6,7 +6,6 @@ use std::ptr;
 use std::thread;
 use std::time::Duration;
 use windows_sys::Win32::Foundation::GlobalFree;
-use windows_sys::Win32::System::Console::GetConsoleWindow;
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, CountClipboardFormats, EmptyClipboard, GetClipboardData,
     GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
@@ -14,6 +13,7 @@ use windows_sys::Win32::System::DataExchange::{
 use windows_sys::Win32::System::Memory::{
     GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock,
 };
+use windows_sys::Win32::UI::WindowsAndMessaging::{CreateWindowExW, DestroyWindow};
 
 const CF_UNICODETEXT: u32 = 13;
 const MAX_UTF16_BYTES: usize = MAX_TEXT_BYTES * 2 + 2;
@@ -22,36 +22,57 @@ fn last_error(context: &'static str) -> io::Error {
     io::Error::other(format!("{context}: {}", io::Error::last_os_error()))
 }
 
-struct OpenedClipboard;
+struct OpenedClipboard {
+    owner: Option<windows_sys::Win32::Foundation::HWND>,
+}
 
 impl OpenedClipboard {
     fn open_for_read() -> io::Result<Option<Self>> {
         if unsafe { OpenClipboard(ptr::null_mut()) } == 0 {
             return Ok(None); // Another application may briefly own the clipboard.
         }
-        Ok(Some(Self))
+        Ok(Some(Self { owner: None }))
     }
 
     fn open_for_write() -> io::Result<Self> {
-        let owner = unsafe { GetConsoleWindow() };
+        let class: Vec<u16> = "STATIC\0".encode_utf16().collect();
+        let owner = unsafe {
+            CreateWindowExW(
+                0,
+                class.as_ptr(),
+                ptr::null(),
+                0,
+                0,
+                0,
+                0,
+                0,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                ptr::null(),
+            )
+        };
         if owner.is_null() {
-            return Err(io::Error::other(
-                "Windows clipboard needs an interactive console",
-            ));
+            return Err(last_error("clipboard owner window could not be created"));
         }
         for _ in 0..5 {
             if unsafe { OpenClipboard(owner) } != 0 {
-                return Ok(Self);
+                return Ok(Self { owner: Some(owner) });
             }
             thread::sleep(Duration::from_millis(30));
         }
-        Err(last_error("OpenClipboard failed"))
+        let error = last_error("OpenClipboard failed");
+        unsafe { DestroyWindow(owner) };
+        Err(error)
     }
 }
 
 impl Drop for OpenedClipboard {
     fn drop(&mut self) {
         unsafe { CloseClipboard() };
+        if let Some(owner) = self.owner {
+            unsafe { DestroyWindow(owner) };
+        }
     }
 }
 
