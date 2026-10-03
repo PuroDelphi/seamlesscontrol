@@ -2119,13 +2119,27 @@ mod linux {
             clipboard_omarchy::emit_watched_event()?;
             return Ok(());
         }
-        if args.len() == 2 && args[1] == "clipboard-file-current" {
+        if args.len() == 2 && args[1] == "clipboard-file-watch" {
+            use std::os::unix::process::CommandExt;
+            let executable = std::env::current_exe()?;
+            let error = std::process::Command::new("wl-paste")
+                .arg("--watch")
+                .arg(executable)
+                .arg("clipboard-file-event")
+                .exec();
+            return Err(error.into());
+        }
+        if args.len() == 2
+            && matches!(
+                args[1].as_str(),
+                "clipboard-file-current" | "clipboard-file-event"
+            )
+        {
             let staging = clipboard_staging_dir()?;
-            if let Some(path) =
-                clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging)?
-                && let Some(path) = path.to_str()
-            {
-                println!("{}", serde_json::to_string(path)?);
+            let path = clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging)?
+                .and_then(|path| path.to_str().map(str::to_owned));
+            if path.is_some() || args[1] == "clipboard-file-event" {
+                println!("{}", serde_json::to_string(&path)?);
             }
             return Ok(());
         }

@@ -46,7 +46,7 @@ Para recibir un archivo en Windows, abre **Archivos**, elige la carpeta de desti
 
 ### Copiar en un explorador y pegar en el otro
 
-Con ambas aplicaciones abiertas y los equipos emparejados, copia **un archivo local** en el Explorador o en el explorador Omarchy. Si hay un solo par, se ofrece automáticamente; si hay varios, escoge el destino en **Archivos → Copia aquí, pega allá**. El receptor debe permitir TCP `47834` en su LAN privada. Windows muestra un diálogo nativo aunque la app esté en la bandeja; Omarchy muestra una notificación con botones incluso en otro workspace. Acepta o rechaza. Tras la transferencia verificada, abre la carpeta de destino y usa **Pegar**. Este flujo no requiere una sesión de control ni pulsar **Esperar un archivo**. El límite de tamaño de cada equipo se aplica en ambos extremos. Se admite un archivo por vez.
+Con ambas aplicaciones abiertas y los equipos emparejados, copia **un archivo local** en el Explorador o en el explorador Omarchy. Si hay un solo par, se ofrece automáticamente; si hay varios, escoge el destino en **Archivos → Copia aquí, pega allá**. El receptor debe permitir TCP `47834` en su LAN privada. Windows muestra un diálogo nativo aunque la app esté en la bandeja; Omarchy muestra una notificación con botones incluso en otro workspace. Acepta o rechaza. Tras la transferencia verificada, abre la carpeta de destino y usa **Pegar**. Este flujo no requiere una sesión de control ni pulsar **Esperar un archivo**. El límite de tamaño de cada equipo se aplica en ambos extremos. Una oferta sin respuesta caduca a los dos minutos. El progreso aparece en la app. Se admite un archivo por vez.
 
 ## Firewall y descubrimiento
 

@@ -66,6 +66,6 @@ El botón de reparar la captura solo aparece cuando una sesión iniciada desde e
 3. En el receptor aparece una notificación visible aunque el panel Omarchy esté cerrado o la ventana Windows esté en la bandeja. Pulsa **Aceptar** o **Rechazar**; los mismos botones siguen en **Archivos**. No se descarga nada antes de aprobar.
 4. Tras la verificación, abre la carpeta deseada en el explorador del receptor y pulsa **Pegar**. El archivo verificado permanece en la carpeta temporal privada de SeamlessControl hasta pegarlo; se conserva hasta siete días y la carpeta tiene un límite de tamaño. Para varios archivos, cópialos y apruébalos uno por uno.
 
-El límite de tamaño configurado en **ambos** equipos también se aplica a los archivos copiados. Si la oferta no llega, comprueba que el receptor siga abierto y permita TCP `47834`. **Esperar un archivo / Enviar archivo** sigue disponible para escoger directamente la carpeta de destino.
+La oferta caduca pasados dos minutos sin aprobación; vuelve a copiar el archivo o usa el botón de oferta para reintentar. Ambas apps muestran el progreso. El límite de tamaño configurado en **ambos** equipos también se aplica a los archivos copiados. Si la oferta no llega, comprueba que el receptor siga abierto y permita TCP `47834`. **Esperar un archivo / Enviar archivo** sigue disponible para escoger directamente la carpeta de destino.
 
 La [guía técnica](TECHNICAL.es.md) describe el protocolo, el diagnóstico manual y los límites de las pruebas.

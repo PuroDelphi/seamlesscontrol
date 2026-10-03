@@ -833,7 +833,13 @@ fn show_file_ready(spanish: bool) {
         } else {
             "Verified file ready. Open the destination folder and press Paste.\0"
         };
-        let title: Vec<u16> = "SeamlessControl · File ready\0".encode_utf16().collect();
+        let title: Vec<u16> = if spanish {
+            "SeamlessControl · Archivo listo\0"
+        } else {
+            "SeamlessControl · File ready\0"
+        }
+        .encode_utf16()
+        .collect();
         let body: Vec<u16> = body.encode_utf16().collect();
         unsafe {
             MessageBoxW(

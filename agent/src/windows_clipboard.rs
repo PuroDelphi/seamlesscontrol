@@ -176,7 +176,11 @@ impl WindowsClipboard {
         }
         let path = PathBuf::from(std::ffi::OsString::from_wide(&wide[..length]));
         self.last_sequence = sequence;
-        if path.starts_with(staging) || !local_regular_file(&path, limit).unwrap_or(false) {
+        let staged = path
+            .to_string_lossy()
+            .to_lowercase()
+            .starts_with(&staging.to_string_lossy().to_lowercase());
+        if staged || !local_regular_file(&path, limit).unwrap_or(false) {
             return Ok(Some(None));
         }
         Ok(Some(Some(path)))

@@ -61,7 +61,6 @@ Item {
   property bool sendingFile: false
   property bool sendingCopiedFile: false
   property string copiedFilePath: ""
-  property bool clipboardReadInitialized: false
   property string lastClipboardSentPath: ""
   property var clipboardOffer: null
   property bool clipboardFileListening: false
@@ -128,6 +127,7 @@ Item {
     }
     setupBusy = true
     if (clipboardReceiveProcess.running) clipboardReceiveProcess.running = false
+    if (clipboardReadProcess.running) clipboardReadProcess.running = false
     setupError = ""
     setupMessage = "Se abrió una terminal de Omarchy. Autorice los cambios allí y vuelva a este panel."
     setupProcess.command = ["omarchy", "launch", "tui",
@@ -734,26 +734,21 @@ Item {
 
   Process {
     id: clipboardReadProcess
-    stdout: StdioCollector {
-      waitForEnd: true
-      onStreamFinished: {
-        var value = String(text || "").trim()
-        if (!value) {
-          if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
-          root.copiedFilePath = ""
-          root.lastClipboardSentPath = ""
-          root.clipboardReadInitialized = true
-          return
-        }
+    stdout: SplitParser {
+      onRead: function(line) {
         try {
-          var path = JSON.parse(value)
-          if (typeof path !== "string" || path.charAt(0) !== "/") return
+          var path = JSON.parse(String(line).trim())
+          if (typeof path !== "string" || path.charAt(0) !== "/") {
+            if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+            root.copiedFilePath = ""
+            root.lastClipboardSentPath = ""
+            return
+          }
           if (root.sendingCopiedFile && root.copiedFilePath !== path && sendFileProcess.running)
             sendFileProcess.running = false
           root.copiedFilePath = path
-          if (!root.clipboardReadInitialized) root.lastClipboardSentPath = path
-          if (root.clipboardReadInitialized) root.maybeSendCopiedFile()
-          root.clipboardReadInitialized = true
+          root.lastClipboardSentPath = ""
+          root.maybeSendCopiedFile()
         } catch (error) { root.clipboardFileError = root.t("No se pudo leer el archivo copiado.") }
       }
     }
@@ -825,14 +820,13 @@ Item {
   }
 
   Timer {
-    interval: 1800
+    interval: 4000
     repeat: true
     running: true
     triggeredOnStart: true
     onTriggered: {
-      if (!root.installed) return
-      if (!clipboardReadProcess.running)
-        clipboardReadProcess.command = root.fileCommand(["clipboard-file-current"])
+      if (!root.installed || root.setupBusy || clipboardReadProcess.running) return
+      clipboardReadProcess.command = root.fileCommand(["clipboard-file-watch"])
       clipboardReadProcess.running = true
     }
   }

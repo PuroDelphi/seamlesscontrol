@@ -407,7 +407,8 @@ mod tests {
             let peers = receiver_peers.clone();
             let identity = receiver_id.clone();
             let worker = thread::spawn(move || {
-                receive_with_listener(
+                let mut progress = Vec::new();
+                let result = receive_with_listener_progress(
                     listener,
                     &destination,
                     &identity,
@@ -418,23 +419,32 @@ mod tests {
                         assert_eq!(peer, ip);
                         Ok(accepted)
                     },
-                )
-                .map_err(|error| error.to_string())
+                    &mut |percent| progress.push(percent),
+                );
+                (result.map_err(|error| error.to_string()), progress)
             });
-            let result = send_once(
+            let mut send_progress = Vec::new();
+            let result = send_once_with_progress(
                 address,
                 &source,
                 &sender_id,
                 &sender_peers,
                 DEFAULT_MAX_FILE_BYTES,
+                |percent| send_progress.push(percent),
             );
             if accepted {
                 result.unwrap();
-                let saved = worker.join().unwrap().unwrap().unwrap();
+                let (received, receive_progress) = worker.join().unwrap();
+                let saved = received.unwrap().unwrap();
                 assert_eq!(fs::read(saved).unwrap(), fs::read(&source).unwrap());
+                assert_eq!(send_progress, [0, 100]);
+                assert_eq!(receive_progress, [0, 100]);
             } else {
                 assert!(result.is_err());
-                assert!(worker.join().unwrap().unwrap().is_none());
+                let (received, receive_progress) = worker.join().unwrap();
+                assert!(received.unwrap().is_none());
+                assert!(send_progress.is_empty());
+                assert!(receive_progress.is_empty());
                 assert!(!downloads.join("example.txt").exists());
             }
         }
