@@ -579,6 +579,9 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             let edge = Edge::parse(edge).ok_or("edge must be left, right, top or bottom")?;
             connect_source(address.parse()?, edge, &identity, &config)?;
         }
+        [_, command, _address] if command == "connect" => {
+            return Err("connect requires the Windows screen edge: left, right, top or bottom; for example: seamlesscontrold.exe connect 192.168.1.25:47832 left".into());
+        }
         [_, command, address, source] if command == "send-file" => {
             file_session::send_once(
                 address.parse()?,
