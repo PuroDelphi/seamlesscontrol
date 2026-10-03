@@ -81,6 +81,7 @@ struct Controller {
     receive_port: u16,
     file_limit_mib: u64,
     file_limit_path: PathBuf,
+    language: String,
     layout_path: PathBuf,
     layout: BTreeMap<String, String>,
     processes: BTreeMap<Slot, Process>,
@@ -95,6 +96,9 @@ struct Controller {
     clipboard_staging: PathBuf,
     copied_file: Option<PathBuf>,
     last_copied_send: Option<PathBuf>,
+    copied_send_active: bool,
+    clipboard_offer_since: Option<Instant>,
+    clipboard_progress: Option<u8>,
     clipboard_receiver_attempt: Instant,
     file_path: Option<PathBuf>,
     state_message: String,
@@ -123,6 +127,7 @@ impl Controller {
             receive_port: 47832,
             file_limit_mib,
             file_limit_path,
+            language: "en".into(),
             layout_path,
             layout,
             processes: BTreeMap::new(),
@@ -137,6 +142,9 @@ impl Controller {
             clipboard_staging,
             copied_file: None,
             last_copied_send: None,
+            copied_send_active: false,
+            clipboard_offer_since: None,
+            clipboard_progress: None,
             clipboard_receiver_attempt: Instant::now() - Duration::from_secs(5),
             file_path: None,
             state_message: "Ready. Start receiving or select a nearby computer.".into(),
@@ -228,6 +236,11 @@ impl Controller {
         if slot == Slot::ReceiveClipboard {
             self.clipboard_offer = None;
             self.clipboard_notification_open = false;
+            self.clipboard_offer_since = None;
+            self.clipboard_progress = None;
+        }
+        if slot == Slot::SendFile {
+            self.copied_send_active = false;
         }
     }
 
@@ -262,6 +275,11 @@ impl Controller {
             if slot == Slot::ReceiveClipboard {
                 self.clipboard_offer = None;
                 self.clipboard_notification_open = false;
+                self.clipboard_offer_since = None;
+                self.clipboard_progress = None;
+            }
+            if slot == Slot::SendFile {
+                self.copied_send_active = false;
             }
             if slot == Slot::Connect {
                 let _ = self.resume_receiving(proxy);
@@ -284,6 +302,10 @@ impl Controller {
             .copied_file(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
         {
             Ok(Some(path)) => {
+                if self.copied_send_active {
+                    self.stop(Slot::SendFile);
+                    self.log("Copied-file offer canceled because the clipboard changed.");
+                }
                 self.copied_file = path;
                 self.last_copied_send = None;
             }
@@ -297,6 +319,13 @@ impl Controller {
         {
             let ip = *self.peers.keys().next().expect("one peer");
             let _ = self.send_copied_file(ip, proxy);
+        }
+        if self
+            .clipboard_offer_since
+            .is_some_and(|since| since.elapsed() >= Duration::from_secs(120))
+        {
+            let _ = self.decide_copied_file(false);
+            self.log("Copied-file offer expired after two minutes.");
         }
     }
 
@@ -338,13 +367,21 @@ impl Controller {
             if line.starts_with("OFFER\t") {
                 self.clipboard_offer = Some(line.to_owned());
                 self.clipboard_notification_open = false;
+                self.clipboard_offer_since = Some(Instant::now());
+                self.clipboard_progress = None;
+            } else if let Some(percent) = line.strip_prefix("PROGRESS\t") {
+                self.clipboard_progress = percent.parse::<u8>().ok().filter(|value| *value <= 100);
             } else if let Some(encoded) = line.strip_prefix("FILE_READY\t") {
                 if let Ok(path) = serde_json::from_str::<String>(encoded) {
                     self.log(format!("File ready to paste: {path}"));
                 }
                 self.clipboard_offer = None;
+                self.clipboard_offer_since = None;
+                self.clipboard_progress = None;
             } else if line == "FILE_DECLINED" {
                 self.clipboard_offer = None;
+                self.clipboard_offer_since = None;
+                self.clipboard_progress = None;
             } else if line == "STAGING_FULL" {
                 self.log("Copied-file staging folder is full. Free space and copy again.");
             }
@@ -429,6 +466,7 @@ impl Controller {
             ],
             proxy,
         )?;
+        self.copied_send_active = true;
         Ok(())
     }
 
@@ -438,6 +476,7 @@ impl Controller {
         }
         self.reply(Slot::ReceiveClipboard, if accept { "SI" } else { "NO" })?;
         self.clipboard_offer = None;
+        self.clipboard_offer_since = None;
         Ok(())
     }
 
@@ -531,6 +570,7 @@ impl Controller {
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
             "fileOffer": self.file_offer,
             "clipboardOffer": self.clipboard_offer,
+            "clipboardProgress": self.clipboard_progress,
             "clipboardReady": self.processes.contains_key(&Slot::ReceiveClipboard),
             "copiedFile": self.copied_file.as_ref().map(|path| path.to_string_lossy().to_string()),
             "filePath": self.file_path.as_ref().map(|path| path.to_string_lossy().to_string()),
@@ -612,6 +652,12 @@ impl Controller {
                         self.clipboard_receiver_attempt = Instant::now() - Duration::from_secs(5);
                     }
                 }
+                "setLanguage" => {
+                    if !matches!(string("language"), "en" | "es") {
+                        return Err("choose English or Español".into());
+                    }
+                    self.language = string("language").to_owned();
+                }
                 "sendCopiedFile" => {
                     let ip = string("ip").parse::<IpAddr>()?;
                     self.send_copied_file(ip, proxy)?;
@@ -658,6 +704,7 @@ impl Controller {
                     if !path.is_file() {
                         return Err("selected file is no longer available".into());
                     }
+                    self.copied_send_active = false;
                     self.start(
                         Slot::SendFile,
                         &["send-file", &address.to_string(), &path.to_string_lossy()],
@@ -739,18 +786,33 @@ fn parse_address(value: &str) -> Result<SocketAddr, Box<dyn Error>> {
     Ok(address)
 }
 
-fn show_copied_file_prompt(offer: String, proxy: EventLoopProxy<UiEvent>) {
+fn show_copied_file_prompt(offer: String, spanish: bool, proxy: EventLoopProxy<UiEvent>) {
     thread::spawn(move || {
         let fields: Vec<_> = offer.split('\t').collect();
-        let body = if fields.len() == 5 {
+        let body = if fields.len() == 5 && spanish {
+            format!(
+                "{}\n\nDe: {}\nTamaño: {} bytes\n\n¿Aceptar este archivo para poder pegarlo?",
+                fields[2], fields[1], fields[3]
+            )
+        } else if fields.len() == 5 {
             format!(
                 "{}\n\nFrom: {}\nSize: {} bytes\n\nAccept this file and make it available to paste?",
                 fields[2], fields[1], fields[3]
             )
         } else {
-            "Accept the copied file from the paired computer?".to_owned()
+            if spanish {
+                "¿Aceptar el archivo copiado desde el equipo emparejado?".to_owned()
+            } else {
+                "Accept the copied file from the paired computer?".to_owned()
+            }
         };
-        let title: Vec<u16> = "SeamlessControl · Incoming file\0".encode_utf16().collect();
+        let title: Vec<u16> = if spanish {
+            "SeamlessControl · Archivo entrante\0"
+        } else {
+            "SeamlessControl · Incoming file\0"
+        }
+        .encode_utf16()
+        .collect();
         let body: Vec<u16> = format!("{body}\0").encode_utf16().collect();
         let response = unsafe {
             MessageBoxW(
@@ -761,6 +823,26 @@ fn show_copied_file_prompt(offer: String, proxy: EventLoopProxy<UiEvent>) {
             )
         };
         let _ = proxy.send_event(UiEvent::ClipboardDecision(response == 6));
+    });
+}
+
+fn show_file_ready(spanish: bool) {
+    thread::spawn(move || {
+        let body = if spanish {
+            "Archivo verificado y listo. Abra la carpeta de destino y pulse Pegar.\0"
+        } else {
+            "Verified file ready. Open the destination folder and press Paste.\0"
+        };
+        let title: Vec<u16> = "SeamlessControl · File ready\0".encode_utf16().collect();
+        let body: Vec<u16> = body.encode_utf16().collect();
+        unsafe {
+            MessageBoxW(
+                std::ptr::null_mut(),
+                body.as_ptr(),
+                title.as_ptr(),
+                MB_OK | MB_TOPMOST | MB_SETFOREGROUND,
+            )
+        };
     });
 }
 
@@ -950,13 +1032,19 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                 }
             }
             Event::UserEvent(UiEvent::Line(slot, line)) => {
+                let copied_file_ready =
+                    slot == Slot::ReceiveClipboard && line.starts_with("FILE_READY\t");
                 controller.line(slot, line);
                 if controller.clipboard_offer.is_some() && !controller.clipboard_notification_open {
                     controller.clipboard_notification_open = true;
                     show_copied_file_prompt(
                         controller.clipboard_offer.clone().unwrap_or_default(),
+                        controller.language == "es",
                         proxy.clone(),
                     );
+                }
+                if copied_file_ready {
+                    show_file_ready(controller.language == "es");
                 }
                 push_state(&webview, &controller);
             }

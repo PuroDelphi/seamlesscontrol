@@ -12,6 +12,7 @@
 - **Mantén el ritmo:** sincronización del portapapeles de texto, regreso por el borde o con Escape y recuperación de la entrada local si termina la conexión.
 - **Encuentra equipos cercanos:** el descubrimiento LAN muestra receptores disponibles. Puedes introducir `IP:puerto` si la red bloquea el descubrimiento.
 - **Empareja con seguridad:** compara el código de seis cifras en ambos equipos. Cada uno recuerda la identidad del otro y exige revisar cualquier cambio de clave.
+- **Copia y pega archivos entre equipos:** copia un archivo en el explorador de Windows u Omarchy, aprueba la oferta visible en el receptor y pégalo en la carpeta de destino.
 - **Envía archivos con aprobación:** el receptor autoriza cada oferta y verifica el archivo antes de guardarlo. La recepción utiliza un puerto independiente.
 - **Usa una interfaz familiar:** panel Omarchy y aplicación Windows que permanece en la bandeja. Ambas tienen inglés y español.
 

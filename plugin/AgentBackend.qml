@@ -59,7 +59,9 @@ Item {
   property string fileReceiveError: ""
   property string fileSendError: ""
   property bool sendingFile: false
+  property bool sendingCopiedFile: false
   property string copiedFilePath: ""
+  property bool clipboardReadInitialized: false
   property string lastClipboardSentPath: ""
   property var clipboardOffer: null
   property bool clipboardFileListening: false
@@ -125,6 +127,7 @@ Item {
       return
     }
     setupBusy = true
+    if (clipboardReceiveProcess.running) clipboardReceiveProcess.running = false
     setupError = ""
     setupMessage = "Se abrió una terminal de Omarchy. Autorice los cambios allí y vuelva a este panel."
     setupProcess.command = ["omarchy", "launch", "tui",
@@ -251,21 +254,22 @@ Item {
     fileOffer = null
   }
 
-  function sendFile(address, path) {
+  function sendFile(address, path, copied) {
     if (!installed || sendFileProcess.running || !address || !path) return
     error = ""
-    fileResult = ""
+    fileResult = root.t("Preparando archivo…")
     fileError = ""
     fileSendError = ""
+    sendingCopiedFile = copied === true
     sendFileProcess.command = fileCommand(["send-file", address, path])
     sendFileProcess.running = true
     sendingFile = true
   }
 
   function sendCopiedFile(address) {
-    if (!copiedFilePath || !address) return
+    if (!copiedFilePath || !address || sendFileProcess.running) return
     lastClipboardSentPath = copiedFilePath
-    sendFile(address, copiedFilePath)
+    sendFile(address, copiedFilePath, true)
   }
 
   function maybeSendCopiedFile() {
@@ -706,13 +710,19 @@ Item {
   Process {
     id: sendFileProcess
     stdout: SplitParser {
-      onRead: function(line) { root.fileResult = root.t(String(line)) }
+      onRead: function(line) {
+        var fields = String(line).split("\t")
+        root.fileResult = fields.length === 2 && fields[0] === "PROGRESS"
+          ? root.t("Enviando archivo · ") + fields[1] + "%"
+          : root.t(String(line))
+      }
     }
     stderr: SplitParser {
       onRead: function(line) { root.fileSendError = String(line).trim() }
     }
     onExited: function(code) {
       root.sendingFile = false
+      root.sendingCopiedFile = false
       if (code !== 0) {
         root.fileError = /timed out|time.?out/i.test(root.fileSendError)
           ? root.t("Se agotó el tiempo en el puerto de archivos. En el receptor, prepare y autorice su regla LAN para archivos.")
@@ -729,15 +739,21 @@ Item {
       onStreamFinished: {
         var value = String(text || "").trim()
         if (!value) {
+          if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
           root.copiedFilePath = ""
           root.lastClipboardSentPath = ""
+          root.clipboardReadInitialized = true
           return
         }
         try {
           var path = JSON.parse(value)
           if (typeof path !== "string" || path.charAt(0) !== "/") return
+          if (root.sendingCopiedFile && root.copiedFilePath !== path && sendFileProcess.running)
+            sendFileProcess.running = false
           root.copiedFilePath = path
-          root.maybeSendCopiedFile()
+          if (!root.clipboardReadInitialized) root.lastClipboardSentPath = path
+          if (root.clipboardReadInitialized) root.maybeSendCopiedFile()
+          root.clipboardReadInitialized = true
         } catch (error) { root.clipboardFileError = root.t("No se pudo leer el archivo copiado.") }
       }
     }
@@ -751,7 +767,10 @@ Item {
         var fields = String(line).split("\t")
         if (fields.length === 2 && fields[0] === "LISTENING") {
           root.clipboardFileListening = true
+          root.clipboardFileError = ""
         } else if (fields.length === 5 && fields[0] === "OFFER") {
+          root.clipboardFileResult = ""
+          root.clipboardFileError = ""
           root.clipboardOffer = { peer: fields[1], name: fields[2], size: Number(fields[3]), hash: fields[4] }
           clipboardNotificationProcess.command = ["notify-send", "--urgency=critical",
             "--app-name=SeamlessControl", "--action=accept=" + root.t("Aceptar"),
@@ -759,13 +778,19 @@ Item {
             fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes")]
           clipboardNotificationProcess.running = true
         } else if (fields[0] === "FILE_READY" && fields.length === 2) {
+          root.clipboardFileError = ""
           try {
             root.clipboardFileResult = root.t("Archivo listo para pegar: ") + JSON.parse(fields[1])
           } catch (error) { root.clipboardFileResult = root.t("Archivo listo para pegar.") }
+          clipboardReadyNotificationProcess.command = ["notify-send", "--app-name=SeamlessControl",
+            root.t("Archivo listo para pegar"), root.t("Abra la carpeta de destino y pulse Pegar.")]
+          clipboardReadyNotificationProcess.running = true
           root.clipboardOffer = null
         } else if (fields[0] === "FILE_DECLINED") {
           root.clipboardFileResult = root.t("Archivo rechazado o cancelado")
           root.clipboardOffer = null
+        } else if (fields.length === 2 && fields[0] === "PROGRESS") {
+          root.clipboardFileResult = root.t("Recibiendo archivo · ") + fields[1] + "%"
         } else if (fields[0] === "STAGING_FULL") {
           root.clipboardFileError = root.t("La carpeta temporal de archivos copiados está llena. Libere espacio y vuelva a copiar el archivo.")
         }
@@ -790,6 +815,15 @@ Item {
     }
   }
 
+  Process { id: clipboardReadyNotificationProcess }
+
+  Timer {
+    interval: 120000
+    repeat: false
+    running: root.clipboardOffer !== null
+    onTriggered: root.decideClipboardFile(false)
+  }
+
   Timer {
     interval: 1800
     repeat: true
@@ -808,7 +842,7 @@ Item {
     repeat: true
     running: true
     triggeredOnStart: true
-    onTriggered: if (root.installed && !clipboardReceiveProcess.running) {
+    onTriggered: if (root.installed && !root.setupBusy && !clipboardReceiveProcess.running) {
       clipboardReceiveProcess.command = root.fileCommand(["receive-file-clipboard-ui", "47834"])
       clipboardReceiveProcess.running = true
     }

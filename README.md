@@ -12,6 +12,7 @@
 - **Keep your flow:** text clipboard synchronization, return by screen edge or Escape, and local input recovery if the connection ends.
 - **Find computers nearby:** LAN discovery shows available receivers. Manual `IP:port` remains available when discovery is blocked.
 - **Pair securely:** compare the six digit code on both computers. Each computer remembers the other's identity; a changed key requires review.
+- **Copy and paste files across computers:** copy one file in Explorer or the Omarchy file manager, approve the visible offer on the receiver, then paste into the destination folder.
 - **Send files deliberately:** the receiver approves each offer; the transferred file is checked before it is published. File reception uses its own port.
 - **Use the interface you expect:** an Omarchy panel and a Windows app that stays in the system tray. Both offer English and Spanish.
 

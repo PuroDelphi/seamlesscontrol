@@ -49,7 +49,7 @@ El botón de reparar la captura solo aparece cuando una sesión iniciada desde e
 | Control | Uso |
 | --- | --- |
 | **Conectar por IP** | Inicia el control cuando el receptor ya está emparejado y ubicado, pero no aparece en el descubrimiento. Escribe su `IP:puerto`. El campo **Emparejar** sirve para confiar en un equipo nuevo, no para iniciar el control. |
-| **Portapapeles de texto** | Mientras están conectados, el texto copiado se comparte automáticamente entre los equipos emparejados. No copia archivos ni imágenes. |
+| **Portapapeles de texto** | Mientras están conectados, el texto copiado se comparte automáticamente entre los equipos emparejados. La copia de archivos usa el flujo de aprobación independiente que se explica abajo; las imágenes no se sincronizan. |
 | **Conectar varios equipos** | Malla experimental para **un origen y dos o tres receptores** en un mapa 2 × 2 conectado. Empareja y ubica todos los equipos; inicia **Recibir control** en cada receptor con el mismo puerto. Después pulsa este botón en el origen. El texto del portapapeles se distribuye entre los receptores conectados. Con solo dos equipos en total, usa el **Conectar** normal. Falta probar físicamente la malla con más de dos equipos. |
 | **Pausar captura / Reanudar captura** | Detiene o reactiva temporalmente la captura al cruzar el borde en el origen, manteniendo la sesión disponible. |
 | **Devolver control al origen** | Solicita el regreso desde el receptor mientras está siendo controlado. |
@@ -58,5 +58,14 @@ El botón de reparar la captura solo aparece cuando una sesión iniciada desde e
 | **Esperar un archivo / Enviar archivo** | En el receptor, elige una carpeta y pulsa **Esperar un archivo**. Espera a que el panel muestre **Esperando archivo en** con su dirección. **Antes del primer envío**, pulsa **Preparar regla LAN para archivos**, revisa la regla para el puerto `47833`, pulsa **Autorizar esta regla** y acepta la autorización del sistema. El puerto de control `47832` no abre el de archivos. En el origen, elige el receptor emparejado y un archivo, luego **Enviar archivo**. Aprueba la oferta en el receptor. Pulsa **Esperar un archivo** otra vez para cada archivo siguiente. Si eliges otro puerto de archivos, escríbelo también en la dirección del destino en el origen. En **Archivos**, ajusta **Tamaño máximo de archivo** en cada equipo (1–10 240 MiB; inicialmente 100 MiB) y pulsa **Guardar límite**. Tanto el emisor como el receptor aplican su propio límite, así que el archivo debe caber en ambos. Si el receptor ya espera, detén y vuelve a iniciar la espera. Nunca se sobrescriben archivos. |
 | **Preparar regla LAN / Autorizar esta regla** | En el receptor, revisa y autoriza una regla de firewall limitada a la red local detectada y al puerto TCP elegido. El control remoto y la recepción de archivos usan puertos distintos y necesitan reglas separadas si el firewall los bloquea. |
 | **Actualizar agente / Retirar agente** | Instala la versión actual del agente o la retira junto con los paquetes instalados específicamente por SeamlessControl. Detén primero las sesiones activas. Conserva las claves de emparejamiento y el mapa. |
+
+### Copiar un archivo y pegarlo en otro equipo
+
+1. Mantén SeamlessControl abierto en ambos equipos emparejados. En el **receptor**, permite la regla LAN de **TCP 47834**: usa **Preparar regla LAN para pegar archivos** en Omarchy o **Ajustes → Firewall de Windows → Permitir puerto de archivos copiados 47834**. Es distinto del control (`47832`) y del envío manual (`47833`).
+2. Copia **un archivo local** en el explorador del origen. Si hay un solo equipo emparejado, SeamlessControl lo ofrece automáticamente. Si hay varios, abre **Archivos** y elige **Ofrecer archivo copiado a…**. No hace falta iniciar una sesión de control.
+3. En el receptor aparece una notificación visible aunque el panel Omarchy esté cerrado o la ventana Windows esté en la bandeja. Pulsa **Aceptar** o **Rechazar**; los mismos botones siguen en **Archivos**. No se descarga nada antes de aprobar.
+4. Tras la verificación, abre la carpeta deseada en el explorador del receptor y pulsa **Pegar**. El archivo verificado permanece en la carpeta temporal privada de SeamlessControl hasta pegarlo; se conserva hasta siete días y la carpeta tiene un límite de tamaño. Para varios archivos, cópialos y apruébalos uno por uno.
+
+El límite de tamaño configurado en **ambos** equipos también se aplica a los archivos copiados. Si la oferta no llega, comprueba que el receptor siga abierto y permita TCP `47834`. **Esperar un archivo / Enviar archivo** sigue disponible para escoger directamente la carpeta de destino.
 
 La [guía técnica](TECHNICAL.es.md) describe el protocolo, el diagnóstico manual y los límites de las pruebas.

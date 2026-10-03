@@ -84,8 +84,20 @@ pub fn send_once(
     peers: &Path,
     limit: u64,
 ) -> Result<(), Box<dyn Error>> {
+    send_once_with_progress(address, source, identity, peers, limit, |_| {})
+}
+
+pub fn send_once_with_progress(
+    address: SocketAddr,
+    source: &Path,
+    identity: &Identity,
+    peers: &Path,
+    limit: u64,
+    mut progress: impl FnMut(u8),
+) -> Result<(), Box<dyn Error>> {
     let pinned = pinned_key(peers, address.ip())?;
     let mut sender = FileSender::open(source, limit)?;
+    let total = sender.offer.size;
     let stream = TcpStream::connect_timeout(&address, Duration::from_secs(10))?;
     stream.set_read_timeout(Some(FILE_TIMEOUT))?;
     stream.set_write_timeout(Some(FILE_TIMEOUT))?;
@@ -105,9 +117,20 @@ pub fn send_once(
         FileMessage::Reject => return Err("destination rejected the file".into()),
         _ => return Err("destination did not decide on the file".into()),
     }
+    progress(0);
+    let mut transferred = 0u64;
+    let mut last_percent = 0u8;
     loop {
         match sender.next_chunk() {
-            Ok(Some(chunk)) => send_frame(&mut channel, &mut sent, FileMessage::Chunk(chunk))?,
+            Ok(Some(chunk)) => {
+                transferred += chunk.len() as u64;
+                send_frame(&mut channel, &mut sent, FileMessage::Chunk(chunk))?;
+                let percent = ((transferred as u128 * 100) / total.max(1) as u128) as u8;
+                if percent >= last_percent.saturating_add(5) && percent < 100 {
+                    progress(percent);
+                    last_percent = percent;
+                }
+            }
             Ok(None) => break,
             Err(error) => {
                 let _ = send_frame(&mut channel, &mut sent, FileMessage::Cancel);
@@ -119,6 +142,7 @@ pub fn send_once(
     if receive_frame(&mut channel, &mut received)? != FileMessage::Complete {
         return Err("destination did not confirm the saved file".into());
     }
+    progress(100);
     Ok(())
 }
 
@@ -128,17 +152,50 @@ pub fn receive_once(
     identity: &Identity,
     peers: &Path,
     limit: u64,
+    approve: impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    ready: impl FnOnce(SocketAddr) -> io::Result<()>,
+) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
+    receive_once_with_progress(
+        address,
+        directory,
+        identity,
+        peers,
+        limit,
+        approve,
+        ready,
+        |_| {},
+    )
+}
+
+// The three callbacks separate approval, listener readiness, and UI progress.
+#[allow(clippy::too_many_arguments)]
+pub fn receive_once_with_progress(
+    address: SocketAddr,
+    directory: &Path,
+    identity: &Identity,
+    peers: &Path,
+    limit: u64,
     mut approve: impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
     ready: impl FnOnce(SocketAddr) -> io::Result<()>,
+    mut progress: impl FnMut(u8),
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
     if !directory.is_dir() {
         return Err("destination directory does not exist".into());
     }
     let listener = TcpListener::bind(address)?;
     ready(listener.local_addr()?)?;
-    receive_with_listener(listener, directory, identity, peers, limit, &mut approve)
+    receive_with_listener_progress(
+        listener,
+        directory,
+        identity,
+        peers,
+        limit,
+        &mut approve,
+        &mut progress,
+    )
 }
 
+#[cfg(test)]
 fn receive_with_listener(
     listener: TcpListener,
     directory: &Path,
@@ -146,6 +203,26 @@ fn receive_with_listener(
     peers: &Path,
     limit: u64,
     approve: &mut impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
+    receive_with_listener_progress(
+        listener,
+        directory,
+        identity,
+        peers,
+        limit,
+        approve,
+        &mut |_| {},
+    )
+}
+
+fn receive_with_listener_progress(
+    listener: TcpListener,
+    directory: &Path,
+    identity: &Identity,
+    peers: &Path,
+    limit: u64,
+    approve: &mut impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    progress: &mut impl FnMut(u8),
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
     let (mut channel, peer_address) = loop {
         let (stream, peer_address) = listener.accept()?;
@@ -182,14 +259,27 @@ fn receive_with_listener(
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
+    let total = offer.size;
     let mut receiver = FileReceiver::accept(offer, directory, limit)?;
     send_frame(&mut channel, &mut sent, FileMessage::Accept)?;
+    progress(0);
+    let mut transferred = 0u64;
+    let mut last_percent = 0u8;
     loop {
         match receive_frame(&mut channel, &mut received)? {
-            FileMessage::Chunk(data) => receiver.write_chunk(&data)?,
+            FileMessage::Chunk(data) => {
+                receiver.write_chunk(&data)?;
+                transferred += data.len() as u64;
+                let percent = ((transferred as u128 * 100) / total.max(1) as u128) as u8;
+                if percent >= last_percent.saturating_add(5) && percent < 100 {
+                    progress(percent);
+                    last_percent = percent;
+                }
+            }
             FileMessage::End => {
                 let saved = receiver.finish()?;
                 send_frame(&mut channel, &mut sent, FileMessage::Complete)?;
+                progress(100);
                 return Ok(Some(saved));
             }
             FileMessage::Cancel => return Ok(None),

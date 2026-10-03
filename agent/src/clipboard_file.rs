@@ -170,6 +170,42 @@ pub fn file_uri(path: &Path) -> io::Result<Vec<u8>> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn staging_keeps_repeated_filenames_separate_and_respects_quota() {
+        let base = std::env::temp_dir().join(format!(
+            "seamlesscontrol-clipboard-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let root = staging_dir(&base).unwrap();
+        let first = staging_session_dir(&root).unwrap();
+        let second = staging_session_dir(&root).unwrap();
+        assert_ne!(first, second);
+        std::fs::write(first.join("same.txt"), b"one").unwrap();
+        std::fs::write(second.join("same.txt"), b"two").unwrap();
+        assert!(staging_can_fit(&root, 32, 1024).unwrap());
+        assert!(!staging_can_fit(&root, 1024 * 1024 * 1024, 1024).unwrap());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn copied_file_rejects_symlink() {
+        let base =
+            std::env::temp_dir().join(format!("seamlesscontrol-link-test-{}", std::process::id()));
+        std::fs::create_dir_all(&base).unwrap();
+        let target = base.join("target");
+        let link = base.join("link");
+        std::fs::write(&target, b"data").unwrap();
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+        assert!(local_regular_file(&target, 4).unwrap());
+        assert!(!local_regular_file(&link, 4).unwrap());
+        std::fs::remove_dir_all(base).unwrap();
+    }
+
     #[cfg(target_os = "linux")]
     #[test]
     fn uri_list_accepts_one_local_file_and_round_trips_unicode() {

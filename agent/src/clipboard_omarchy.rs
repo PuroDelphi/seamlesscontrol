@@ -35,29 +35,46 @@ pub fn emit_watched_event() -> io::Result<()> {
 }
 
 fn has_file_uri_type() -> bool {
-    Command::new("wl-paste")
-        .arg("--list-types")
-        .output()
+    wl_paste_bounded(&["--list-types"], 8 * 1024)
         .ok()
-        .filter(|output| output.status.success())
+        .flatten()
         .is_some_and(|output| {
-            String::from_utf8_lossy(&output.stdout)
+            String::from_utf8_lossy(&output)
                 .lines()
                 .any(|line| line.trim() == "text/uri-list")
         })
+}
+
+fn wl_paste_bounded(args: &[&str], limit: usize) -> io::Result<Option<Vec<u8>>> {
+    let mut child = Command::new("wl-paste")
+        .args(args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()?;
+    let mut output = Vec::new();
+    child
+        .stdout
+        .take()
+        .ok_or_else(|| io::Error::other("wl-paste stdout missing"))?
+        .take((limit + 1) as u64)
+        .read_to_end(&mut output)?;
+    if output.len() > limit {
+        let _ = child.kill();
+        let _ = child.wait();
+        return Ok(None);
+    }
+    Ok(child.wait()?.success().then_some(output))
 }
 
 pub fn copied_file(limit: u64, staging: &Path) -> io::Result<Option<PathBuf>> {
     if !has_file_uri_type() {
         return Ok(None);
     }
-    let output = Command::new("wl-paste")
-        .args(["--no-newline", "--type", "text/uri-list"])
-        .output()?;
-    if !output.status.success() || output.stdout.len() > 64 * 1024 {
+    let Some(output) = wl_paste_bounded(&["--no-newline", "--type", "text/uri-list"], 64 * 1024)?
+    else {
         return Ok(None);
-    }
-    let Some(path) = parse_one_file_uri(&output.stdout)? else {
+    };
+    let Some(path) = parse_one_file_uri(&output)? else {
         return Ok(None);
     };
     if path.starts_with(staging) || !local_regular_file(&path, limit).unwrap_or(false) {

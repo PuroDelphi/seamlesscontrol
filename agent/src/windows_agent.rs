@@ -656,12 +656,16 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             return Err("connect requires the Windows screen edge: left, right, top or bottom; for example: seamlesscontrold.exe connect 192.168.1.25:47832 left".into());
         }
         [_, command, address, source] if command == "send-file" => {
-            file_session::send_once(
+            file_session::send_once_with_progress(
                 address.parse()?,
                 Path::new(source),
                 &identity,
                 &peers,
                 file_session::configured_limit()?,
+                |percent| {
+                    println!("PROGRESS\t{percent}");
+                    let _ = io::stdout().flush();
+                },
             )?;
             println!("File delivered and verified.");
         }
@@ -680,7 +684,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             let staging = clipboard_file::staging_dir(&config)?;
             let session = clipboard_file::staging_session_dir(&staging)?;
             let limit = file_session::configured_limit()?;
-            let result = file_session::receive_once(
+            let result = file_session::receive_once_with_progress(
                 bind.parse()?,
                 &session,
                 &identity,
@@ -697,6 +701,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 |address| {
                     println!("LISTENING\t{address}");
                     io::stdout().flush()
+                },
+                |percent| {
+                    println!("PROGRESS\t{percent}");
+                    let _ = io::stdout().flush();
                 },
             )?;
             if let Some(path) = result {

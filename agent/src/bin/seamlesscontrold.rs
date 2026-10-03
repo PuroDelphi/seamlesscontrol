@@ -2123,11 +2123,9 @@ mod linux {
             let staging = clipboard_staging_dir()?;
             if let Some(path) =
                 clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging)?
+                && let Some(path) = path.to_str()
             {
-                println!(
-                    "{}",
-                    serde_json::to_string(&path.to_string_lossy().to_string())?
-                );
+                println!("{}", serde_json::to_string(path)?);
             }
             return Ok(());
         }
@@ -2139,7 +2137,7 @@ mod linux {
             let config = config_dir()?;
             let identity = load_or_create_identity(&config.join("identity"))?;
             let limit = file_session::configured_limit()?;
-            let result = file_session::receive_once(
+            let result = file_session::receive_once_with_progress(
                 address,
                 &session,
                 &identity,
@@ -2156,6 +2154,10 @@ mod linux {
                 |bound| {
                     println!("LISTENING\t{bound}");
                     io::stdout().flush()
+                },
+                |percent| {
+                    println!("PROGRESS\t{percent}");
+                    let _ = io::stdout().flush();
                 },
             )?;
             if let Some(path) = result {
@@ -2230,12 +2232,16 @@ mod linux {
             let identity = load_or_create_identity(&config.join("identity"))?;
             let limit = file_session::configured_limit()?;
             if args[1] == "send-file" {
-                file_session::send_once(
+                file_session::send_once_with_progress(
                     address,
                     std::path::Path::new(&args[3]),
                     &identity,
                     &config.join("peers"),
                     limit,
+                    |percent| {
+                        println!("PROGRESS\t{percent}");
+                        let _ = io::stdout().flush();
+                    },
                 )?;
                 println!("Archivo entregado y verificado por el destino.");
             } else {

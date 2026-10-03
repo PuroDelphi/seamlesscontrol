@@ -1352,6 +1352,18 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPort === "47834"
+            && (root.backend.firewallMessage !== "" || root.backend.firewallError !== "")
+          text: root.backend ? (root.backend.firewallError !== "" ? root.backend.firewallError : root.backend.firewallMessage) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.firewallError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.backend && (root.backend.clipboardFileResult !== "" || root.backend.clipboardFileError !== "")
           text: root.backend ? (root.backend.clipboardFileError !== "" ? root.backend.clipboardFileError : root.backend.clipboardFileResult) : ""
           textFormat: Text.PlainText

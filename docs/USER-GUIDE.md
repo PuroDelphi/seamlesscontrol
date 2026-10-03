@@ -49,7 +49,7 @@ The capture repair button appears only when a panel-started source session has a
 | Control | Use |
 | --- | --- |
 | **Connect by IP** | Starts control when the receiver is already paired and placed but discovery does not list it. Enter its `IP:port`. The nearby **Pair** field is for trusting a new computer, not for starting control. |
-| **Text clipboard** | While connected, copied text follows control between paired computers automatically. This does not copy files or images. |
+| **Text clipboard** | While connected, copied text follows control between paired computers automatically. File copying uses the separate approved flow below; images are not synchronized. |
 | **Connect several computers** | Experimental mesh mode for **one source plus two or three receivers** in a connected 2 × 2 layout. Pair and place every computer; start **Receive control** on each receiver, using the same port. Then select this button on the source. Text clipboard updates are shared between connected receivers. With only two computers in total, use the regular **Connect** button. Mesh still needs physical testing with more than two computers. |
 | **Pause capture / Resume capture** | Temporarily stops or resumes edge capture on the source while keeping its session available. |
 | **Return control to source** | Requests a return from the receiver while it is being controlled. |
@@ -58,5 +58,14 @@ The capture repair button appears only when a panel-started source session has a
 | **Wait for a file / Send file** | On the receiver, choose a folder and select **Wait for a file**. Wait until the panel shows **Waiting for a file on** with its address. **Before the first transfer**, select **Preview file LAN rule**, review the rule for port `47833`, then select **Authorize this rule** and approve the system prompt. Control port `47832` does not open the file port. On the source, choose the paired receiver and a file, then **Send file**. Approve the offer on the receiver. Select **Wait for a file** again for every subsequent file. The destination may choose a different file port; enter that same port in the source's receiver address. In **Files**, set **Maximum file size** on each computer (1–10,240 MiB; initially 100 MiB) and select **Save limit**. The sender and receiver each enforce their own limit, so the file must fit both. If the receiver is already waiting, stop and start waiting again. Existing files are never overwritten. |
 | **Preview LAN rule / Authorize this rule** | On the receiver, review and authorize a firewall rule limited to the detected LAN and chosen TCP port. Remote control and file receiving use separate ports and need separate rules when the firewall blocks them. |
 | **Update agent / Remove agent** | Installs the current agent version or removes it and packages installed specifically by SeamlessControl. Stop active sessions first. Pairing keys and layout are kept. |
+
+### Copy a file and paste it on another computer
+
+1. Keep SeamlessControl running on both paired computers. On the **receiver**, allow the LAN rule for **TCP 47834**: use **Preview LAN rule for pasted files** in the Omarchy panel or **Settings → Windows firewall → Allow pasted-file port 47834** in Windows. This is separate from control (`47832`) and manual file sending (`47833`).
+2. Copy **one local file** in the source file manager. With exactly one paired computer, SeamlessControl offers it automatically. With more than one, open **Files** and choose **Offer copied file to…**. The source need not start a control session.
+3. On the receiver, a prominent notification appears even when the Omarchy panel is closed or the Windows app is in the tray. Select **Accept** or **Decline** there; the same buttons remain in **Files**. Nothing is downloaded before acceptance.
+4. After verification, open the destination folder in the receiver's file manager and press **Paste**. The verified file stays in SeamlessControl's private staging folder until pasted; files are kept for up to seven days and staging is size limited. To send several files, copy and approve them one at a time.
+
+The maximum file size setting on **both** computers applies to copied files too. If the offer cannot reach the receiver, confirm that the receiver is running and its TCP `47834` rule is allowed. **Wait for a file / Send file** remains available for choosing a destination folder directly.
 
 The [technical guide](TECHNICAL.md) covers the protocol, manual diagnostics and current test limits.

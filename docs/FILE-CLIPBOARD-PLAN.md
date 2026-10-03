@@ -2,7 +2,9 @@
 
 Status: implementation in progress on `alpha` (2026-10-03).
 
-Progress: [x] copy detection and safe source validation (implemented); [x] receiver service and approval outside the panel (implemented); [x] verified staging and local clipboard paste (implemented); [ ] Windows build, cross-platform tests, and end-user documentation. The first three items still need physical verification. Delete this plan only after all items pass.
+Implementation choice: the existing versioned, authenticated file `Offer` is the file event. It stays separate from the text clipboard channel, so older agents keep their existing text behavior and file contents are never sent before approval.
+
+Progress: [x] copy detection and safe source validation (implemented and unit tested); [x] receiver service and approval outside the panel (implemented; Omarchy notification actions confirmed available); [x] verified staging and local clipboard paste (implemented and unit tested); [x] initial Linux CI and Windows x64 build; [ ] final CI after progress, expiry and documentation changes; [ ] physical cross-platform approval, paste and virtual-desktop/workspace checks. The user guides have been updated. Delete this plan only after all items pass.
 
 ## User experience
 
