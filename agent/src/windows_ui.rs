@@ -227,6 +227,18 @@ impl Controller {
         if slot == Slot::ReceiveFile && line.starts_with("Archivo de ") {
             self.file_offer = Some(line.to_owned());
         }
+        if line.starts_with("Paired with ") {
+            if self
+                .pair_code
+                .as_ref()
+                .is_some_and(|code| code.slot == slot)
+            {
+                self.pair_code = None;
+            }
+            self.refresh_peers();
+        } else if slot == Slot::Serve && line.starts_with("SeamlessControl connection from ") {
+            self.pair_code = None;
+        }
         if !line.is_empty() {
             self.log(format!("{} · {}", slot.name(), line));
         }
@@ -670,9 +682,6 @@ fn run_app() -> Result<(), Box<dyn Error>> {
             }
             Event::UserEvent(UiEvent::Line(slot, line)) => {
                 controller.line(slot, line);
-                if slot == Slot::Pair && controller.pair_code.is_none() {
-                    controller.refresh_peers();
-                }
                 push_state(&webview, &controller);
             }
             Event::UserEvent(UiEvent::Discovery(items)) => {
