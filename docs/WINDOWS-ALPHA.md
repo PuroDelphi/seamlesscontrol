@@ -46,6 +46,8 @@ To receive a file on Windows, open **Files**, choose the destination folder, and
 
 ### Copy in one file manager, paste in the other
 
+In **Files**, use the top **Copy here, paste there** card. The **Wait for a file** button below belongs to manual sending on port `47833` and is not needed for a copied file.
+
 With both apps running and computers paired, copy **one local file** in Explorer or the Omarchy file manager. If there is one paired peer, the app offers it automatically; otherwise choose a destination under **Files → Copy here, paste there**. The receiver must allow TCP `47834` on its private LAN. A native Windows approval dialog appears even with the app hidden in the tray; the Omarchy receiver shows an actionable desktop notification across workspaces. Accept or decline. After the verified transfer, open the destination folder and use **Paste**. No control session or manual **Wait for a file** is needed for this flow. The per-computer file size limit applies on both ends. An unanswered offer expires after two minutes. Transfer progress appears in the app. One file at a time is supported.
 
 ## Firewall and discovery

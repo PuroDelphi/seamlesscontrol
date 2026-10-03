@@ -61,6 +61,8 @@ El botón de reparar la captura solo aparece cuando una sesión iniciada desde e
 
 ### Copiar un archivo y pegarlo en otro equipo
 
+En Windows usa la tarjeta **Copia aquí, pega allá** al principio de **Archivos**. **Esperar un archivo** pertenece al envío manual por el puerto `47833`; no activa la detección de archivos copiados.
+
 1. Mantén SeamlessControl abierto en ambos equipos emparejados. En el **receptor**, permite la regla LAN de **TCP 47834**: usa **Inicio → Preparar recepción de archivos copiados** o **Ajustes → Archivos copiados → Preparar regla LAN para pegar archivos** en Omarchy; en Windows usa **Ajustes → Firewall de Windows → Permitir puerto de archivos copiados 47834**. Es distinto del control (`47832`) y del envío manual (`47833`).
 2. Copia **un archivo local** en el explorador del origen. Si hay un solo equipo emparejado, SeamlessControl lo ofrece automáticamente. Si hay varios, abre **Archivos** y elige **Ofrecer archivo copiado a…**. No hace falta iniciar una sesión de control.
 3. En el receptor aparece una notificación visible aunque el panel Omarchy esté cerrado o la ventana Windows esté en la bandeja. Pulsa **Aceptar** o **Rechazar**; los mismos botones siguen en **Archivos**. No se descarga nada antes de aprobar.
