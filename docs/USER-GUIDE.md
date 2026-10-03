@@ -70,4 +70,6 @@ Use the **Copy here, paste there** card at the top of **Files** in Windows. **Wa
 
 The offer expires after two minutes without approval; copy the file again or use the offer button to retry. Both apps show transfer progress. The maximum file size setting on **both** computers applies to copied files too. If the offer cannot reach the receiver, confirm that the receiver is running and its TCP `47834` rule is allowed. **Wait for a file / Send file** remains available for choosing a destination folder directly.
 
+You can copy from **Recent** in GNOME Files as well as from a normal folder. Other Linux file managers can work when they expose a local file through the usual clipboard file formats; the exact behavior depends on the manager. Copy one regular local file at a time. Folders, remote locations and multi-file selections are not offered automatically; use **Send file** for a file that cannot be copied this way.
+
 The [technical guide](TECHNICAL.md) covers the protocol, manual diagnostics and current test limits.

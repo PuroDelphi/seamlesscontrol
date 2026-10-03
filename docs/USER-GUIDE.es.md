@@ -70,4 +70,6 @@ En Windows usa la tarjeta **Copia aquí, pega allá** al principio de **Archivos
 
 La oferta caduca pasados dos minutos sin aprobación; vuelve a copiar el archivo o usa el botón de oferta para reintentar. Ambas apps muestran el progreso. El límite de tamaño configurado en **ambos** equipos también se aplica a los archivos copiados. Si la oferta no llega, comprueba que el receptor siga abierto y permita TCP `47834`. **Esperar un archivo / Enviar archivo** sigue disponible para escoger directamente la carpeta de destino.
 
+También puedes copiar desde **Recientes** en Archivos de GNOME, además de una carpeta normal. Otros exploradores Linux pueden funcionar cuando publican el archivo local en los formatos habituales del portapapeles; el resultado depende de cada explorador. Copia un único archivo local normal por vez. Las carpetas, ubicaciones remotas y selecciones múltiples no se ofrecen automáticamente; usa **Enviar archivo** si un archivo no puede copiarse así.
+
 La [guía técnica](TECHNICAL.es.md) describe el protocolo, el diagnóstico manual y los límites de las pruebas.

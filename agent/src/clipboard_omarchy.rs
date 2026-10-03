@@ -10,6 +10,12 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
+const FILE_ACTION_MIMES: [&str; 3] = [
+    "x-special/gnome-copied-files",
+    "x-special/mate-copied-files",
+    "x-special/nautilus-clipboard",
+];
+
 pub fn emit_watched_event() -> io::Result<()> {
     let event = match std::env::var("CLIPBOARD_STATE").as_deref() {
         Ok("data") => {
@@ -19,7 +25,7 @@ pub fn emit_watched_event() -> io::Result<()> {
                 .read_to_end(&mut bytes)?;
             if bytes.len() > MAX_TEXT_BYTES
                 || std::str::from_utf8(&bytes).is_err()
-                || has_file_uri_type()
+                || has_file_clipboard_type()
             {
                 ClipboardEvent::Ignore
             } else {
@@ -34,15 +40,23 @@ pub fn emit_watched_event() -> io::Result<()> {
     output.flush()
 }
 
-fn has_file_uri_type() -> bool {
+fn clipboard_types() -> Vec<String> {
     wl_paste_bounded(&["--list-types"], 8 * 1024)
         .ok()
         .flatten()
-        .is_some_and(|output| {
+        .map(|output| {
             String::from_utf8_lossy(&output)
                 .lines()
-                .any(|line| line.trim() == "text/uri-list")
+                .map(|line| line.trim().to_owned())
+                .collect()
         })
+        .unwrap_or_default()
+}
+
+fn has_file_clipboard_type() -> bool {
+    clipboard_types()
+        .iter()
+        .any(|mime| mime == "text/uri-list" || FILE_ACTION_MIMES.contains(&mime.as_str()))
 }
 
 fn wl_paste_bounded(args: &[&str], limit: usize) -> io::Result<Option<Vec<u8>>> {
@@ -67,20 +81,96 @@ fn wl_paste_bounded(args: &[&str], limit: usize) -> io::Result<Option<Vec<u8>>> 
 }
 
 pub fn copied_file(limit: u64, staging: &Path) -> io::Result<Option<PathBuf>> {
-    if !has_file_uri_type() {
+    let types = clipboard_types();
+    if types
+        .iter()
+        .any(|mime| mime == "application/x-kde-cutselection")
+        && let Some(action) = wl_paste_bounded(
+            &["--no-newline", "--type", "application/x-kde-cutselection"],
+            16,
+        )?
+        && action.first() == Some(&b'1')
+    {
+        return Ok(None);
+    }
+    for mime in FILE_ACTION_MIMES {
+        if !types.iter().any(|offered| offered == mime) {
+            continue;
+        }
+        let Some(output) = wl_paste_bounded(&["--no-newline", "--type", mime], 64 * 1024)? else {
+            continue;
+        };
+        if output.starts_with(b"cut\n") || output.starts_with(b"cut\r\n") {
+            return Ok(None);
+        }
+        if let Some(uri_list) = output
+            .strip_prefix(b"copy\n")
+            .or_else(|| output.strip_prefix(b"copy\r\n"))
+            && let Some(path) = resolve_uri_list(uri_list)?
+            && valid_copied_file(&path, limit, staging)
+        {
+            return Ok(Some(path));
+        }
+    }
+    if !types.iter().any(|mime| mime == "text/uri-list") {
         return Ok(None);
     }
     let Some(output) = wl_paste_bounded(&["--no-newline", "--type", "text/uri-list"], 64 * 1024)?
     else {
         return Ok(None);
     };
-    let Some(path) = parse_one_file_uri(&output)? else {
+    let Some(path) = resolve_uri_list(&output)? else {
         return Ok(None);
     };
-    if path.starts_with(staging) || !local_regular_file(&path, limit).unwrap_or(false) {
+    Ok(valid_copied_file(&path, limit, staging).then_some(path))
+}
+
+fn valid_copied_file(path: &Path, limit: u64, staging: &Path) -> bool {
+    !path.starts_with(staging) && local_regular_file(path, limit).unwrap_or(false)
+}
+
+fn resolve_uri_list(output: &[u8]) -> io::Result<Option<PathBuf>> {
+    let path = match parse_one_file_uri(output)? {
+        Some(path) => Some(path),
+        None => resolve_virtual_uri(output)?,
+    };
+    Ok(path)
+}
+
+fn resolve_virtual_uri(bytes: &[u8]) -> io::Result<Option<PathBuf>> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid URI list"))?;
+    let mut entries = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'));
+    let Some(uri) = entries.next() else {
+        return Ok(None);
+    };
+    if entries.next().is_some()
+        || !["recent://", "starred://", "search://", "trash://"]
+            .iter()
+            .any(|scheme| uri.starts_with(scheme))
+    {
         return Ok(None);
     }
-    Ok(Some(path))
+    let output = Command::new("timeout")
+        .args(["3s", "gio", "info", "-a", "standard::target-uri", uri])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()?;
+    if !output.status.success() || output.stdout.len() > 64 * 1024 {
+        return Ok(None);
+    }
+    let decoded = String::from_utf8_lossy(&output.stdout);
+    let target = decoded
+        .lines()
+        .find_map(|line| line.trim().strip_prefix("standard::target-uri: "))
+        .map(str::trim);
+    target
+        .map(|uri| parse_one_file_uri(uri.as_bytes()))
+        .transpose()
+        .map(Option::flatten)
 }
 
 pub fn publish_file(path: &Path) -> io::Result<()> {
