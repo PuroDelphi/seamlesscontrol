@@ -1,10 +1,10 @@
 # Plan: copy a file here, paste it on another computer
 
-Status: implementation in progress on `alpha` (2026-10-03).
+Status: cross-platform flow implemented and physically verified on `alpha` (2026-10-03); extended device and edge-case matrix pending.
 
 Implementation choice: the existing versioned, authenticated file `Offer` is the file event. It stays separate from the text clipboard channel, so older agents keep their existing text behavior and file contents are never sent before approval.
 
-Progress: [x] copy detection and safe source validation (implemented and unit tested); [x] receiver service and approval outside the panel; [x] verified staging and local clipboard paste; [x] Linux and Windows x64 CI; [x] Omarchy automatic listener on TCP `47834` and clipboard watcher; [x] Home, Computers, Files and Settings navigation with incoming-file actions visible above every section; [x] physical Windows → Omarchy and Omarchy → Windows acceptance and Paste; [x] notification on another Omarchy workspace and Windows virtual desktop; [x] rejection without transfer; [x] Ctrl+C detection in both file managers; [ ] physical Omarchy ↔ Omarchy and Windows ↔ Windows checks; [ ] remaining edge cases in step 5. The user guides and [test record](TEST-RESULTS.md) are updated. Keep this plan until the remaining checks pass.
+Progress: [x] copy detection and safe source validation (implemented and unit tested); [x] receiver service and approval outside the panel; [x] verified staging and local clipboard paste; [x] Linux and Windows x64 CI; [x] Omarchy automatic listener on TCP `47834` and clipboard watcher; [x] Home, Computers, Files and Settings navigation with incoming-file actions visible above every section; [x] physical Windows → Omarchy and Omarchy → Windows acceptance and Paste; [x] notification on another Omarchy workspace and Windows virtual desktop; [x] rejection without transfer; [x] Ctrl+C detection in both file managers; [x] bilingual user guides, current Windows Files and Settings screenshots with fictional data, and a test summary; [ ] physical Omarchy ↔ Omarchy and Windows ↔ Windows checks when those computers are available; [ ] remaining edge cases in step 5. Keep this plan until the remaining checks pass.
 
 ## User experience
 

@@ -2,6 +2,19 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## Physical results at a glance
+
+| Feature | Observed result |
+| --- | --- |
+| Omarchy ↔ Omarchy control | Paired, crossed screens and returned by edge and Escape. |
+| Omarchy ↔ Windows 11 x64 control | Pointer, click, keyboard and return worked in both directions; tested shortcuts with Super/Windows worked. |
+| Omarchy ↔ Windows text clipboard | Copied text was pasted in both directions. |
+| Copied files, Windows → Omarchy | Windows Explorer copy produced an offer; the user accepted on Omarchy and pasted the verified file in its file manager. |
+| Copied files, Omarchy → Windows | A Wayland file reference produced an offer; the user accepted from another Windows virtual desktop and pasted in Explorer. Omarchy file-manager Ctrl+C also produced an offer. |
+| Incoming prompt and rejection | Omarchy showed the prompt on another active workspace with its panel closed. Rejecting it transferred no file. |
+
+The [copied-file plan](FILE-CLIPBOARD-PLAN.md) retains the checks requiring two Omarchy or two Windows computers and other physical edge cases. The detailed observations follow below.
+
 Two physical Omarchy computers on one LAN paired using matching six digit codes on both machines. The receiver initially timed out because its firewall blocked the chosen TCP port; a rule scoped to its local interface, subnet, address and port allowed pairing. The user later confirmed that **Preview LAN rule** and **Authorize this rule** worked from the receiver panel.
 
 The mouse crossed from the source's right edge to the receiver and returned across the receiver's left edge on two separate physical attempts. The user confirmed local mouse control after each return. A physical Escape press also returned control. These results used the same two computers and one monitor arrangement; the development log records the agent revisions and earlier failures.
@@ -26,7 +39,7 @@ On 2026-10-03, the `alpha` Windows x64 workflow built the tray app and console a
 
 In the first Windows GUI check, the WebView page did not react to language or navigation clicks. Reading `localStorage` from its isolated origin could abort startup; a guarded read was added. Initially, Omarchy could not reach Windows TCP 47832 because Windows was running **Connect** as the source, which stops the receiver; after the user ended that session and selected **Start receiving**, TCP 47832 was reachable. The app's scoped TCP firewall button was applied during diagnosis. The UI now restarts its receiver after Windows stops initiating control; that automatic restart has not yet been physically rechecked.
 
-On 2026-10-03, the user physically confirmed that the Windows **Screen layout** appears while receiving control, accepts drag placement, and offers buttons for its control, file and UDP discovery firewall ports. Windows initially failed to announce itself because its route lookup for the mDNS multicast address did not yield a private IPv4 address. The agent now selects an active private LAN adapter. A diagnostic check briefly stopped a valid announcement because the mDNS library reported an interface name rather than an IP; this was corrected. In the final x64 build, the Windows activity log reported an announcement for `192.168.1.15:47832`, Avahi on the Omarchy computer resolved it on the Wi-Fi interface, the Omarchy agent's discovery command returned the Windows computer, and the user confirmed it appeared in the Omarchy panel's **Nearby computers** without entering an IP. The announcement remained present during a later observation. The UDP firewall button was operated during diagnosis, so this test does not establish whether that rule is necessary on other Windows networks.
+On 2026-10-03, the user physically confirmed that the Windows **Screen layout** appears while receiving control, accepts drag placement, and offers buttons for its control, file and UDP discovery firewall ports. Windows initially failed to announce itself because its route lookup for the mDNS multicast address did not yield a private IPv4 address. The agent now selects an active private LAN adapter. A diagnostic check briefly stopped a valid announcement because the mDNS library reported an interface name rather than an IP; this was corrected. In the final x64 build, the Windows activity log reported an announcement for its private LAN address, Avahi on the Omarchy computer resolved it on the Wi-Fi interface, the Omarchy agent's discovery command returned the Windows computer, and the user confirmed it appeared in the Omarchy panel's **Nearby computers** without entering an IP. The announcement remained present during a later observation. The UDP firewall button was operated during diagnosis, so this test does not establish whether that rule is necessary on other Windows networks.
 
 The next `alpha` layout places paired Windows app computers immediately above the map with a bilingual drag guide. Its HTML and JavaScript passed local syntax checks, and the updated screenshot was inspected locally. The Windows build checks for an icon embedded in the GUI executable; Windows Explorer's display of the icon still needs a check on a physical Windows desktop.
 

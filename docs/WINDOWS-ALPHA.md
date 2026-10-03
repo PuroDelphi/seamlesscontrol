@@ -8,7 +8,7 @@ The Windows app uses the same trusted identities and control protocol as the Oma
 
 ![Windows screen layout with an example paired computer on the right](images/windows-layout.png)
 
-The layout image uses a documentation-only example address.
+The screenshots render the app's current interface with fictional names, files and addresses.
 
 ## Install
 
@@ -48,11 +48,15 @@ To receive a file on Windows, open **Files**, choose the destination folder, and
 
 In **Files**, use the top **Copy here, paste there** card. The **Wait for a file** button below belongs to manual sending on port `47833` and is not needed for a copied file.
 
+![Windows Files screen with a copied file ready to offer](images/windows-files-en.png)
+
 With both apps running and computers paired, copy **one local file** in Explorer or the Omarchy file manager. If there is one paired peer, the app offers it automatically; otherwise choose a destination under **Files → Copy here, paste there**. The receiver must allow TCP `47834` on its private LAN. A native Windows approval dialog appears even with the app hidden in the tray; the Omarchy receiver shows an actionable desktop notification across workspaces. Accept or decline. After the verified transfer, open the destination folder and use **Paste**. No control session or manual **Wait for a file** is needed for this flow. The per-computer file size limit applies on both ends. An unanswered offer expires after two minutes. Transfer progress appears in the app. One file at a time is supported.
 
 ## Firewall and discovery
 
 Use **Settings → Windows firewall** when another computer cannot reach this Windows receiver. **Allow control port** requests Windows administrator approval for inbound TCP on the currently displayed control port. **Allow file port** does the same for the manual transfer port. **Allow pasted-file port 47834** enables copied-file offers. If Windows does not appear automatically in Omarchy, **Allow discovery · UDP 5353** permits local mDNS queries. The generated rules are limited to the **Private** network profile and **LocalSubnet** addresses. If you change a TCP port, change it in the relevant field before pressing its firewall button. The app reports that approval was *requested*; the elevated Windows console reports the result. You can remove rules named `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` in Windows Firewall.
+
+![Windows Settings screen with the private LAN firewall actions](images/windows-settings-en.png)
 
 Discovery uses mDNS on the private LAN. It does not replace the pairing code. If routers, Wi-Fi isolation or multicast filtering hide a computer, enter its private `IP:port` manually. If pairing times out, verify that the receiver is active and its control port is permitted. File transfers need the separate file port permitted on the file **receiver**.
 

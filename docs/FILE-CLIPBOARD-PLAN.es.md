@@ -1,10 +1,10 @@
 # Plan: copiar un archivo aquí y pegarlo en otro equipo
 
-Estado: implementación en curso en `alpha` (2026-10-03).
+Estado: flujo entre Omarchy y Windows implementado y verificado físicamente en `alpha` (2026-10-03); pendientes las pruebas ampliadas con más equipos y casos límite.
 
 Decisión de implementación: la `Offer` de archivos existente, versionada y autenticada, sirve como evento. Se mantiene separada del canal de texto para que los agentes antiguos conserven su comportamiento y no se envíe contenido antes de aprobar.
 
-Avance: [x] detección de copia y validación del origen (implementado y probado con tests unitarios); [x] servicio receptor y aprobación fuera del panel; [x] carpeta temporal verificada y pegado local; [x] CI Linux y Windows x64; [x] receptor automático Omarchy en TCP `47834` y observador del portapapeles; [x] navegación Inicio, Equipos, Archivos y Ajustes con acciones de archivo entrante encima de todas las secciones; [x] aceptación y pegado físicos Windows → Omarchy y Omarchy → Windows; [x] aviso en otro workspace de Omarchy y en otro escritorio virtual de Windows; [x] rechazo sin transferencia; [x] detección de Ctrl+C en ambos exploradores; [ ] prueba física Omarchy ↔ Omarchy y Windows ↔ Windows; [ ] casos pendientes del paso 5. Las guías de usuario y el [registro de pruebas](TEST-RESULTS.es.md) están actualizados. Conservar este plan hasta terminar las comprobaciones.
+Avance: [x] detección de copia y validación del origen (implementado y probado con tests unitarios); [x] servicio receptor y aprobación fuera del panel; [x] carpeta temporal verificada y pegado local; [x] CI Linux y Windows x64; [x] receptor automático Omarchy en TCP `47834` y observador del portapapeles; [x] navegación Inicio, Equipos, Archivos y Ajustes con acciones de archivo entrante encima de todas las secciones; [x] aceptación y pegado físicos Windows → Omarchy y Omarchy → Windows; [x] aviso en otro workspace de Omarchy y en otro escritorio virtual de Windows; [x] rechazo sin transferencia; [x] detección de Ctrl+C en ambos exploradores; [x] guías bilingües, capturas actuales de Archivos y Ajustes de Windows con datos ficticios y resumen de pruebas; [ ] prueba física Omarchy ↔ Omarchy y Windows ↔ Windows cuando estén disponibles esos equipos; [ ] casos pendientes del paso 5. Conservar este plan hasta terminar las comprobaciones.
 
 ## Experiencia de uso
 

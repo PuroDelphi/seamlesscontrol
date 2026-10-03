@@ -8,7 +8,7 @@ La aplicación Windows usa las mismas identidades de confianza y el mismo protoc
 
 ![Mapa de pantallas de Windows con un equipo de ejemplo a la derecha](images/windows-layout.png)
 
-La imagen del mapa usa una dirección ficticia para la documentación.
+Las capturas muestran la interfaz actual con nombres, archivos y direcciones ficticios.
 
 ## Instalar
 
@@ -48,11 +48,15 @@ Para recibir un archivo en Windows, abre **Archivos**, elige la carpeta de desti
 
 En **Archivos**, usa la tarjeta superior **Copia aquí, pega allá**. El botón **Esperar un archivo** de abajo pertenece al envío manual por el puerto `47833` y no hace falta para un archivo copiado.
 
+![Pantalla Archivos de Windows con un archivo copiado listo para ofrecer](images/windows-files-es.png)
+
 Con ambas aplicaciones abiertas y los equipos emparejados, copia **un archivo local** en el Explorador o en el explorador Omarchy. Si hay un solo par, se ofrece automáticamente; si hay varios, escoge el destino en **Archivos → Copia aquí, pega allá**. El receptor debe permitir TCP `47834` en su LAN privada. Windows muestra un diálogo nativo aunque la app esté en la bandeja; Omarchy muestra una notificación con botones incluso en otro workspace. Acepta o rechaza. Tras la transferencia verificada, abre la carpeta de destino y usa **Pegar**. Este flujo no requiere una sesión de control ni pulsar **Esperar un archivo**. El límite de tamaño de cada equipo se aplica en ambos extremos. Una oferta sin respuesta caduca a los dos minutos. El progreso aparece en la app. Se admite un archivo por vez.
 
 ## Firewall y descubrimiento
 
 Usa **Ajustes → Firewall de Windows** si otro equipo no puede acceder a este Windows receptor. **Permitir puerto de control** pide autorización de administrador para TCP entrante en el puerto de control mostrado. **Permitir puerto de archivos** hace lo mismo para el envío manual. **Permitir puerto de archivos copiados 47834** habilita las ofertas de archivos copiados. Si Windows no aparece automáticamente en Omarchy, **Permitir descubrimiento · UDP 5353** permite las consultas mDNS locales. Las reglas quedan limitadas al perfil de red **Privada** y a **LocalSubnet**. Si cambias un puerto TCP, actualiza el campo correspondiente antes de pulsar el botón de firewall. La app informa de que *solicitó* autorización; la consola elevada de Windows informa del resultado. Puedes retirar las reglas `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN` desde Firewall de Windows.
+
+![Pantalla Ajustes de Windows con las acciones del firewall para la LAN privada](images/windows-settings-es.png)
 
 El autodescubrimiento usa mDNS en la LAN privada y no sustituye el emparejamiento. Si el router, el aislamiento Wi-Fi o un filtro multicast ocultan un equipo, escribe su `IP:puerto` privada manualmente. Si el emparejamiento agota el tiempo, comprueba que el receptor esté activo y permita el puerto de control. Los archivos necesitan un puerto distinto permitido en el **receptor** del archivo.
 

@@ -49,20 +49,25 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Identity startup failed' }
           & $exe peers
           if ($LASTEXITCODE -ne 0) { throw 'Peer listing startup failed' }
-      - name: Write executable checksums
+      - name: Package Windows x64 ZIP and checksum
         shell: pwsh
         run: |
           $output = 'agent/target/x86_64-pc-windows-msvc/release'
+          $archive = "$output/seamlesscontrol-windows-x64.zip"
+          Compress-Archive -Path "$output/seamlesscontrol.exe", "$output/seamlesscontrold.exe" -DestinationPath $archive -Force
+          $check = Join-Path $env:RUNNER_TEMP 'seamlesscontrol-package-check'
+          Expand-Archive -Path $archive -DestinationPath $check -Force
           foreach ($name in @('seamlesscontrol.exe', 'seamlesscontrold.exe')) {
-            $digest = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash.ToLowerInvariant()
-            "$digest  $name" | Set-Content -Encoding ascii -Path "$output/$name.sha256"
+            $expected = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash
+            $actual = (Get-FileHash -Algorithm SHA256 "$check/$name").Hash
+            if ($expected -ne $actual) { throw "ZIP verification failed: $name" }
           }
+          $digest = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          "$digest  seamlesscontrol-windows-x64.zip" | Set-Content -Encoding ascii -Path "$archive.sha256"
       - uses: actions/upload-artifact@v4
         with:
           name: seamlesscontrol-windows-x64
           path: |
-            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe
-            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe.sha256
-            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol.exe
-            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol.exe.sha256
+            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol-windows-x64.zip
+            agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol-windows-x64.zip.sha256
           if-no-files-found: error

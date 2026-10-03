@@ -2,6 +2,19 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Resultados físicos principales
+
+| Función | Resultado observado |
+| --- | --- |
+| Control Omarchy ↔ Omarchy | Emparejamiento, cruce y regreso por el borde y con Escape. |
+| Control Omarchy ↔ Windows 11 x64 | Funcionaron puntero, clic, teclado y regreso en ambos sentidos; también los atajos probados con Super/Windows. |
+| Portapapeles de texto Omarchy ↔ Windows | El texto copiado se pegó en ambos sentidos. |
+| Archivos copiados, Windows → Omarchy | La copia en el Explorador produjo una oferta; el usuario la aceptó en Omarchy y pegó el archivo verificado en su explorador. |
+| Archivos copiados, Omarchy → Windows | Una referencia de archivo Wayland produjo una oferta; el usuario la aceptó desde otro escritorio virtual de Windows y la pegó en el Explorador. Ctrl+C en el explorador Omarchy también produjo una oferta. |
+| Aviso y rechazo | Omarchy mostró el aviso en otro workspace activo con el panel cerrado. Rechazarlo no transfirió ningún archivo. |
+
+El [plan de archivos copiados](FILE-CLIPBOARD-PLAN.es.md) conserva las comprobaciones que requieren dos Omarchy o dos Windows y otros casos físicos pendientes. Debajo figuran las observaciones detalladas.
+
 Dos equipos Omarchy físicos en la misma LAN se emparejaron tras mostrar y aprobar el mismo código de seis cifras en ambos. La conexión agotaba el tiempo al principio porque el firewall del receptor bloqueaba el puerto TCP elegido; una regla limitada a su interfaz local, subred, dirección y puerto permitió el emparejamiento. Después, el usuario confirmó que **Preparar regla LAN** y **Autorizar esta regla** funcionaron en el panel receptor.
 
 El ratón cruzó desde el borde derecho del origen al receptor y regresó por el borde izquierdo del receptor en dos pruebas físicas separadas. El usuario confirmó que volvió a controlar el ratón local tras cada regreso. Escape físico también devolvió el control. Estas pruebas usaron los mismos dos equipos y una disposición concreta de monitores; el registro de desarrollo documenta las revisiones y fallos anteriores.
@@ -26,7 +39,7 @@ El 2026-10-03, el workflow Windows x64 de `alpha` compiló la aplicación de ban
 
 En la primera comprobación de la GUI Windows, la página WebView no reaccionó al cambio de idioma ni a las pestañas. La lectura de `localStorage` en su origen aislado podía detener el script; se protegió esa lectura. Al principio, Omarchy no alcanzaba el TCP 47832 de Windows porque Windows ejecutaba **Conectar** como origen, lo cual detiene el receptor; después de terminar esa sesión y pulsar **Empezar a recibir**, TCP 47832 quedó accesible. Durante el diagnóstico se aplicó el botón de regla TCP LAN. La app ahora reinicia el receptor al dejar de iniciar control desde Windows; ese reinicio automático todavía no se ha repetido físicamente.
 
-El 2026-10-03, el usuario confirmó físicamente que el **Mapa de pantallas** de Windows aparece mientras recibe control, permite arrastrar un equipo y ofrece botones de firewall para control, archivos y descubrimiento UDP. Windows no se anunciaba inicialmente porque la consulta de ruta hacia la dirección multicast mDNS no devolvía una IPv4 privada. Ahora el agente elige un adaptador LAN privado y activo. Una comprobación de diagnóstico apagó brevemente un anuncio válido porque la biblioteca mDNS devolvía el nombre de la interfaz en vez de una IP; eso se corrigió. Con la compilación x64 final, la actividad Windows registró un anuncio para `192.168.1.15:47832`, Avahi lo resolvió por Wi-Fi en Omarchy, el buscador del agente Omarchy devolvió Windows y el usuario confirmó que apareció en **Equipos cercanos** del panel sin escribir la IP. El anuncio continuó presente en una observación posterior. El botón de firewall UDP se usó durante el diagnóstico; esta prueba no demuestra que esa regla sea necesaria en todas las redes Windows.
+El 2026-10-03, el usuario confirmó físicamente que el **Mapa de pantallas** de Windows aparece mientras recibe control, permite arrastrar un equipo y ofrece botones de firewall para control, archivos y descubrimiento UDP. Windows no se anunciaba inicialmente porque la consulta de ruta hacia la dirección multicast mDNS no devolvía una IPv4 privada. Ahora el agente elige un adaptador LAN privado y activo. Una comprobación de diagnóstico apagó brevemente un anuncio válido porque la biblioteca mDNS devolvía el nombre de la interfaz en vez de una IP; eso se corrigió. Con la compilación x64 final, la actividad Windows registró un anuncio para su dirección LAN privada, Avahi lo resolvió por Wi-Fi en Omarchy, el buscador del agente Omarchy devolvió Windows y el usuario confirmó que apareció en **Equipos cercanos** del panel sin escribir la IP. El anuncio continuó presente en una observación posterior. El botón de firewall UDP se usó durante el diagnóstico; esta prueba no demuestra que esa regla sea necesaria en todas las redes Windows.
 
 La siguiente disposición de `alpha` sitúa los equipos emparejados de la app Windows justo encima del mapa y añade una guía bilingüe para arrastrarlos. Su HTML y JavaScript pasaron la revisión de sintaxis local y se inspeccionó la captura actualizada. La compilación Windows comprueba que el ejecutable gráfico lleve un icono incorporado; todavía hay que comprobar cómo lo muestra el Explorador en un escritorio Windows físico.
 

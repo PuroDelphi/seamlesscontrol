@@ -18,6 +18,8 @@
 
 Usa tus equipos Omarchy y Windows en un mismo espacio: el control cruza en ambos sentidos y el emparejamiento, el descubrimiento y el portapapeles de texto facilitan cada sesión. Seguiremos mejorando SeamlessControl continuamente. La [guía técnica](docs/TECHNICAL.es.md) explica la arquitectura, los permisos y las verificaciones.
 
+**Comprobado en equipos físicos Omarchy y Windows 11 x64:** control de ratón y teclado en ambos sentidos, regreso por el borde y con Escape, portapapeles de texto en ambos sentidos y copia y pegado de archivos aprobados en ambos sentidos. El aviso de archivo entrante apareció en otro workspace de Omarchy y en otro escritorio virtual de Windows; rechazar una oferta no transfirió ningún archivo. El [registro de pruebas](docs/TEST-RESULTS.es.md) distingue estos resultados de las comprobaciones pendientes con más equipos.
+
 ## Empezar en Omarchy
 
 Instala el plugin en cada equipo Omarchy con el comando estándar:
@@ -35,6 +37,8 @@ Abre **SeamlessControl** desde la barra de Omarchy. En **Preparar este equipo**,
 Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga el único **`seamlesscontrol-windows-x64.zip`** y extráelo en una carpeta propia. Ya contiene juntos los dos ejecutables necesarios. Haz doble clic en **`seamlesscontrol.exe`**. El archivo contiguo `seamlesscontrol-windows-x64.zip.sha256` permite verificar la descarga. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
 
 ![La aplicación SeamlessControl para Windows](docs/images/windows-panel.png)
+
+![Copiar un archivo en Windows y ofrecerlo a un equipo emparejado](docs/images/windows-files-es.png)
 
 Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) y ábrela de nuevo. Si Windows pregunta por el acceso a la red, permite solamente **Redes privadas**. En **Ajustes → Firewall de Windows**, la app puede pedir autorización de administrador para reglas LAN privadas del puerto de control, el de archivos y el autodescubrimiento mDNS (`UDP 5353`). Los botones TCP toman los puertos que ves en la interfaz.
 

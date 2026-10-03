@@ -18,6 +18,8 @@
 
 Use your Omarchy and Windows computers in one workspace: control crosses in either direction, while trusted pairing, discovery and text clipboard keep the session familiar. SeamlessControl is developed continuously. See the [technical guide](docs/TECHNICAL.md) for architecture, permissions and verification records.
 
+**Verified on real Omarchy and Windows 11 x64 computers:** mouse and keyboard control in both directions, return by edge and Escape, text clipboard in both directions, and approved file copy and Paste in both directions. An incoming file prompt appeared on another Omarchy workspace and another Windows virtual desktop; rejecting an offer transferred no file. The [test record](docs/TEST-RESULTS.md) separates these observations from checks still awaiting more computers.
+
 ## Get started on Omarchy
 
 On every Omarchy computer, install the plugin with the standard command:
@@ -35,6 +37,8 @@ Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, c
 Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download the single **`seamlesscontrol-windows-x64.zip`** and extract it into a folder you own. It already contains both required executables together. Double click **`seamlesscontrol.exe`**. The adjacent `seamlesscontrol-windows-x64.zip.sha256` lets you verify the download. It starts receiving on port `47832`, advertises this Windows computer on the LAN and stays active in the tray when you close the window. Choose **Español** in the top right if desired.
 
 ![The SeamlessControl Windows app](docs/images/windows-panel.png)
+
+![Copy a file in Windows and offer it to a paired computer](docs/images/windows-files-en.png)
 
 Windows 11 normally has the required WebView2 runtime. If the app reports it missing, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and open the app again. Windows may ask about network access: allow **Private networks**. In **Settings → Windows firewall**, the app can request administrator approval for private LAN rules on the control port, the file port and mDNS discovery (`UDP 5353`). The TCP buttons follow the ports shown in the app.
 
