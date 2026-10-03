@@ -32,7 +32,7 @@ On Omarchy, put Windows on the correct side of **Computer layout**. Select **Con
 
 On Omarchy, select **Receive control** and wait for **Available**. In the Windows app's **Overview**, enter the paired Omarchy `IP:47832` under **Control another computer**. Choose the **Windows screen edge** that faces Omarchy and select **Connect**. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session.
 
-A Windows app can receive or initiate control. Starting **Connect** stops this app's receiver so the physical Windows keyboard has one clear owner. Stopping Connect leaves the receiver stopped until you choose **Start receiving** again or exit and relaunch the app.
+A Windows app can receive or initiate control. Starting **Connect** pauses this app's receiver so the physical Windows keyboard has one clear owner. Selecting **Stop** or losing the source connection starts **Receive control** again automatically.
 
 ## Clipboard and files
 
@@ -42,7 +42,7 @@ To receive a file on Windows, open **Files**, choose the destination folder, and
 
 ## Firewall and discovery
 
-Use **Settings → Windows firewall** when another computer cannot reach this Windows receiver. **Allow control port** requests Windows administrator approval for inbound TCP on the currently displayed control port. **Allow file port** does the same for the separate file port. The generated rule is limited to the **Private** network profile and **LocalSubnet** addresses. If you change either port, change it in the relevant field before pressing its firewall button. The app reports that approval was *requested*; the elevated Windows console reports the result. You can remove rules named `SeamlessControl TCP … Private LAN` in Windows Firewall.
+Use **Settings → Windows firewall** when another computer cannot reach this Windows receiver. **Allow control port** requests Windows administrator approval for inbound TCP on the currently displayed control port. **Allow file port** does the same for the separate file port. If Windows does not appear automatically in Omarchy, **Allow discovery · UDP 5353** permits local mDNS queries. The generated rules are limited to the **Private** network profile and **LocalSubnet** addresses. If you change a TCP port, change it in the relevant field before pressing its firewall button. The app reports that approval was *requested*; the elevated Windows console reports the result. You can remove rules named `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` in Windows Firewall.
 
 Discovery uses mDNS on the private LAN. It does not replace the pairing code. If routers, Wi-Fi isolation or multicast filtering hide a computer, enter its private `IP:port` manually. If pairing times out, verify that the receiver is active and its control port is permitted. File transfers need the separate file port permitted on the file **receiver**.
 

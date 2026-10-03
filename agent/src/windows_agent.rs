@@ -35,11 +35,14 @@ fn config_dir() -> Result<PathBuf, Box<dyn Error>> {
     Ok(PathBuf::from(local).join("SeamlessControl"))
 }
 
-fn firewall_allow(port: u16) -> Result<(), Box<dyn Error>> {
+fn firewall_allow(port: u16, protocol: &str) -> Result<(), Box<dyn Error>> {
     if port == 0 {
         return Err("firewall port must be between 1 and 65535".into());
     }
-    let name = format!("SeamlessControl TCP {port} Private LAN");
+    if !matches!(protocol, "TCP" | "UDP") {
+        return Err("firewall protocol must be TCP or UDP".into());
+    }
+    let name = format!("SeamlessControl {protocol} {port} Private LAN");
     let existing = Command::new("netsh")
         .args([
             "advfirewall",
@@ -62,18 +65,19 @@ fn firewall_allow(port: u16) -> Result<(), Box<dyn Error>> {
             &format!("name={name}"),
             "dir=in",
             "action=allow",
-            "protocol=TCP",
+            &format!("protocol={protocol}"),
             &format!("localport={port}"),
             "profile=private",
             "remoteip=localsubnet",
         ])
         .status()?;
     if !result.success() {
-        return Err(
-            format!("Windows did not apply the Private LAN firewall rule for TCP {port}").into(),
-        );
+        return Err(format!(
+            "Windows did not apply the Private LAN firewall rule for {protocol} {port}"
+        )
+        .into());
     }
-    println!("Private LAN firewall rule applied for TCP {port}.");
+    println!("Private LAN firewall rule applied for {protocol} {port}.");
     Ok(())
 }
 
@@ -600,16 +604,20 @@ fn usage() {
          seamlesscontrold.exe identity                    Show this computer's identity\n\
          seamlesscontrold.exe peers                       List paired computers\n\
          seamlesscontrold.exe revoke <PEER_IP>            Revoke a computer\n\
-         seamlesscontrold.exe firewall-allow <PORT>        Permit Private LAN inbound TCP (admin)"
+         seamlesscontrold.exe firewall-allow <PORT> [TCP|UDP]  Permit Private LAN inbound traffic (admin)"
     );
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
-    if let [_, command, port] = args.as_slice() {
-        if command == "firewall-allow" {
-            return firewall_allow(port.parse()?);
+    match args.as_slice() {
+        [_, command, port] if command == "firewall-allow" => {
+            return firewall_allow(port.parse()?, "TCP");
         }
+        [_, command, port, protocol] if command == "firewall-allow" => {
+            return firewall_allow(port.parse()?, protocol);
+        }
+        _ => {}
     }
     let config = config_dir()?;
     let identity = load_or_create_identity(&config.join("identity"))?;

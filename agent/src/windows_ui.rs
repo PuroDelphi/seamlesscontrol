@@ -70,6 +70,7 @@ struct PairCode {
 
 struct Controller {
     cli: PathBuf,
+    receive_port: u16,
     processes: BTreeMap<Slot, Process>,
     logs: VecDeque<String>,
     peers: BTreeMap<IpAddr, String>,
@@ -84,6 +85,7 @@ impl Controller {
     fn new(cli: PathBuf) -> Self {
         Self {
             cli,
+            receive_port: 47832,
             processes: BTreeMap::new(),
             logs: VecDeque::new(),
             peers: BTreeMap::new(),
@@ -170,7 +172,7 @@ impl Controller {
         }
     }
 
-    fn poll(&mut self) -> bool {
+    fn poll(&mut self, proxy: &EventLoopProxy<UiEvent>) {
         let mut finished = Vec::new();
         for (&slot, process) in &mut self.processes {
             if let Ok(Some(status)) = process.child.try_wait() {
@@ -198,8 +200,18 @@ impl Controller {
             if slot == Slot::ReceiveFile {
                 self.file_offer = None;
             }
+            if slot == Slot::Connect {
+                let _ = self.resume_receiving(proxy);
+            }
         }
-        !self.processes.is_empty()
+    }
+
+    fn resume_receiving(&mut self, proxy: &EventLoopProxy<UiEvent>) -> io::Result<()> {
+        self.start(
+            Slot::Serve,
+            &["serve", &format!("0.0.0.0:{}", self.receive_port)],
+            proxy,
+        )
     }
 
     fn shutdown(&mut self) {
@@ -354,8 +366,9 @@ impl Controller {
             match action {
                 "startReceive" => {
                     let port = parse_port(string("port"))?;
+                    self.receive_port = port;
                     self.stop(Slot::Connect);
-                    self.start(Slot::Serve, &["serve", &format!("0.0.0.0:{port}")], proxy)?;
+                    self.resume_receiving(proxy)?;
                 }
                 "stopReceive" => self.stop(Slot::Serve),
                 "connect" => {
@@ -371,7 +384,10 @@ impl Controller {
                         proxy,
                     )?;
                 }
-                "stopConnect" => self.stop(Slot::Connect),
+                "stopConnect" => {
+                    self.stop(Slot::Connect);
+                    self.resume_receiving(proxy)?;
+                }
                 "pair" => {
                     let address = parse_address(string("address"))?;
                     self.start(Slot::Pair, &["pair", &address.to_string()], proxy)?;
@@ -440,11 +456,15 @@ impl Controller {
                         proxy,
                     )?;
                 }
-                "firewallControl" | "firewallFiles" => {
-                    let port = parse_port(string("port"))?;
-                    request_firewall_rule(window, &self.cli, port)?;
+                "firewallControl" | "firewallFiles" | "firewallDiscovery" => {
+                    let (port, protocol) = if action == "firewallDiscovery" {
+                        (5353, "UDP")
+                    } else {
+                        (parse_port(string("port"))?, "TCP")
+                    };
+                    request_firewall_rule(window, &self.cli, port, protocol)?;
                     self.log(format!(
-                        "Windows administrator approval requested for Private LAN TCP {port}."
+                        "Windows administrator approval requested for Private LAN {protocol} {port}."
                     ));
                 }
                 "revoke" => {
@@ -522,14 +542,21 @@ fn choose_file(window: &Window) -> Option<PathBuf> {
     Some(PathBuf::from(String::from_utf16_lossy(&path[..end])))
 }
 
-fn request_firewall_rule(window: &Window, cli: &PathBuf, port: u16) -> Result<(), Box<dyn Error>> {
+fn request_firewall_rule(
+    window: &Window,
+    cli: &PathBuf,
+    port: u16,
+    protocol: &str,
+) -> Result<(), Box<dyn Error>> {
     let verb: Vec<u16> = "runas\0".encode_utf16().collect();
     let executable: Vec<u16> = cli
         .as_os_str()
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
-    let parameters: Vec<u16> = format!("firewall-allow {port}\0").encode_utf16().collect();
+    let parameters: Vec<u16> = format!("firewall-allow {port} {protocol}\0")
+        .encode_utf16()
+        .collect();
     let result = unsafe {
         ShellExecuteW(
             window.hwnd() as _,
@@ -713,7 +740,7 @@ fn run_app() -> Result<(), Box<dyn Error>> {
         }
         if last_poll.elapsed() >= Duration::from_millis(400) {
             last_poll = Instant::now();
-            controller.poll();
+            controller.poll(&proxy);
             push_state(&webview, &controller);
         }
     });

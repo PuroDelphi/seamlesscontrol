@@ -35,7 +35,7 @@ Descarga el último artefacto exitoso **Windows x64 alpha** en [Compilaciones Wi
 
 ![La aplicación SeamlessControl para Windows](docs/images/windows-panel.png)
 
-Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) y ábrela de nuevo. Si Windows pregunta por el acceso a la red, permite solamente **Redes privadas**. En **Ajustes → Firewall de Windows**, la app puede pedir autorización de administrador para una regla LAN privada del puerto de control y, por separado, la del puerto de archivos cuando recibas archivos. Los botones toman los puertos que ves en la interfaz.
+Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) y ábrela de nuevo. Si Windows pregunta por el acceso a la red, permite solamente **Redes privadas**. En **Ajustes → Firewall de Windows**, la app puede pedir autorización de administrador para reglas LAN privadas del puerto de control, el de archivos y el autodescubrimiento mDNS (`UDP 5353`). Los botones TCP toman los puertos que ves en la interfaz.
 
 [Guía Windows paso a paso](docs/WINDOWS-ALPHA.es.md) · [Guía ilustrada Omarchy](docs/USER-GUIDE.es.md)
 

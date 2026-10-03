@@ -35,7 +35,7 @@ Download the latest successful **Windows x64 alpha** artifact from [Windows buil
 
 ![The SeamlessControl Windows app](docs/images/windows-panel.png)
 
-Windows 11 normally has the required WebView2 runtime. If the app reports it missing, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and open the app again. Windows may ask about network access: allow **Private networks**. In **Settings → Windows firewall**, the app can request administrator approval for a private LAN rule on the control port, and separately on the file port when receiving files. The ports follow the values shown in the app.
+Windows 11 normally has the required WebView2 runtime. If the app reports it missing, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and open the app again. Windows may ask about network access: allow **Private networks**. In **Settings → Windows firewall**, the app can request administrator approval for private LAN rules on the control port, the file port and mDNS discovery (`UDP 5353`). The TCP buttons follow the ports shown in the app.
 
 [Windows step by step guide](docs/WINDOWS-ALPHA.md) · [Illustrated Omarchy guide](docs/USER-GUIDE.md)
 
