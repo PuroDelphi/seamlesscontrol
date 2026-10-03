@@ -6,7 +6,7 @@ The Windows console agent uses the same pinned Noise identity, pairing code, pro
 
 ## Get the x64 build
 
-Open the latest successful [Windows x64 alpha workflow](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml) on the `alpha` branch and download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; the executable is a test artifact, not a signed installer. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
+Open the [verified Windows x64 build](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37072862471) from `alpha`. At the bottom of the page, under **Artifacts**, download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. There is no installer: run the executable from that folder. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; it is an unsigned test artifact. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
 
 You can also build from the `alpha` source on a Windows x64 computer with Rust installed:
 
@@ -16,10 +16,10 @@ cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows
 
 ## Connect Omarchy to Windows
 
-1. Put both computers on the same private LAN. In a Windows PowerShell terminal, start the receiver: `./seamlesscontrold.exe serve 0.0.0.0:47832`. Keep the terminal open. Windows may ask to allow network access; choose **Private networks** only. If a private firewall rule is needed, use the rule below in an **Administrator PowerShell** window after reviewing its scope.
-2. On Omarchy, open SeamlessControl. Under **Computer layout**, place Windows next to **This computer** on the side you will cross. In **Computers on the network**, use the manual `IP:port` field with the Windows LAN address and port `47832`, then choose **Pair**. Windows does not announce itself through mDNS yet.
+1. Put both computers on the same private LAN. In Windows, open PowerShell in the folder where you extracted the `.exe` and start the receiver: `.\seamlesscontrold.exe serve 0.0.0.0:47832`. Keep the terminal open. Windows may ask to allow network access; choose **Private networks** only. If a private firewall rule is needed, use the rule below in an **Administrator PowerShell** window after reviewing its scope.
+2. On Windows, run `ipconfig` in a second terminal and note the LAN **IPv4 address**. On Omarchy, open SeamlessControl. In **Computers on the network**, enter that address with port `47832` in the manual `IP:port` field, then choose **Pair**. Windows does not announce itself through mDNS yet.
 3. Both computers display a six digit code. Compare them. Enter that exact code in the Windows terminal and approve it in the Omarchy panel. The long identity fingerprint is a different value and cannot replace the pairing code.
-4. On Omarchy, open **More**, enter the paired Windows `IP:47832` under **Connect by IP**, and select that button. Wait for **Ready**, then cross the chosen outside edge with the physical mouse. To return, move the cursor at least 17 pixels into Windows and then cross back over the edge where it entered; **Escape** on the Omarchy keyboard is another return path.
+4. Once paired, under **Computer layout** on Omarchy, place Windows next to **This computer** on the side you will cross. Open **More**, enter the paired Windows `IP:47832` under **Connect by IP**, and select that button. Wait for **Ready**, then cross the chosen outside edge with the physical mouse. To return, move the cursor at least 17 pixels into Windows and then cross back over the edge where it entered; **Escape** on the Omarchy keyboard is another return path.
 
 The Windows receiver infers its return edge from the authenticated `BEGIN` message. Its monitor geometry currently uses the virtual desktop bounds; test one ordinary monitor layout first. Keep an Omarchy terminal accessible while testing so you can stop its connection if needed.
 
