@@ -307,7 +307,9 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
     let listener = TcpListener::bind(bind)?;
     let _advertisement = match ServiceAdvertisement::publish(listener.local_addr()?, &identity) {
         Ok(advertisement) => {
-            println!("This Windows receiver is visible to SeamlessControl on the private LAN.");
+            println!(
+                "Windows mDNS announcement sent; checking visibility from another computer is still required."
+            );
             Some(advertisement)
         }
         Err(error) => {

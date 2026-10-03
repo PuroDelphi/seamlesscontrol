@@ -4,14 +4,14 @@
 
 use crate::secure::Identity;
 use crate::storage::key_fingerprint;
-use mdns_sd::{ServiceDaemon, ServiceEvent, ServiceInfo};
+use mdns_sd::{DaemonEvent, ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::collections::BTreeMap;
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 pub const SERVICE_TYPE: &str = "_seamlesscontrol._tcp.local.";
 const PROTOCOL: &str = "5";
@@ -86,8 +86,43 @@ impl ServiceAdvertisement {
         )
         .map_err(io::Error::other)?;
         let daemon = ServiceDaemon::new().map_err(io::Error::other)?;
+        let events = daemon.monitor().map_err(io::Error::other)?;
         daemon.register(info).map_err(io::Error::other)?;
-        Ok(Self(daemon))
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let expected_interface = ip.to_string();
+        let mut diagnostic = String::new();
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break;
+            }
+            match events.recv_timeout(remaining) {
+                Ok(DaemonEvent::Announce(_, interfaces)) => {
+                    if interfaces
+                        .trim_matches(['[', ']'])
+                        .split(',')
+                        .any(|entry| entry.trim() == expected_interface)
+                    {
+                        println!("mDNS announcement sent on {ip}:{}.", address.port());
+                        return Ok(Self(daemon));
+                    }
+                    diagnostic = format!("mDNS announced on {interfaces}, not {ip}");
+                }
+                Ok(DaemonEvent::Error(error)) => diagnostic = error.to_string(),
+                Ok(_) => {}
+                Err(error) => {
+                    if diagnostic.is_empty() {
+                        diagnostic = error.to_string();
+                    }
+                    break;
+                }
+            }
+        }
+        if diagnostic.is_empty() {
+            diagnostic = format!("no mDNS announcement from LAN address {ip}");
+        }
+        let _ = daemon.shutdown();
+        Err(io::Error::other(diagnostic))
     }
 }
 
