@@ -1,7 +1,9 @@
-//! Omarchy text clipboard adapter using wl-clipboard's selection notifications.
+//! Omarchy clipboard adapter using wl-clipboard's selection notifications.
 
 use crate::clipboard::{ClipboardEvent, ClipboardPacket, ClipboardSync, MAX_TEXT_BYTES};
+use crate::clipboard_file::{file_uri, local_regular_file, parse_one_file_uri};
 use std::io::{self, Read, Write};
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -15,7 +17,10 @@ pub fn emit_watched_event() -> io::Result<()> {
             io::stdin()
                 .take((MAX_TEXT_BYTES + 1) as u64)
                 .read_to_end(&mut bytes)?;
-            if bytes.len() > MAX_TEXT_BYTES || std::str::from_utf8(&bytes).is_err() {
+            if bytes.len() > MAX_TEXT_BYTES
+                || std::str::from_utf8(&bytes).is_err()
+                || has_file_uri_type()
+            {
                 ClipboardEvent::Ignore
             } else {
                 ClipboardEvent::Text(bytes)
@@ -27,6 +32,54 @@ pub fn emit_watched_event() -> io::Result<()> {
     let mut output = io::stdout().lock();
     event.write_framed(&mut output)?;
     output.flush()
+}
+
+fn has_file_uri_type() -> bool {
+    Command::new("wl-paste")
+        .arg("--list-types")
+        .output()
+        .ok()
+        .filter(|output| output.status.success())
+        .is_some_and(|output| {
+            String::from_utf8_lossy(&output.stdout)
+                .lines()
+                .any(|line| line.trim() == "text/uri-list")
+        })
+}
+
+pub fn copied_file(limit: u64, staging: &Path) -> io::Result<Option<PathBuf>> {
+    if !has_file_uri_type() {
+        return Ok(None);
+    }
+    let output = Command::new("wl-paste")
+        .args(["--no-newline", "--type", "text/uri-list"])
+        .output()?;
+    if !output.status.success() || output.stdout.len() > 64 * 1024 {
+        return Ok(None);
+    }
+    let Some(path) = parse_one_file_uri(&output.stdout)? else {
+        return Ok(None);
+    };
+    if path.starts_with(staging) || !local_regular_file(&path, limit).unwrap_or(false) {
+        return Ok(None);
+    }
+    Ok(Some(path))
+}
+
+pub fn publish_file(path: &Path) -> io::Result<()> {
+    let uri = file_uri(path)?;
+    let mut child = Command::new("wl-copy")
+        .args(["--type", "text/uri-list"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()?;
+    child
+        .stdin
+        .take()
+        .ok_or_else(|| io::Error::other("wl-copy stdin missing"))?
+        .write_all(&uri)?;
+    wait_child(child)
 }
 
 fn wait_child(mut child: Child) -> io::Result<()> {

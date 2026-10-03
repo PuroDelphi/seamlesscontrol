@@ -1,6 +1,8 @@
 # Plan: copiar un archivo aquí y pegarlo en otro equipo
 
-Estado: solo diseño. Aún no se ha implementado la integración de archivos con el portapapeles.
+Estado: implementación en curso en `alpha` (2026-10-03).
+
+Avance: [x] detección de copia y validación del origen (implementado); [x] servicio receptor y aprobación fuera del panel (implementado); [x] carpeta temporal verificada y pegado local (implementado); [ ] compilación Windows, pruebas entre plataformas y documentación para usuarios. Los tres primeros puntos aún necesitan verificación física. Eliminar este plan solo cuando todos los puntos estén terminados.
 
 ## Experiencia de uso
 

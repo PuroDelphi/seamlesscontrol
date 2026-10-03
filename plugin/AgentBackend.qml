@@ -59,6 +59,12 @@ Item {
   property string fileReceiveError: ""
   property string fileSendError: ""
   property bool sendingFile: false
+  property string copiedFilePath: ""
+  property string lastClipboardSentPath: ""
+  property var clipboardOffer: null
+  property bool clipboardFileListening: false
+  property string clipboardFileResult: ""
+  property string clipboardFileError: ""
   property bool pickerBusy: false
   property string pickerKind: ""
   signal pathChosen(string kind, string path)
@@ -254,6 +260,25 @@ Item {
     sendFileProcess.command = fileCommand(["send-file", address, path])
     sendFileProcess.running = true
     sendingFile = true
+  }
+
+  function sendCopiedFile(address) {
+    if (!copiedFilePath || !address) return
+    lastClipboardSentPath = copiedFilePath
+    sendFile(address, copiedFilePath)
+  }
+
+  function maybeSendCopiedFile() {
+    if (copiedFilePath && copiedFilePath !== lastClipboardSentPath
+        && peers.length === 1 && !sendFileProcess.running)
+      sendCopiedFile(peers[0].ip + ":47834")
+  }
+
+  function decideClipboardFile(accept) {
+    if (!clipboardReceiveProcess.running || !clipboardOffer) return
+    clipboardReceiveProcess.write(accept ? "SI\n" : "NO\n")
+    clipboardOffer = null
+    if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
   }
 
   function choosePath(kind) {
@@ -489,6 +514,7 @@ Item {
             next.push({ ip: fields[1], key: fields[2] })
         })
         root.peers = next
+        root.maybeSendCopiedFile()
       }
     }
   }
@@ -693,6 +719,98 @@ Item {
           : root.fileSendError !== "" ? root.fileSendError
           : root.t("No se entregó el archivo. Revise el par, la red y la aceptación del destino.")
       }
+    }
+  }
+
+  Process {
+    id: clipboardReadProcess
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var value = String(text || "").trim()
+        if (!value) {
+          root.copiedFilePath = ""
+          root.lastClipboardSentPath = ""
+          return
+        }
+        try {
+          var path = JSON.parse(value)
+          if (typeof path !== "string" || path.charAt(0) !== "/") return
+          root.copiedFilePath = path
+          root.maybeSendCopiedFile()
+        } catch (error) { root.clipboardFileError = root.t("No se pudo leer el archivo copiado.") }
+      }
+    }
+  }
+
+  Process {
+    id: clipboardReceiveProcess
+    stdinEnabled: true
+    stdout: SplitParser {
+      onRead: function(line) {
+        var fields = String(line).split("\t")
+        if (fields.length === 2 && fields[0] === "LISTENING") {
+          root.clipboardFileListening = true
+        } else if (fields.length === 5 && fields[0] === "OFFER") {
+          root.clipboardOffer = { peer: fields[1], name: fields[2], size: Number(fields[3]), hash: fields[4] }
+          clipboardNotificationProcess.command = ["notify-send", "--urgency=critical",
+            "--app-name=SeamlessControl", "--action=accept=" + root.t("Aceptar"),
+            "--action=reject=" + root.t("Rechazar"), root.t("Archivo copiado desde otro equipo"),
+            fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes")]
+          clipboardNotificationProcess.running = true
+        } else if (fields[0] === "FILE_READY" && fields.length === 2) {
+          try {
+            root.clipboardFileResult = root.t("Archivo listo para pegar: ") + JSON.parse(fields[1])
+          } catch (error) { root.clipboardFileResult = root.t("Archivo listo para pegar.") }
+          root.clipboardOffer = null
+        } else if (fields[0] === "FILE_DECLINED") {
+          root.clipboardFileResult = root.t("Archivo rechazado o cancelado")
+          root.clipboardOffer = null
+        } else if (fields[0] === "STAGING_FULL") {
+          root.clipboardFileError = root.t("La carpeta temporal de archivos copiados está llena. Libere espacio y vuelva a copiar el archivo.")
+        }
+      }
+    }
+    stderr: SplitParser { onRead: function(line) { root.clipboardFileError = String(line).trim() } }
+    onExited: function(code) {
+      root.clipboardFileListening = false
+      root.clipboardOffer = null
+      if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
+      if (code !== 0 && root.installed) root.clipboardFileError = root.t("No se pudo esperar el archivo copiado. Revise el puerto 47834.")
+    }
+  }
+
+  Process {
+    id: clipboardNotificationProcess
+    stdout: SplitParser {
+      onRead: function(line) {
+        if (String(line).trim() === "accept") root.decideClipboardFile(true)
+        else if (String(line).trim() === "reject") root.decideClipboardFile(false)
+      }
+    }
+  }
+
+  Timer {
+    interval: 1800
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: {
+      if (!root.installed) return
+      if (!clipboardReadProcess.running)
+        clipboardReadProcess.command = root.fileCommand(["clipboard-file-current"])
+      clipboardReadProcess.running = true
+    }
+  }
+
+  Timer {
+    interval: 4000
+    repeat: true
+    running: true
+    triggeredOnStart: true
+    onTriggered: if (root.installed && !clipboardReceiveProcess.running) {
+      clipboardReceiveProcess.command = root.fileCommand(["receive-file-clipboard-ui", "47834"])
+      clipboardReceiveProcess.running = true
     }
   }
 

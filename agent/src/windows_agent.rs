@@ -2,6 +2,7 @@
 //! Input is sent to the currently signed-in, unlocked desktop session.
 
 use crate::clipboard::{ClipboardPacket, ClipboardSync};
+use crate::clipboard_file;
 use crate::file_session;
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::run_receiver_with_first;
@@ -674,6 +675,39 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         }
         [_, command, bind, directory] if command == "receive-file" => {
             receive_file(bind.parse()?, Path::new(directory), &identity, &peers)?;
+        }
+        [_, command, bind] if command == "receive-file-clipboard-ui" => {
+            let staging = clipboard_file::staging_dir(&config)?;
+            let session = clipboard_file::staging_session_dir(&staging)?;
+            let limit = file_session::configured_limit()?;
+            let result = file_session::receive_once(
+                bind.parse()?,
+                &session,
+                &identity,
+                &peers,
+                limit,
+                |offer, peer| {
+                    if !clipboard_file::staging_can_fit(&staging, offer.size, limit)? {
+                        println!("STAGING_FULL");
+                        io::stdout().flush()?;
+                        return Ok(false);
+                    }
+                    file_session::panel_approval(offer, peer)
+                },
+                |address| {
+                    println!("LISTENING\t{address}");
+                    io::stdout().flush()
+                },
+            )?;
+            if let Some(path) = result {
+                WindowsClipboard::new().publish_file(&path)?;
+                println!(
+                    "FILE_READY\t{}",
+                    serde_json::to_string(&path.to_string_lossy().to_string())?
+                );
+            } else {
+                println!("FILE_DECLINED");
+            }
         }
         _ => {
             usage();

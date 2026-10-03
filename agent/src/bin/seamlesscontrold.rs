@@ -14,6 +14,7 @@ mod linux {
     use seamlesscontrol_core::clipboard::{
         ClipboardEvent, ClipboardPacket, ClipboardSync, MeshClipboard,
     };
+    use seamlesscontrol_core::clipboard_file;
     use seamlesscontrol_core::clipboard_omarchy::{
         self, ClipboardWatch, spawn_apply_events, spawn_apply_worker,
     };
@@ -1281,6 +1282,15 @@ mod linux {
         )
     }
 
+    fn clipboard_staging_dir() -> Result<PathBuf, Box<dyn Error>> {
+        let base = if let Some(xdg) = std::env::var_os("XDG_CACHE_HOME") {
+            PathBuf::from(xdg)
+        } else {
+            PathBuf::from(std::env::var_os("HOME").ok_or("HOME is not set")?).join(".cache")
+        };
+        Ok(clipboard_file::staging_dir(&base.join("seamlesscontrol"))?)
+    }
+
     #[cfg(debug_assertions)]
     #[derive(Default)]
     struct Observation {
@@ -2107,6 +2117,56 @@ mod linux {
         }
         if args.len() == 2 && args[1] == "clipboard-helper" {
             clipboard_omarchy::emit_watched_event()?;
+            return Ok(());
+        }
+        if args.len() == 2 && args[1] == "clipboard-file-current" {
+            let staging = clipboard_staging_dir()?;
+            if let Some(path) =
+                clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging)?
+            {
+                println!(
+                    "{}",
+                    serde_json::to_string(&path.to_string_lossy().to_string())?
+                );
+            }
+            return Ok(());
+        }
+        if args.len() == 3 && args[1] == "receive-file-clipboard-ui" {
+            let port: u16 = args[2].parse()?;
+            let address = discovery::auto_lan_address(port)?;
+            let staging = clipboard_staging_dir()?;
+            let session = clipboard_file::staging_session_dir(&staging)?;
+            let config = config_dir()?;
+            let identity = load_or_create_identity(&config.join("identity"))?;
+            let limit = file_session::configured_limit()?;
+            let result = file_session::receive_once(
+                address,
+                &session,
+                &identity,
+                &config.join("peers"),
+                limit,
+                |offer, peer| {
+                    if !clipboard_file::staging_can_fit(&staging, offer.size, limit)? {
+                        println!("STAGING_FULL");
+                        io::stdout().flush()?;
+                        return Ok(false);
+                    }
+                    file_session::panel_approval(offer, peer)
+                },
+                |bound| {
+                    println!("LISTENING\t{bound}");
+                    io::stdout().flush()
+                },
+            )?;
+            if let Some(path) = result {
+                clipboard_omarchy::publish_file(&path)?;
+                println!(
+                    "FILE_READY\t{}",
+                    serde_json::to_string(&path.to_string_lossy().to_string())?
+                );
+            } else {
+                println!("FILE_DECLINED");
+            }
             return Ok(());
         }
         if args.len() == 2 && args[1] == "diagnose" {

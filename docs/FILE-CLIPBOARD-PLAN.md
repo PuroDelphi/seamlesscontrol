@@ -1,6 +1,8 @@
 # Plan: copy a file here, paste it on another computer
 
-Status: design only. No file clipboard integration is implemented yet.
+Status: implementation in progress on `alpha` (2026-10-03).
+
+Progress: [x] copy detection and safe source validation (implemented); [x] receiver service and approval outside the panel (implemented); [x] verified staging and local clipboard paste (implemented); [ ] Windows build, cross-platform tests, and end-user documentation. The first three items still need physical verification. Delete this plan only after all items pass.
 
 ## User experience
 

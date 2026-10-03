@@ -2,6 +2,7 @@
 //! Platform capture, injection, network transport, and persistence are adapters.
 
 pub mod clipboard;
+pub mod clipboard_file;
 pub mod file_session;
 pub mod file_transfer;
 pub mod handoff;

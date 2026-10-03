@@ -1,6 +1,7 @@
 //! WebView2 window and tray shell over the existing seamlesscontrold.exe.
 //! No input, encryption, file or clipboard protocol is reimplemented here.
 
+use seamlesscontrol_core::windows_clipboard::WindowsClipboard;
 use seamlesscontrol_core::windows_discovery::{DiscoveredServer, DiscoveryBrowser};
 use std::collections::{BTreeMap, VecDeque};
 use std::error::Error;
@@ -23,7 +24,9 @@ use windows_sys::Win32::UI::Controls::Dialogs::{
     GetOpenFileNameW, OFN_FILEMUSTEXIST, OFN_PATHMUSTEXIST, OPENFILENAMEW,
 };
 use windows_sys::Win32::UI::Shell::ShellExecuteW;
-use windows_sys::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    MB_ICONERROR, MB_ICONQUESTION, MB_OK, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO, MessageBoxW,
+};
 use wry::{WebView, WebViewBuilder};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
@@ -37,6 +40,7 @@ enum Slot {
     Connect,
     Pair,
     ReceiveFile,
+    ReceiveClipboard,
     SendFile,
 }
 
@@ -47,6 +51,7 @@ impl Slot {
             Self::Connect => "connect",
             Self::Pair => "pair",
             Self::ReceiveFile => "files",
+            Self::ReceiveClipboard => "copied files",
             Self::SendFile => "send",
         }
     }
@@ -58,6 +63,7 @@ enum UiEvent {
     Discovery(Vec<DiscoveredServer>),
     Tray(TrayIconEvent),
     Menu(MenuEvent),
+    ClipboardDecision(bool),
 }
 
 struct Process {
@@ -83,6 +89,13 @@ struct Controller {
     discovered: Vec<DiscoveredServer>,
     pair_code: Option<PairCode>,
     file_offer: Option<String>,
+    clipboard_offer: Option<String>,
+    clipboard_notification_open: bool,
+    clipboard: WindowsClipboard,
+    clipboard_staging: PathBuf,
+    copied_file: Option<PathBuf>,
+    last_copied_send: Option<PathBuf>,
+    clipboard_receiver_attempt: Instant,
     file_path: Option<PathBuf>,
     state_message: String,
 }
@@ -95,6 +108,7 @@ impl Controller {
             .join("SeamlessControl")
             .join("ui-layout.json");
         let file_limit_path = layout_path.with_file_name("file-limit-mib");
+        let clipboard_staging = layout_path.with_file_name("clipboard-files");
         let file_limit_mib = std::fs::read_to_string(&file_limit_path)
             .ok()
             .and_then(|value| value.trim().parse::<u64>().ok())
@@ -117,6 +131,13 @@ impl Controller {
             discovered: Vec::new(),
             pair_code: None,
             file_offer: None,
+            clipboard_offer: None,
+            clipboard_notification_open: false,
+            clipboard: WindowsClipboard::new(),
+            clipboard_staging,
+            copied_file: None,
+            last_copied_send: None,
+            clipboard_receiver_attempt: Instant::now() - Duration::from_secs(5),
             file_path: None,
             state_message: "Ready. Start receiving or select a nearby computer.".into(),
         }
@@ -145,7 +166,10 @@ impl Controller {
     ) -> io::Result<()> {
         self.stop(slot);
         let mut command = self.command(args);
-        if matches!(slot, Slot::ReceiveFile | Slot::SendFile) {
+        if matches!(
+            slot,
+            Slot::ReceiveFile | Slot::ReceiveClipboard | Slot::SendFile
+        ) {
             command.env(
                 "SEAMLESSCONTROL_MAX_FILE_BYTES",
                 (self.file_limit_mib * 1024 * 1024).to_string(),
@@ -201,6 +225,10 @@ impl Controller {
         if slot == Slot::ReceiveFile {
             self.file_offer = None;
         }
+        if slot == Slot::ReceiveClipboard {
+            self.clipboard_offer = None;
+            self.clipboard_notification_open = false;
+        }
     }
 
     fn poll(&mut self, proxy: &EventLoopProxy<UiEvent>) {
@@ -231,9 +259,44 @@ impl Controller {
             if slot == Slot::ReceiveFile {
                 self.file_offer = None;
             }
+            if slot == Slot::ReceiveClipboard {
+                self.clipboard_offer = None;
+                self.clipboard_notification_open = false;
+            }
             if slot == Slot::Connect {
                 let _ = self.resume_receiving(proxy);
             }
+        }
+        if !self.processes.contains_key(&Slot::ReceiveClipboard)
+            && self.clipboard_receiver_attempt.elapsed() >= Duration::from_secs(4)
+        {
+            self.clipboard_receiver_attempt = Instant::now();
+            if let Err(error) = self.start(
+                Slot::ReceiveClipboard,
+                &["receive-file-clipboard-ui", "0.0.0.0:47834"],
+                proxy,
+            ) {
+                self.log(format!("Could not wait for copied files: {error}"));
+            }
+        }
+        match self
+            .clipboard
+            .copied_file(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
+        {
+            Ok(Some(path)) => {
+                self.copied_file = path;
+                self.last_copied_send = None;
+            }
+            Ok(None) => {}
+            Err(error) => self.log(format!("Could not inspect copied file: {error}")),
+        }
+        if self.peers.len() == 1
+            && self.copied_file.is_some()
+            && self.copied_file != self.last_copied_send
+            && !self.processes.contains_key(&Slot::SendFile)
+        {
+            let ip = *self.peers.keys().next().expect("one peer");
+            let _ = self.send_copied_file(ip, proxy);
         }
     }
 
@@ -250,6 +313,7 @@ impl Controller {
             Slot::Connect,
             Slot::Serve,
             Slot::ReceiveFile,
+            Slot::ReceiveClipboard,
             Slot::SendFile,
             Slot::Pair,
         ] {
@@ -269,6 +333,21 @@ impl Controller {
         }
         if slot == Slot::ReceiveFile && line.starts_with("Archivo de ") {
             self.file_offer = Some(line.to_owned());
+        }
+        if slot == Slot::ReceiveClipboard {
+            if line.starts_with("OFFER\t") {
+                self.clipboard_offer = Some(line.to_owned());
+                self.clipboard_notification_open = false;
+            } else if let Some(encoded) = line.strip_prefix("FILE_READY\t") {
+                if let Ok(path) = serde_json::from_str::<String>(encoded) {
+                    self.log(format!("File ready to paste: {path}"));
+                }
+                self.clipboard_offer = None;
+            } else if line == "FILE_DECLINED" {
+                self.clipboard_offer = None;
+            } else if line == "STAGING_FULL" {
+                self.log("Copied-file staging folder is full. Free space and copy again.");
+            }
         }
         if line.starts_with("Paired with ") {
             if self
@@ -320,6 +399,46 @@ impl Controller {
             )),
             Err(error) => self.log(format!("Agent unavailable: {error}")),
         }
+    }
+
+    fn send_copied_file(
+        &mut self,
+        ip: IpAddr,
+        proxy: &EventLoopProxy<UiEvent>,
+    ) -> Result<(), Box<dyn Error>> {
+        if !self.peers.contains_key(&ip) {
+            return Err("pair this computer before sending a copied file".into());
+        }
+        let path = self
+            .copied_file
+            .clone()
+            .ok_or("copy one local file first")?;
+        if !seamlesscontrol_core::clipboard_file::local_regular_file(
+            &path,
+            self.file_limit_mib * 1024 * 1024,
+        )? {
+            return Err("copied file is no longer valid or exceeds the limit".into());
+        }
+        self.last_copied_send = Some(path.clone());
+        self.start(
+            Slot::SendFile,
+            &[
+                "send-file",
+                &SocketAddr::new(ip, 47834).to_string(),
+                &path.to_string_lossy(),
+            ],
+            proxy,
+        )?;
+        Ok(())
+    }
+
+    fn decide_copied_file(&mut self, accept: bool) -> io::Result<()> {
+        if self.clipboard_offer.is_none() {
+            return Err(io::Error::other("no copied file offer is waiting"));
+        }
+        self.reply(Slot::ReceiveClipboard, if accept { "SI" } else { "NO" })?;
+        self.clipboard_offer = None;
+        Ok(())
     }
 
     fn set_layout(&mut self, fingerprint: &str, edge: Option<&str>) -> Result<(), Box<dyn Error>> {
@@ -411,6 +530,9 @@ impl Controller {
             "fileLimitMiB": self.file_limit_mib,
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
             "fileOffer": self.file_offer,
+            "clipboardOffer": self.clipboard_offer,
+            "clipboardReady": self.processes.contains_key(&Slot::ReceiveClipboard),
+            "copiedFile": self.copied_file.as_ref().map(|path| path.to_string_lossy().to_string()),
             "filePath": self.file_path.as_ref().map(|path| path.to_string_lossy().to_string()),
             "defaultDownload": std::env::var_os("USERPROFILE")
                 .map(|path| PathBuf::from(path).join("Downloads").to_string_lossy().to_string()),
@@ -483,7 +605,19 @@ impl Controller {
                     }
                 }
                 "refreshPeers" => self.refresh_peers(),
-                "setFileLimit" => self.set_file_limit(string("value"))?,
+                "setFileLimit" => {
+                    self.set_file_limit(string("value"))?;
+                    if self.clipboard_offer.is_none() {
+                        self.stop(Slot::ReceiveClipboard);
+                        self.clipboard_receiver_attempt = Instant::now() - Duration::from_secs(5);
+                    }
+                }
+                "sendCopiedFile" => {
+                    let ip = string("ip").parse::<IpAddr>()?;
+                    self.send_copied_file(ip, proxy)?;
+                }
+                "acceptCopiedFile" => self.decide_copied_file(true)?,
+                "declineCopiedFile" => self.decide_copied_file(false)?,
                 "waitFile" => {
                     let port = parse_port(string("port"))?;
                     let directory = PathBuf::from(string("directory"));
@@ -530,9 +664,11 @@ impl Controller {
                         proxy,
                     )?;
                 }
-                "firewallControl" | "firewallFiles" | "firewallDiscovery" => {
+                "firewallControl" | "firewallFiles" | "firewallCopied" | "firewallDiscovery" => {
                     let (port, protocol) = if action == "firewallDiscovery" {
                         (5353, "UDP")
+                    } else if action == "firewallCopied" {
+                        (47834, "TCP")
                     } else {
                         (parse_port(string("port"))?, "TCP")
                     };
@@ -601,6 +737,31 @@ fn parse_address(value: &str) -> Result<SocketAddr, Box<dyn Error>> {
         return Err("choose a private LAN address".into());
     }
     Ok(address)
+}
+
+fn show_copied_file_prompt(offer: String, proxy: EventLoopProxy<UiEvent>) {
+    thread::spawn(move || {
+        let fields: Vec<_> = offer.split('\t').collect();
+        let body = if fields.len() == 5 {
+            format!(
+                "{}\n\nFrom: {}\nSize: {} bytes\n\nAccept this file and make it available to paste?",
+                fields[2], fields[1], fields[3]
+            )
+        } else {
+            "Accept the copied file from the paired computer?".to_owned()
+        };
+        let title: Vec<u16> = "SeamlessControl · Incoming file\0".encode_utf16().collect();
+        let body: Vec<u16> = format!("{body}\0").encode_utf16().collect();
+        let response = unsafe {
+            MessageBoxW(
+                std::ptr::null_mut(),
+                body.as_ptr(),
+                title.as_ptr(),
+                MB_YESNO | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND,
+            )
+        };
+        let _ = proxy.send_event(UiEvent::ClipboardDecision(response == 6));
+    });
 }
 
 fn choose_file(window: &Window) -> Option<PathBuf> {
@@ -790,6 +951,22 @@ fn run_app() -> Result<(), Box<dyn Error>> {
             }
             Event::UserEvent(UiEvent::Line(slot, line)) => {
                 controller.line(slot, line);
+                if controller.clipboard_offer.is_some() && !controller.clipboard_notification_open {
+                    controller.clipboard_notification_open = true;
+                    show_copied_file_prompt(
+                        controller.clipboard_offer.clone().unwrap_or_default(),
+                        proxy.clone(),
+                    );
+                }
+                push_state(&webview, &controller);
+            }
+            Event::UserEvent(UiEvent::ClipboardDecision(accept)) => {
+                if controller.clipboard_offer.is_some() {
+                    if let Err(error) = controller.decide_copied_file(accept) {
+                        controller.log(format!("Could not answer file offer: {error}"));
+                    }
+                }
+                controller.clipboard_notification_open = false;
                 push_state(&webview, &controller);
             }
             Event::UserEvent(UiEvent::Discovery(items)) => {

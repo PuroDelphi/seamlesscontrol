@@ -1239,6 +1239,130 @@ Panel {
 
         HelpDisclosure {
           Layout.fillWidth: true
+          title: root.t("Ayuda · Copiar y pegar archivos")
+          description: root.t("Copie un archivo en el explorador. Con un solo equipo emparejado se ofrece automáticamente; con varios, elija el destino aquí. El otro equipo debe autorizarlo desde la notificación. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.copiedFilePath !== ""
+            ? root.t("Archivo copiado: ") + root.backend.copiedFilePath
+            : root.t("Copie un archivo en el explorador para ofrecerlo.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: root.ink
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Repeater {
+          model: root.backend && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
+          delegate: Button {
+            required property int index
+            Layout.fillWidth: true
+            text: root.t("Ofrecer archivo copiado a ") + root.backend.peers[index].ip
+            bordered: true
+            focusable: true
+            enabled: !root.backend.sendingFile
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.backend.sendCopiedFile(root.backend.peers[index].ip + ":47834")
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.clipboardOffer
+            ? root.t("Archivo entrante de ") + root.backend.clipboardOffer.peer + ": "
+              + root.backend.clipboardOffer.name + " (" + root.backend.clipboardOffer.size + root.t(" bytes)")
+            : root.backend && root.backend.clipboardFileListening
+              ? root.t("Disponible para archivos copiados · TCP 47834")
+              : root.t("Preparando recepción de archivos copiados…")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.clipboardOffer !== null
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Aceptar archivo")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decideClipboardFile(true)
+          }
+          Button {
+            Layout.fillWidth: true
+            text: root.t("Rechazar")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.decideClipboardFile(false)
+          }
+        }
+
+        Button {
+          Layout.fillWidth: true
+          text: root.t("Preparar regla LAN para pegar archivos · 47834")
+          bordered: true
+          focusable: true
+          enabled: root.backend && root.backend.installed && !root.backend.firewallBusy
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.previewFirewall("47834")
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
+          text: root.backend ? root.formatFirewallPreview(root.backend.firewallPreview) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
+          text: root.t("Autorizar esta regla")
+          bordered: true
+          focusable: true
+          enabled: root.backend && !root.backend.firewallBusy
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.allowFirewall()
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.clipboardFileResult !== "" || root.backend.clipboardFileError !== "")
+          text: root.backend ? (root.backend.clipboardFileError !== "" ? root.backend.clipboardFileError : root.backend.clipboardFileResult) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: root.backend && root.backend.clipboardFileError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        HelpDisclosure {
+          Layout.fillWidth: true
           title: root.t("Ayuda · Recibir archivos")
           description: root.t("En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Ajuste abajo el tamaño máximo por equipo.")
           foreground: root.ink
