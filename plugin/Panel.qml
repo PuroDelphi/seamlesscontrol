@@ -295,7 +295,8 @@ Panel {
         GridLayout {
           Layout.fillWidth: true
           columns: 2
-          spacing: Style.space(8)
+          columnSpacing: Style.space(8)
+          rowSpacing: Style.space(8)
           Button {
             Layout.fillWidth: true
             text: (root.activeTab === "home" ? "● " : "") + root.t("Inicio")
