@@ -1240,9 +1240,54 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Recibir archivos")
-          description: root.t("En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Límite predeterminado: 100 MiB.")
+          description: root.t("En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Ajuste abajo el tamaño máximo por equipo.")
           foreground: root.ink
           fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Tamaño máximo de archivo · MiB")
+          color: root.ink
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: fileLimitInput
+            Layout.fillWidth: true
+            text: root.backend ? String(root.backend.fileLimitMiB) : "100"
+            inputMethodHints: Qt.ImhDigitsOnly
+            validator: IntValidator { bottom: 1; top: 10240 }
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+            onAccepted: if (root.backend) root.backend.setFileLimitMiB(text.trim())
+          }
+          Button {
+            text: root.t("Guardar límite")
+            bordered: true
+            focusable: true
+            enabled: root.backend && /^\d+$/.test(fileLimitInput.text.trim())
+              && Number(fileLimitInput.text) >= 1 && Number(fileLimitInput.text) <= 10240
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.setFileLimitMiB(fileLimitInput.text.trim())
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("De 1 a 10 240 MiB; valor inicial: 100 MiB. Se aplica al enviar y al comenzar a esperar. Si ya espera un archivo, detenga y reinicie la espera.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.ink
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         Controls.TextField {

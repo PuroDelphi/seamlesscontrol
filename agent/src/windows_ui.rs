@@ -28,6 +28,8 @@ use wry::{WebView, WebViewBuilder};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const HTML: &str = include_str!("windows_ui.html");
+const DEFAULT_FILE_LIMIT_MIB: u64 = 100;
+const MAX_FILE_LIMIT_MIB: u64 = 10240;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 enum Slot {
@@ -71,6 +73,8 @@ struct PairCode {
 struct Controller {
     cli: PathBuf,
     receive_port: u16,
+    file_limit_mib: u64,
+    file_limit_path: PathBuf,
     layout_path: PathBuf,
     layout: BTreeMap<String, String>,
     processes: BTreeMap<Slot, Process>,
@@ -90,6 +94,12 @@ impl Controller {
             .unwrap_or_default()
             .join("SeamlessControl")
             .join("ui-layout.json");
+        let file_limit_path = layout_path.with_file_name("file-limit-mib");
+        let file_limit_mib = std::fs::read_to_string(&file_limit_path)
+            .ok()
+            .and_then(|value| value.trim().parse::<u64>().ok())
+            .filter(|value| (1..=MAX_FILE_LIMIT_MIB).contains(value))
+            .unwrap_or(DEFAULT_FILE_LIMIT_MIB);
         let layout = std::fs::read(&layout_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
@@ -97,6 +107,8 @@ impl Controller {
         Self {
             cli,
             receive_port: 47832,
+            file_limit_mib,
+            file_limit_path,
             layout_path,
             layout,
             processes: BTreeMap::new(),
@@ -132,8 +144,14 @@ impl Controller {
         proxy: &EventLoopProxy<UiEvent>,
     ) -> io::Result<()> {
         self.stop(slot);
-        let mut child = self
-            .command(args)
+        let mut command = self.command(args);
+        if matches!(slot, Slot::ReceiveFile | Slot::SendFile) {
+            command.env(
+                "SEAMLESSCONTROL_MAX_FILE_BYTES",
+                (self.file_limit_mib * 1024 * 1024).to_string(),
+            );
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -328,6 +346,22 @@ impl Controller {
         Ok(())
     }
 
+    fn set_file_limit(&mut self, value: &str) -> Result<(), Box<dyn Error>> {
+        let limit: u64 = value.parse()?;
+        if !(1..=MAX_FILE_LIMIT_MIB).contains(&limit) {
+            return Err("file limit must be between 1 and 10240 MiB".into());
+        }
+        if let Some(parent) = self.file_limit_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&self.file_limit_path, format!("{limit}\n"))?;
+        self.file_limit_mib = limit;
+        self.log(format!(
+            "File limit saved: {limit} MiB. Restart file waiting if active."
+        ));
+        Ok(())
+    }
+
     fn own_fingerprint(&self) -> String {
         self.command(&["identity"])
             .output()
@@ -374,6 +408,7 @@ impl Controller {
             "pairing": self.processes.contains_key(&Slot::Pair),
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
+            "fileLimitMiB": self.file_limit_mib,
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
             "fileOffer": self.file_offer,
             "filePath": self.file_path.as_ref().map(|path| path.to_string_lossy().to_string()),
@@ -448,6 +483,7 @@ impl Controller {
                     }
                 }
                 "refreshPeers" => self.refresh_peers(),
+                "setFileLimit" => self.set_file_limit(string("value"))?,
                 "waitFile" => {
                     let port = parse_port(string("port"))?;
                     let directory = PathBuf::from(string("directory"));

@@ -6,11 +6,22 @@ import "Translations.js" as Tr
 Item {
   id: root
   property string language: "en"
+  property int fileLimitMiB: 100
   function t(spanish) { return Tr.text(spanish, language) }
   function setLanguage(next) {
     if (next !== "en" && next !== "es") return
     language = next
     languageFile.setText(next + "\n")
+  }
+  function setFileLimitMiB(value) {
+    var number = Number(value)
+    if (!Number.isInteger(number) || number < 1 || number > 10240) return false
+    fileLimitMiB = number
+    fileLimitFile.setText(String(number) + "\n")
+    return true
+  }
+  function fileCommand(args) {
+    return ["env", "SEAMLESSCONTROL_MAX_FILE_BYTES=" + String(fileLimitMiB * 1048576), "seamlesscontrold"].concat(args)
   }
   property bool installed: false
   property bool available: false
@@ -85,6 +96,19 @@ Item {
     atomicWrites: true
     printErrors: false
     onLoaded: root.language = String(text() || "").trim() === "es" ? "es" : "en"
+    onFileChanged: reload()
+  }
+
+  FileView {
+    id: fileLimitFile
+    path: Quickshell.env("HOME") + "/.config/seamlesscontrol-file-limit-mib"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      var value = Number(String(text() || "").trim())
+      root.fileLimitMiB = Number.isInteger(value) && value >= 1 && value <= 10240 ? value : 100
+    }
     onFileChanged: reload()
   }
 
@@ -185,7 +209,7 @@ Item {
     fileListenEndpoint = ""
     fileReceiveError = ""
     stoppingFileReceiver = false
-    receiveFileProcess.command = ["seamlesscontrold", "receive-file-ui", address, directory]
+    receiveFileProcess.command = fileCommand(["receive-file-ui", address, directory])
     receiveFileProcess.running = true
     receivingFile = true
   }
@@ -200,7 +224,7 @@ Item {
     fileListenEndpoint = ""
     fileReceiveError = ""
     stoppingFileReceiver = false
-    receiveFileProcess.command = ["seamlesscontrold", "receive-file-auto-ui", "47833", directory]
+    receiveFileProcess.command = fileCommand(["receive-file-auto-ui", "47833", directory])
     receiveFileProcess.running = true
     receivingFile = true
   }
@@ -227,7 +251,7 @@ Item {
     fileResult = ""
     fileError = ""
     fileSendError = ""
-    sendFileProcess.command = ["seamlesscontrold", "send-file", address, path]
+    sendFileProcess.command = fileCommand(["send-file", address, path])
     sendFileProcess.running = true
     sendingFile = true
   }
