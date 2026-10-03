@@ -4,6 +4,8 @@
 
 The [illustrated panel guide](USER-GUIDE.md) covers the ordinary UI connection and recovery flow.
 
+The [Windows user guide](WINDOWS-ALPHA.md) covers the tray app. On Windows x64, `seamlesscontrol.exe` is a Wry/WebView2 and Tao shell around the existing `seamlesscontrold.exe`; it starts the receiver in a hidden child process and keeps it alive in the tray. The app and agent must be adjacent. The receiver publishes `_seamlesscontrol._tcp.local.` with protocol version and public fingerprint through `mdns-sd`, while the app browses that service. Discovery is a hint only: the existing Noise XX key pinning and six digit pairing approval remain mandatory. On Windows, the app's firewall buttons launch the agent elevated to add an inbound TCP rule limited to the Private profile and LocalSubnet for the selected control or file port. The buttons report an authorization request; the elevated command reports whether the rule was applied. The GUI is built in the `windows-alpha.yml` workflow with a static C runtime and uploaded with both executable SHA-256 files. The hidden child uses a hidden clipboard owner window, so text clipboard writes do not depend on an attached console.
+
 This guide covers manual operation, packaging, security, and current limits. The addresses below are **fictional examples**: source `192.168.50.10`, receiver `192.168.50.20`, LAN `192.168.50.0/24`, interface `wlan0`.
 
 ## Packaging and updates

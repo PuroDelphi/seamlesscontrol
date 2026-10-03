@@ -32,7 +32,7 @@ On Omarchy, put Windows on the correct side of **Computer layout**. Select **Con
 
 On Omarchy, select **Receive control** and wait for **Available**. In the Windows app's **Overview**, enter the paired Omarchy `IP:47832` under **Control another computer**. Choose the **Windows screen edge** that faces Omarchy and select **Connect**. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session.
 
-A Windows app can receive or initiate control. Starting **Connect** stops this app's receiver so the physical Windows keyboard has one clear owner. Stopping Connect leaves the receiver stopped until you choose **Start receiving** again or reopen the app.
+A Windows app can receive or initiate control. Starting **Connect** stops this app's receiver so the physical Windows keyboard has one clear owner. Stopping Connect leaves the receiver stopped until you choose **Start receiving** again or exit and relaunch the app.
 
 ## Clipboard and files
 

@@ -202,6 +202,18 @@ impl Controller {
         !self.processes.is_empty()
     }
 
+    fn shutdown(&mut self) {
+        for slot in [
+            Slot::Connect,
+            Slot::Serve,
+            Slot::ReceiveFile,
+            Slot::SendFile,
+            Slot::Pair,
+        ] {
+            self.stop(slot);
+        }
+    }
+
     fn line(&mut self, slot: Slot, line: String) {
         let line = line.trim();
         if let Some(code) = line.strip_prefix("PAIRING CODE: ") {
@@ -433,7 +445,10 @@ impl Controller {
                     self.log(format!("Trust revoked for {ip}"));
                 }
                 "hide" => window.set_visible(false),
-                "quit" => return Ok(()),
+                "quit" => {
+                    self.shutdown();
+                    return Ok(());
+                }
                 _ => return Err("unknown interface action".into()),
             }
             Ok(())
@@ -447,15 +462,7 @@ impl Controller {
 
 impl Drop for Controller {
     fn drop(&mut self) {
-        for slot in [
-            Slot::Connect,
-            Slot::Serve,
-            Slot::ReceiveFile,
-            Slot::SendFile,
-            Slot::Pair,
-        ] {
-            self.stop(slot);
-        }
+        self.shutdown();
     }
 }
 
@@ -685,11 +692,12 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                 window.set_focus();
                 push_state(&webview, &controller);
             }
-            Event::UserEvent(UiEvent::Menu(event)) if event.id == *open_item.id() => {
+            Event::UserEvent(UiEvent::Menu(event)) if &event.id == open_item.id() => {
                 window.set_visible(true);
                 window.set_focus();
             }
-            Event::UserEvent(UiEvent::Menu(event)) if event.id == *exit_item.id() => {
+            Event::UserEvent(UiEvent::Menu(event)) if &event.id == exit_item.id() => {
+                controller.shutdown();
                 *control_flow = ControlFlow::Exit;
             }
             _ => {}

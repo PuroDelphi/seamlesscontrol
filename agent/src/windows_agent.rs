@@ -606,13 +606,15 @@ fn usage() {
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
+    if let [_, command, port] = args.as_slice() {
+        if command == "firewall-allow" {
+            return firewall_allow(port.parse()?);
+        }
+    }
     let config = config_dir()?;
     let identity = load_or_create_identity(&config.join("identity"))?;
     let peers = config.join("peers");
     match args.as_slice() {
-        [_, command, port] if command == "firewall-allow" => {
-            firewall_allow(port.parse()?)?;
-        }
         [_, command] if command == "identity" => {
             println!("Local identity: {}", key_fingerprint(&identity.public));
         }

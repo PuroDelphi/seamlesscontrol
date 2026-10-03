@@ -1,4 +1,4 @@
-//! Portable core shared by the Omarchy and future Windows agents.
+//! Portable core shared by the Omarchy and Windows agents.
 //! Platform capture, injection, network transport, and persistence are adapters.
 
 pub mod clipboard;

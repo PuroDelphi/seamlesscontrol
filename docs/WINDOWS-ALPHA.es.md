@@ -32,7 +32,7 @@ En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **
 
 En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En **Inicio** de la app Windows, escribe la dirección Omarchy `IP:47832` en **Controlar otro equipo**. Escoge el **borde de Windows** que mira hacia Omarchy y pulsa **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. **Detener** finaliza la sesión.
 
-Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app detiene su receptor para que el teclado físico tenga un solo dueño. Al detener esa conexión, el receptor permanece apagado hasta pulsar **Empezar a recibir** u abrir de nuevo la app.
+Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app detiene su receptor para que el teclado físico tenga un solo dueño. Al detener esa conexión, el receptor permanece apagado hasta pulsar **Empezar a recibir** o salir y ejecutar de nuevo la app.
 
 ## Portapapeles y archivos
 
