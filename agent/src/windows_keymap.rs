@@ -36,6 +36,43 @@ pub fn evdev_to_set1(key: u32) -> Option<ScanCode> {
     Some(ScanCode { code, extended })
 }
 
+/// The reverse mapping used by a physical Windows keyboard. Pause and other
+/// special multi-byte scan sequences are intentionally left local.
+pub fn set1_to_evdev(code: u32, extended: bool) -> Option<u32> {
+    let key = if extended {
+        match code {
+            0x1c => 96,
+            0x1d => 97,
+            0x35 => 98,
+            0x37 => 99,
+            0x38 => 100,
+            0x47 => 102,
+            0x48 => 103,
+            0x49 => 104,
+            0x4b => 105,
+            0x4d => 106,
+            0x4f => 107,
+            0x50 => 108,
+            0x51 => 109,
+            0x52 => 110,
+            0x53 => 111,
+            0x5b => 125,
+            0x5c => 126,
+            0x5d => 127,
+            _ => return None,
+        }
+    } else {
+        match code {
+            1..=83 => code,
+            0x56 => 86,
+            0x57 => 87,
+            0x58 => 88,
+            _ => return None,
+        }
+    };
+    Some(key)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,5 +108,18 @@ mod tests {
             })
         );
         assert_eq!(evdev_to_set1(119), None); // Pause needs a special sequence.
+    }
+
+    #[test]
+    fn windows_physical_keys_round_trip_without_guessing_special_sequences() {
+        for key in 1..=127 {
+            if let Some(scan) = evdev_to_set1(key) {
+                assert_eq!(
+                    set1_to_evdev(u32::from(scan.code), scan.extended),
+                    Some(key)
+                );
+            }
+        }
+        assert_eq!(set1_to_evdev(0x45, true), None);
     }
 }

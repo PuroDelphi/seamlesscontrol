@@ -1,23 +1,29 @@
 //! Windows console agent. It shares the Omarchy wire protocol and trust store.
 //! Input is sent to the currently signed-in, unlocked desktop session.
 
+use crate::clipboard::{ClipboardPacket, ClipboardSync};
 use crate::file_session;
-use crate::protocol::{AGENT_PROTOCOL, Frame, Kind};
+use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::run_receiver_with_first;
-use crate::secure::{Identity, PeerInfo, Role, SecureChannel};
+use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter};
+use crate::state::InputEvent;
 use crate::storage::{
     is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
     relocate_peer_key, remember_peer_key, revoke_peer_key,
 };
+use crate::topology::Edge;
+use crate::windows_capture::{CaptureEvent, CaptureHandle};
+use crate::windows_clipboard::WindowsClipboard;
 use crate::windows_input::{WindowsInjector, interactive_desktop, set_dpi_awareness};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
-use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{RecvTimeoutError, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const PAIRING_TIMEOUT: Duration = Duration::from_secs(330);
 const DEFAULT_CONTROL_BIND: &str = "0.0.0.0:47832";
@@ -303,11 +309,236 @@ fn pair(address: SocketAddr, identity: &Identity, config: &Path) -> Result<(), B
     Ok(())
 }
 
+fn send_source_frame(
+    writer: &mut SecureWriter<TcpStream>,
+    sequence: &mut u64,
+    kind: Kind,
+    epoch: u64,
+    payload: Vec<u8>,
+) -> Result<(), Box<dyn Error>> {
+    *sequence = sequence.checked_add(1).ok_or("source sequence exhausted")?;
+    Frame {
+        kind,
+        epoch,
+        sequence: *sequence,
+        payload,
+    }
+    .write_to(writer)?;
+    Ok(())
+}
+
+fn next_epoch(previous: u64) -> Result<u64, Box<dyn Error>> {
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos() as u64;
+    Ok(now
+        .max(previous.checked_add(1).ok_or("input epoch exhausted")?)
+        .max(1))
+}
+
+fn connect_source(
+    address: SocketAddr,
+    edge: Edge,
+    identity: &Identity,
+    config: &Path,
+) -> Result<(), Box<dyn Error>> {
+    if !local_address(address.ip()) {
+        return Err("remote control is restricted to LAN peers".into());
+    }
+    if !interactive_desktop()? {
+        return Err("Windows desktop must be unlocked to capture input".into());
+    }
+    set_dpi_awareness();
+    let pinned = load_peer_key(&config.join("peers"), address.ip())?
+        .ok_or("pair with this Omarchy receiver before connecting")?;
+    let stream = TcpStream::connect_timeout(&address, Duration::from_secs(8))?;
+    stream.set_nodelay(true)?;
+    stream.set_read_timeout(Some(Duration::from_secs(10)))?;
+    stream.set_write_timeout(Some(Duration::from_secs(5)))?;
+    let (mut channel, peer) =
+        SecureChannel::connect(stream, Role::Initiator, identity, Some(&pinned), |_| false)?;
+    hello(&mut channel, Role::Initiator)?;
+    Frame {
+        kind: Kind::Control,
+        epoch: 0,
+        sequence: 0,
+        payload: b"CLAIM".to_vec(),
+    }
+    .write_to(&mut channel)?;
+    let answer = Frame::read_from(&mut channel)?;
+    if answer.kind == Kind::Control && answer.payload == b"BUSY" {
+        return Err(
+            "Omarchy is already controlling or receiving input; end that session first".into(),
+        );
+    }
+    if answer.kind != Kind::Control
+        || answer.epoch != 0
+        || answer.sequence != 0
+        || answer.payload != b"READY"
+    {
+        return Err("Omarchy did not accept the input claim".into());
+    }
+    channel.stream_mut().set_read_timeout(None)?;
+    let (mut reader, mut writer) = channel.into_tcp_halves()?;
+    let mut sequence = 0;
+    send_source_frame(&mut writer, &mut sequence, Kind::Heartbeat, 0, Vec::new())?;
+    let (feedback_tx, feedback_rx) = sync_channel(32);
+    let feedback_reader = thread::spawn(move || {
+        loop {
+            let frame = Frame::read_from(&mut reader);
+            let done = frame.is_err();
+            if feedback_tx.send(frame).is_err() || done {
+                break;
+            }
+        }
+    });
+    let (capture_tx, capture_rx) = sync_channel(4096);
+    let capture = CaptureHandle::start(edge, capture_tx)?;
+    let mut clipboard = WindowsClipboard::new();
+    let mut clipboard_sync = ClipboardSync::new(identity.public, peer.public_key);
+    let mut heartbeat = Instant::now();
+    let mut clipboard_tick = Instant::now();
+    let mut desktop_tick = Instant::now();
+    let mut epoch = None;
+    let mut previous_epoch = 0;
+    println!("Ready to control {address}. Move the mouse across the {edge:?} outer screen edge.");
+    println!("Move back across the entry edge on Omarchy, or press Escape on Windows, to return.");
+    let result = (|| -> Result<(), Box<dyn Error>> {
+        loop {
+            if capture.failed() {
+                return Err("Windows input capture stopped or its event queue overflowed".into());
+            }
+            if desktop_tick.elapsed() >= Duration::from_millis(300) {
+                desktop_tick = Instant::now();
+                if !interactive_desktop()? {
+                    return Err("Windows desktop locked; remote input stopped".into());
+                }
+            }
+            while let Ok(frame) = feedback_rx.try_recv() {
+                let frame = frame?;
+                match frame.kind {
+                    Kind::Control if frame.payload == b"ENDED" => {}
+                    Kind::Control
+                        if frame.payload == b"RETURN" || frame.payload.starts_with(b"RETURN\t") =>
+                    {
+                        if epoch == Some(frame.epoch) {
+                            if frame.payload != b"RETURN" {
+                                let request = ReturnRequest::parse(&frame.payload)?;
+                                if request.exit_edge != edge.opposite() {
+                                    return Err("remote return edge does not match the Windows capture edge".into());
+                                }
+                            }
+                            send_source_frame(
+                                &mut writer,
+                                &mut sequence,
+                                Kind::Control,
+                                frame.epoch,
+                                b"END".to_vec(),
+                            )?;
+                            epoch = None;
+                            capture.release();
+                            println!("Control returned to Windows.");
+                        }
+                    }
+                    Kind::Clipboard => {
+                        let packet = ClipboardPacket::decode(&frame.payload)?;
+                        if clipboard_sync.remote_needs_apply(&packet)? {
+                            if let Err(error) = clipboard.apply(&packet.event) {
+                                eprintln!("SeamlessControl: clipboard apply failed: {error}");
+                            } else {
+                                clipboard_sync.remote_applied(&packet);
+                            }
+                        }
+                    }
+                    _ => return Err("unexpected feedback from Omarchy".into()),
+                }
+            }
+            match capture_rx.recv_timeout(Duration::from_millis(20)) {
+                Ok(CaptureEvent::Begin(fraction)) if epoch.is_none() => {
+                    previous_epoch = next_epoch(previous_epoch)?;
+                    send_source_frame(
+                        &mut writer,
+                        &mut sequence,
+                        Kind::Control,
+                        previous_epoch,
+                        EntryPosition {
+                            edge: edge.opposite(),
+                            fraction,
+                        }
+                        .begin_payload(),
+                    )?;
+                    epoch = Some(previous_epoch);
+                    println!("Controlling Omarchy. Escape returns to Windows.");
+                }
+                Ok(CaptureEvent::Input(event)) => {
+                    if let Some(active) = epoch {
+                        send_source_frame(
+                            &mut writer,
+                            &mut sequence,
+                            Kind::Input,
+                            active,
+                            event.encode(),
+                        )?;
+                    }
+                }
+                Ok(CaptureEvent::Release) => {
+                    if let Some(active) = epoch.take() {
+                        send_source_frame(
+                            &mut writer,
+                            &mut sequence,
+                            Kind::Control,
+                            active,
+                            b"END".to_vec(),
+                        )?;
+                        println!("Control returned to Windows.");
+                    }
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+                Err(RecvTimeoutError::Disconnected) => {
+                    return Err("Windows capture thread stopped".into());
+                }
+                _ => {}
+            }
+            if heartbeat.elapsed() >= Duration::from_secs(2) {
+                send_source_frame(
+                    &mut writer,
+                    &mut sequence,
+                    Kind::Heartbeat,
+                    epoch.unwrap_or(0),
+                    Vec::new(),
+                )?;
+                heartbeat = Instant::now();
+            }
+            if clipboard_tick.elapsed() >= Duration::from_millis(500) {
+                clipboard_tick = Instant::now();
+                match clipboard.changed() {
+                    Ok(Some(event)) => {
+                        if let Some(packet) = clipboard_sync.local_changed(&event) {
+                            send_source_frame(
+                                &mut writer,
+                                &mut sequence,
+                                Kind::Clipboard,
+                                0,
+                                packet.encode(),
+                            )?;
+                        }
+                    }
+                    Ok(None) => {}
+                    Err(error) => eprintln!("SeamlessControl: clipboard read failed: {error}"),
+                }
+            }
+        }
+    })();
+    drop(capture);
+    let _ = writer.stream_mut().shutdown(Shutdown::Both);
+    let _ = feedback_reader.join();
+    result
+}
+
 fn usage() {
     eprintln!(
         "SeamlessControl for Windows (alpha)\n\
          seamlesscontrold.exe serve [BIND_IP:PORT]         Receive Omarchy input (default {DEFAULT_CONTROL_BIND})\n\
          seamlesscontrold.exe pair <OMARCHY_IP:PORT>      Pair with an Omarchy receiver\n\
+         seamlesscontrold.exe connect <OMARCHY_IP:PORT> <left|right|top|bottom>\n\
          seamlesscontrold.exe receive-file [BIND_IP:PORT] <DIRECTORY>\n\
          seamlesscontrold.exe send-file <PEER_IP:PORT> <FILE>\n\
          seamlesscontrold.exe identity                    Show this computer's identity\n\
@@ -343,6 +574,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         }
         [_, command, address] if command == "pair" => {
             pair(address.parse()?, &identity, &config)?;
+        }
+        [_, command, address, edge] if command == "connect" => {
+            let edge = Edge::parse(edge).ok_or("edge must be left, right, top or bottom")?;
+            connect_source(address.parse()?, edge, &identity, &config)?;
         }
         [_, command, address, source] if command == "send-file" => {
             file_session::send_once(
