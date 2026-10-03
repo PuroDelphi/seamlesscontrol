@@ -129,11 +129,11 @@ impl ServiceAdvertisement {
             &properties[..],
         )
         .map_err(io::Error::other)?;
+        let fullname = info.get_fullname().to_owned();
         let daemon = ServiceDaemon::new().map_err(io::Error::other)?;
         let events = daemon.monitor().map_err(io::Error::other)?;
         daemon.register(info).map_err(io::Error::other)?;
         let deadline = Instant::now() + Duration::from_secs(5);
-        let expected_interface = ip.to_string();
         let mut diagnostic = String::new();
         loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
@@ -141,16 +141,14 @@ impl ServiceAdvertisement {
                 break;
             }
             match events.recv_timeout(remaining) {
-                Ok(DaemonEvent::Announce(_, interfaces)) => {
-                    if interfaces
-                        .trim_matches(['[', ']'])
-                        .split(',')
-                        .any(|entry| entry.trim() == expected_interface)
-                    {
-                        println!("mDNS announcement sent on {ip}:{}.", address.port());
+                Ok(DaemonEvent::Announce(service, interface)) if service == fullname => {
+                    if !interface.is_empty() {
+                        println!(
+                            "mDNS announcement sent for {ip}:{} via {interface}.",
+                            address.port()
+                        );
                         return Ok(Self(daemon));
                     }
-                    diagnostic = format!("mDNS announced on {interfaces}, not {ip}");
                 }
                 Ok(DaemonEvent::Error(error)) => diagnostic = error.to_string(),
                 Ok(_) => {}
