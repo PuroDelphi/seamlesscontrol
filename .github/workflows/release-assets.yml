@@ -59,33 +59,40 @@ jobs:
         env:
           RUSTFLAGS: -C target-feature=+crt-static
         run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrol --bin seamlesscontrold
-      - name: Publish Windows executables and checksums
+      - name: Package and publish Windows x64 ZIP
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
         run: |
           $output = 'agent/target/x86_64-pc-windows-msvc/release'
-          $names = @('seamlesscontrol.exe', 'seamlesscontrold.exe')
-          foreach ($name in $names) {
-            $digest = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash.ToLowerInvariant()
-            "$digest  $name" | Set-Content -Encoding ascii -Path "$output/$name.sha256"
+          $archive = 'seamlesscontrol-windows-x64.zip'
+          $package = 'windows-package'
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          Copy-Item "$output/seamlesscontrol.exe", "$output/seamlesscontrold.exe" $package
+          Compress-Archive -Path "$package/seamlesscontrol.exe", "$package/seamlesscontrold.exe" -DestinationPath $archive -Force
+          $check = 'windows-package-check'
+          Expand-Archive -Path $archive -DestinationPath $check -Force
+          foreach ($name in @('seamlesscontrol.exe', 'seamlesscontrold.exe')) {
+            $expected = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash
+            $actual = (Get-FileHash -Algorithm SHA256 "$check/$name").Hash
+            if ($expected -ne $actual) { throw "ZIP verification failed: $name" }
           }
+          $digest = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
+          "$digest  $archive" | Set-Content -Encoding ascii -Path "$archive.sha256"
           $published = @(gh release view $env:RELEASE_TAG --json assets --jq '.assets[].name')
           if ($LASTEXITCODE -ne 0) { throw 'Cannot list release assets' }
-          foreach ($name in $names) {
-            foreach ($asset in @($name, "$name.sha256")) {
-              if ($published -contains $asset) {
-                New-Item -ItemType Directory -Force -Path remote | Out-Null
-                gh release download $env:RELEASE_TAG --pattern $asset --dir remote
-                if ($LASTEXITCODE -ne 0) { throw "Cannot download existing asset $asset" }
-                $local = (Get-FileHash -Algorithm SHA256 "$output/$asset").Hash
-                $existing = (Get-FileHash -Algorithm SHA256 "remote/$asset").Hash
-                if ($local -ne $existing) { throw "Release asset differs from tagged build: $asset" }
-              } else {
-                gh release upload $env:RELEASE_TAG "$output/$asset"
-                if ($LASTEXITCODE -ne 0) { throw "Cannot upload $asset" }
-              }
+          foreach ($asset in @($archive, "$archive.sha256")) {
+            if ($published -contains $asset) {
+              New-Item -ItemType Directory -Force -Path remote | Out-Null
+              gh release download $env:RELEASE_TAG --pattern $asset --dir remote
+              if ($LASTEXITCODE -ne 0) { throw "Cannot download existing asset $asset" }
+              $local = (Get-FileHash -Algorithm SHA256 $asset).Hash
+              $existing = (Get-FileHash -Algorithm SHA256 "remote/$asset").Hash
+              if ($local -ne $existing) { throw "Release asset differs from tagged build: $asset" }
+            } else {
+              gh release upload $env:RELEASE_TAG $asset
+              if ($LASTEXITCODE -ne 0) { throw "Cannot upload $asset" }
             }
           }
-          "Verified Windows x64 executables for $env:RELEASE_TAG at $env:GITHUB_SHA" >> $env:GITHUB_STEP_SUMMARY
+          "Verified Windows x64 ZIP for $env:RELEASE_TAG at $env:GITHUB_SHA" >> $env:GITHUB_STEP_SUMMARY

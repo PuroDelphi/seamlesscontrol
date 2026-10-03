@@ -4,6 +4,10 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.21.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.1) — 2026-10-03
+
+- Empaqueta la app y el agente Windows x64 en un único ZIP con su archivo SHA-256 contiguo. La instalación y la actualización requieren una sola descarga.
+
 ## [0.21.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.0) — 2026-10-03
 
 - Añade una aplicación Windows x64 de bandeja sobre el agente de consola existente, con pantallas en inglés y español, emparejamiento, descubrimiento, archivos y mapa arrastrable. Inserta el emblema de bandeja en el ejecutable gráfico y sitúa los equipos emparejados justo encima del mapa, con una guía para arrastrarlos.

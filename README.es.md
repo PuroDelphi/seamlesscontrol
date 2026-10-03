@@ -31,7 +31,7 @@ Abre **SeamlessControl** desde la barra de Omarchy. En **Preparar este equipo**,
 
 ## Empezar en Windows x64
 
-Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga **ambos** ejecutables Windows x64, `seamlesscontrol.exe` y `seamlesscontrold.exe`; cada uno tiene un archivo `.sha256` contiguo para verificarlo. Ponlos en la misma carpeta y haz doble clic en **`seamlesscontrol.exe`**. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
+Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga el único **`seamlesscontrol-windows-x64.zip`** y extráelo en una carpeta propia. Ya contiene juntos los dos ejecutables necesarios. Haz doble clic en **`seamlesscontrol.exe`**. El archivo contiguo `seamlesscontrol-windows-x64.zip.sha256` permite verificar la descarga. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
 
 ![La aplicación SeamlessControl para Windows](docs/images/windows-panel.png)
 
@@ -60,7 +60,7 @@ omarchy plugin update seamlesscontrol.control
 
 Ejecuta `omarchy restart shell`, abre de nuevo SeamlessControl y pulsa **Actualizar agente** en **Preparar este equipo**. Se conservan las claves y el mapa.
 
-**Windows:** sal de SeamlessControl desde el menú de la bandeja, descarga **ambos** ejecutables Windows x64 de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), reemplázalos en su carpeta y abre `seamlesscontrol.exe` otra vez. Se conservan las claves en `%LOCALAPPDATA%\SeamlessControl`.
+**Windows:** sal de SeamlessControl desde el menú de la bandeja, descarga `seamlesscontrol-windows-x64.zip` de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extráelo y reemplaza ambos ejecutables en su carpeta y abre `seamlesscontrol.exe` otra vez. Se conservan las claves en `%LOCALAPPDATA%\SeamlessControl`.
 
 Para retirarlo de Omarchy, pulsa **Retirar agente** en el panel y después:
 

@@ -31,7 +31,7 @@ Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, c
 
 ## Get started on Windows x64
 
-Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` for Windows x64; each has an adjacent `.sha256` file for verification. Put the executables in the same folder and double click **`seamlesscontrol.exe`**. It starts receiving on port `47832`, advertises this Windows computer on the LAN and stays active in the tray when you close the window. Choose **Español** in the top right if desired.
+Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download the single **`seamlesscontrol-windows-x64.zip`** and extract it into a folder you own. It already contains both required executables together. Double click **`seamlesscontrol.exe`**. The adjacent `seamlesscontrol-windows-x64.zip.sha256` lets you verify the download. It starts receiving on port `47832`, advertises this Windows computer on the LAN and stays active in the tray when you close the window. Choose **Español** in the top right if desired.
 
 ![The SeamlessControl Windows app](docs/images/windows-panel.png)
 
@@ -60,7 +60,7 @@ omarchy plugin update seamlesscontrol.control
 
 Run `omarchy restart shell`, reopen SeamlessControl and choose **Update agent** under **Set up this computer**. Your pairing keys and layout are kept.
 
-**Windows:** exit SeamlessControl from its tray menu, download **both** Windows x64 executables from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), replace them in their folder and reopen `seamlesscontrol.exe`. Pairing keys in `%LOCALAPPDATA%\SeamlessControl` are kept.
+**Windows:** exit SeamlessControl from its tray menu, download `seamlesscontrol-windows-x64.zip` from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extract it and replace both executables in their folder and reopen `seamlesscontrol.exe`. Pairing keys in `%LOCALAPPDATA%\SeamlessControl` are kept.
 
 To remove SeamlessControl from Omarchy, choose **Remove agent** in the panel, then:
 

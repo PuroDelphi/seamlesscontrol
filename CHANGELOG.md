@@ -4,6 +4,10 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.21.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.1) — 2026-10-03
+
+- Package the Windows x64 app and agent together in one ZIP with an adjacent SHA-256 file. Installation and update instructions now require a single download.
+
 ## [0.21.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.0) — 2026-10-03
 
 - Add a Windows x64 tray app around the existing console agent, with English and Spanish screens, pairing, discovery, file actions and a draggable computer layout. Embed the tray emblem in the GUI executable and place paired computers directly above the layout with a drag guide.
