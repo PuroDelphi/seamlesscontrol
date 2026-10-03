@@ -526,9 +526,11 @@ Item {
     }
     onExited: function(code) {
       root.pairingRunning = false
-      if (code !== 0) root.error = root.pairError !== ""
-        ? root.t("No se pudo emparejar: ") + root.pairError
-        : root.t("No se pudo emparejar. Revise IP, red y aprobación en ambos equipos.")
+      if (code !== 0) root.error = /PeerKeyChanged|peer key changed/i.test(root.pairError)
+        ? root.t("Esta IP ya está emparejada con otra identidad. Compruebe si otro sistema usa la misma IP; no revoque la identidad anterior si quiere volver a usarla.")
+        : root.pairError !== ""
+          ? root.t("No se pudo emparejar: ") + root.pairError
+          : root.t("No se pudo emparejar. Revise IP, red y aprobación en ambos equipos.")
       root.refresh()
       root.refreshPeers()
       root.refreshTopology()

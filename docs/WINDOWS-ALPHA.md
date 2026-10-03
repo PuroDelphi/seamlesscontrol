@@ -23,6 +23,8 @@ cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows
 
 The Windows receiver infers its return edge from the authenticated `BEGIN` message. Its monitor geometry currently uses the virtual desktop bounds; test one ordinary monitor layout first. Keep an Omarchy terminal accessible while testing so you can stop its connection if needed.
 
+If Omarchy reports `PeerKeyChanged` before displaying a code, the Windows IP is already pinned to a different paired identity. This can happen when Windows and another Omarchy get the same DHCP address at different times. The check protects the previous pairing. **Do not revoke an Omarchy you intend to reuse**: revocation blocks its key. To preserve both pairings in this alpha, use distinct IP addresses or a temporary, reversible peer-profile switch; selecting profiles in the UI is still pending.
+
 ### Optional, scoped Windows firewall rules
 
 Run only if the Windows firewall blocked the receiver and you approve these Private-LAN rules. They allow inbound TCP from the local subnet on the two distinct ports. Port `47833` is needed only when Windows receives a file.
@@ -44,7 +46,7 @@ To send from Windows to an Omarchy receiver already waiting on its file port, ru
 
 - This is a console build intended for a signed-in, unlocked Windows desktop. Before granting control and while applying new input, it checks that the active input desktop is the normal interactive desktop; an unknown or locked state stops injection. Windows can reject `SendInput` into applications running at a higher integrity level; the agent reports the failure and releases its tracked input on a normal disconnect.
 - Common physical keys, modifiers, pointer buttons and relative motion are mapped to Windows input. Unmapped keys are logged and ignored. Scroll conversion is approximate and needs a physical test.
-- No Windows↔Omarchy physical result is claimed yet. The `alpha` workflow checks the Windows x64 build and portable core; a real Windows machine is needed to verify pairing, crossing, return, shortcuts, files, firewall and lock behavior.
+- On 2026-10-02, a physical Windows 11 x64 computer paired with Omarchy through the manual address field and matching code. The connection stayed **Ready** for over 20 seconds. The user confirmed an Omarchy→Windows crossing, edge return, a click, one key, and Escape return. An authenticated latency probe completed 20 exchanges. Complex shortcuts, wheel, dragging, files, locking, sleep, other screen layouts, and Windows as a source remain to be tested.
 - Peer identities and keys are stored under `%LOCALAPPDATA%\SeamlessControl` for the Windows user. `seamlesscontrold.exe peers` lists trusted peers; `seamlesscontrold.exe revoke PEER_IP` revokes one.
 
 Windows API choices: [SendInput and UIPI](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-sendinput), [scan-code keyboard input](https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput), [input desktop detection](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-openinputdesktop), [virtual screen coordinates](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsystemmetrics), and [per-monitor DPI awareness](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext).
