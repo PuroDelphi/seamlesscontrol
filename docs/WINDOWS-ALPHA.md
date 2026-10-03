@@ -6,13 +6,17 @@ The Windows console agent uses the same pinned Noise identity, pairing code, pro
 
 ## Get the x64 build
 
-Open the [verified Windows x64 build](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37072862471) from `alpha`. At the bottom of the page, under **Artifacts**, download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. There is no installer: run the executable from that folder. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; it is an unsigned test artifact. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
+Open the [verified Windows x64 build](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37097763613) from `alpha`. At the bottom of the page, under **Artifacts**, download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. There is no installer: run the executable from that folder. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; it is an unsigned test artifact. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
 
 You can also build from the `alpha` source on a Windows x64 computer with Rust installed:
 
 ```powershell
 cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
 ```
+
+### Update the Windows agent
+
+First end the session in the Omarchy panel. On Windows, stop `serve` and `receive-file` with Ctrl+C. Download the artifact from the build linked above, check its SHA-256, replace `seamlesscontrold.exe` in the folder you already use, and restart `serve`. Your identity and pairings under `%LOCALAPPDATA%\SeamlessControl` remain in place. Pairing again is unnecessary.
 
 ## Connect Omarchy to Windows
 
@@ -35,6 +39,10 @@ New-NetFirewallRule -DisplayName 'SeamlessControl files (Private LAN)' -Directio
 ```
 
 Remove them later with `Remove-NetFirewallRule -DisplayName 'SeamlessControl control (Private LAN)'` and the equivalent command for `SeamlessControl files (Private LAN)`.
+
+## Test text clipboard synchronization
+
+With Windows `serve` running and the Omarchy connection **Ready**, copy a harmless phrase on Omarchy and paste it into a Windows application. Then copy a different phrase on Windows and paste it on Omarchy. Allow up to two seconds after each copy for the receiver to observe the change. Synchronization covers text; images and other formats are not transferred. This physical test is still pending.
 
 ## File transfer from either side
 

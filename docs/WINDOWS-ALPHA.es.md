@@ -6,13 +6,17 @@ El agente de consola para Windows usa la misma identidad Noise fijada, el códig
 
 ## Obtener la compilación x64
 
-Abre la [compilación Windows x64 verificada](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37072862471) de `alpha`. Al final de la página, en **Artifacts**, descarga `seamlesscontrol-windows-x64-alpha`. Extrae `seamlesscontrold.exe` y su archivo `.sha256` en una carpeta de tu cuenta de Windows. No hay instalador: se ejecuta desde esa carpeta. El workflow lo compila para `x86_64-pc-windows-msvc` con el entorno C integrado; es un artefacto de prueba sin firma. En PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` debe coincidir con el primer campo del archivo `.sha256`.
+Abre la [compilación Windows x64 verificada](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37097763613) de `alpha`. Al final de la página, en **Artifacts**, descarga `seamlesscontrol-windows-x64-alpha`. Extrae `seamlesscontrold.exe` y su archivo `.sha256` en una carpeta de tu cuenta de Windows. No hay instalador: se ejecuta desde esa carpeta. El workflow lo compila para `x86_64-pc-windows-msvc` con el entorno C integrado; es un artefacto de prueba sin firma. En PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` debe coincidir con el primer campo del archivo `.sha256`.
 
 También puedes compilar el código de `alpha` en Windows x64 con Rust instalado:
 
 ```powershell
 cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrold
 ```
+
+### Actualizar el agente de Windows
+
+Termina primero la sesión en el panel de Omarchy. En Windows, detén `serve` y `receive-file` con Ctrl+C. Descarga el artefacto de la compilación indicada arriba, comprueba su SHA-256, reemplaza `seamlesscontrold.exe` en la carpeta donde ya lo usas y vuelve a iniciar `serve`. La identidad y los emparejamientos guardados en `%LOCALAPPDATA%\SeamlessControl` se conservan. No hace falta volver a emparejar.
 
 ## Conectar Omarchy con Windows
 
@@ -35,6 +39,10 @@ New-NetFirewallRule -DisplayName 'SeamlessControl files (Private LAN)' -Directio
 ```
 
 Para retirarlas, usa `Remove-NetFirewallRule -DisplayName 'SeamlessControl control (Private LAN)'` y el comando equivalente para `SeamlessControl files (Private LAN)`.
+
+## Probar el portapapeles de texto
+
+Con `serve` abierto en Windows y la conexión en **Listo** en Omarchy, copia una frase inocua en Omarchy y pégala en una aplicación de Windows. Luego copia otra frase en Windows y pégala en Omarchy. Espera hasta dos segundos después de cada copia para que el receptor detecte el cambio. La sincronización es de texto; imágenes y otros formatos no se transmiten. Esta prueba física todavía está pendiente.
 
 ## Transferir un archivo en cualquier sentido
 
