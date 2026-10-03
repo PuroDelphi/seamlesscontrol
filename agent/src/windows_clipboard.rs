@@ -5,13 +5,14 @@ use std::io;
 use std::ptr;
 use std::thread;
 use std::time::Duration;
+use windows_sys::Win32::Foundation::GlobalFree;
 use windows_sys::Win32::System::Console::GetConsoleWindow;
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, CountClipboardFormats, EmptyClipboard, GetClipboardData,
     GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
 };
 use windows_sys::Win32::System::Memory::{
-    GMEM_MOVEABLE, GlobalAlloc, GlobalFree, GlobalLock, GlobalSize, GlobalUnlock,
+    GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock,
 };
 
 const CF_UNICODETEXT: u32 = 13;
