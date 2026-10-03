@@ -4,13 +4,14 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
-## Unreleased · alpha
+## [0.21.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.0) — 2026-10-03
 
 - Add a Windows x64 tray app around the existing console agent, with English and Spanish screens, pairing, discovery, file actions and a draggable computer layout. Embed the tray emblem in the GUI executable and place paired computers directly above the layout with a drag guide.
 - Build and test both Windows x64 executables in the Windows workflow. Physical Windows 11 x64 tests verified pairing, automatic LAN discovery in Omarchy, control in both directions, edge and Escape return, clicks, tested key combinations and an Omarchy-to-Windows file transfer.
 - Synchronize text clipboard content in both directions between Omarchy and Windows; the user confirmed both directions on physical computers.
 - Refresh the preview and bilingual guides to show mouse, keyboard, clipboard, file transfer and the shared Omarchy/Windows workspace.
 - Clarify manual Windows pairing and same-IP identity conflicts in the panel.
+- Publish the tagged Windows x64 app and agent beside their SHA-256 checksums in GitHub Releases; the user guides now point to the release assets.
 
 ## 0.20.0 — 2026-10-02
 

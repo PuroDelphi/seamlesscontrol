@@ -43,3 +43,49 @@ jobs:
           gh release download "$RELEASE_TAG" --pattern "$archive" --pattern "$archive.sha256" --dir verified
           (cd verified && sha256sum --check "$archive.sha256")
           printf 'Verified release assets for %s at %s\n' "$RELEASE_TAG" "$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+
+  windows-x64:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Test portable core
+        run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
+      - name: Build tagged Windows executables
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrol --bin seamlesscontrold
+      - name: Publish Windows executables and checksums
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          $output = 'agent/target/x86_64-pc-windows-msvc/release'
+          $names = @('seamlesscontrol.exe', 'seamlesscontrold.exe')
+          foreach ($name in $names) {
+            $digest = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash.ToLowerInvariant()
+            "$digest  $name" | Set-Content -Encoding ascii -Path "$output/$name.sha256"
+          }
+          $published = @(gh release view $env:RELEASE_TAG --json assets --jq '.assets[].name')
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot list release assets' }
+          foreach ($name in $names) {
+            foreach ($asset in @($name, "$name.sha256")) {
+              if ($published -contains $asset) {
+                New-Item -ItemType Directory -Force -Path remote | Out-Null
+                gh release download $env:RELEASE_TAG --pattern $asset --dir remote
+                if ($LASTEXITCODE -ne 0) { throw "Cannot download existing asset $asset" }
+                $local = (Get-FileHash -Algorithm SHA256 "$output/$asset").Hash
+                $existing = (Get-FileHash -Algorithm SHA256 "remote/$asset").Hash
+                if ($local -ne $existing) { throw "Release asset differs from tagged build: $asset" }
+              } else {
+                gh release upload $env:RELEASE_TAG "$output/$asset"
+                if ($LASTEXITCODE -ne 0) { throw "Cannot upload $asset" }
+              }
+            }
+          }
+          "Verified Windows x64 executables for $env:RELEASE_TAG at $env:GITHUB_SHA" >> $env:GITHUB_STEP_SUMMARY

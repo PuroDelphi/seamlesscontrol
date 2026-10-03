@@ -4,13 +4,14 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
-## Sin publicar · alpha
+## [0.21.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.0) — 2026-10-03
 
 - Añade una aplicación Windows x64 de bandeja sobre el agente de consola existente, con pantallas en inglés y español, emparejamiento, descubrimiento, archivos y mapa arrastrable. Inserta el emblema de bandeja en el ejecutable gráfico y sitúa los equipos emparejados justo encima del mapa, con una guía para arrastrarlos.
 - Compila y prueba ambos ejecutables Windows x64 en el workflow. Pruebas físicas con Windows 11 x64 verificaron emparejamiento, descubrimiento automático desde Omarchy, control en ambos sentidos, regreso por el borde y Escape, clics, las combinaciones de teclas probadas y una transferencia Omarchy→Windows.
 - Sincroniza el portapapeles de texto en ambos sentidos entre Omarchy y Windows; el usuario confirmó ambos sentidos con equipos físicos.
 - Renueva la vista previa y las guías bilingües para mostrar ratón, teclado, portapapeles, archivos y el espacio compartido entre Omarchy y Windows.
 - Aclara en el panel el emparejamiento manual de Windows y el conflicto de identidades cuando dos sistemas reciben la misma IP.
+- Publica la app y el agente Windows x64 del tag junto a sus SHA-256 en GitHub Releases; las guías ya apuntan a esas descargas.
 
 ## 0.20.0 — 2026-10-02
 

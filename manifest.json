@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "author": "PuroDelphi",
   "license": "MIT",
-  "description": "Share one mouse and keyboard across paired Omarchy computers on a LAN",
+  "description": "Share mouse, keyboard, clipboard and files across Omarchy and Windows",
   "kinds": ["bar-widget"],
   "entryPoints": {
     "barWidget": "plugin/BarWidget.qml"
   },
   "barWidget": {
     "displayName": "SeamlessControl",
-    "description": "Agent status, pairing, return control and machine layout for Omarchy",
+    "description": "Pair and control Omarchy and Windows computers across your LAN",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right"

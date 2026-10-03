@@ -1,6 +1,6 @@
 # SeamlessControl
 
-[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Omarchy release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Windows x64 download](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml) · [MIT](LICENSE) · [Español](README.es.md)
+[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Latest release and Windows x64 downloads](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [MIT](LICENSE) · [Español](README.es.md)
 
 **One mouse. One keyboard. Every screen in reach.** Move the pointer across an edge to work on the next computer, then cross back or press **Escape** to return. SeamlessControl brings Omarchy and Windows together on your private network, with the same pairing and control protocol on both systems.
 
@@ -31,7 +31,7 @@ Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, c
 
 ## Get started on Windows x64
 
-Download the latest successful **Windows x64** artifact from [Windows builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Extract **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` into the same folder. Double click **`seamlesscontrol.exe`**. It starts receiving on port `47832`, advertises this Windows computer on the LAN and continues running when you close the window; open it again from the tray icon. Choose **Español** in the top right if desired.
+Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` for Windows x64; each has an adjacent `.sha256` file for verification. Put the executables in the same folder and double click **`seamlesscontrol.exe`**. It starts receiving on port `47832`, advertises this Windows computer on the LAN and stays active in the tray when you close the window. Choose **Español** in the top right if desired.
 
 ![The SeamlessControl Windows app](docs/images/windows-panel.png)
 
@@ -60,7 +60,7 @@ omarchy plugin update seamlesscontrol.control
 
 Run `omarchy restart shell`, reopen SeamlessControl and choose **Update agent** under **Set up this computer**. Your pairing keys and layout are kept.
 
-**Windows:** exit SeamlessControl from its tray menu, download the newest Windows x64 build, replace **both** `.exe` files in their folder and reopen `seamlesscontrol.exe`. Pairing keys in `%LOCALAPPDATA%\SeamlessControl` are kept.
+**Windows:** exit SeamlessControl from its tray menu, download **both** Windows x64 executables from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), replace them in their folder and reopen `seamlesscontrol.exe`. Pairing keys in `%LOCALAPPDATA%\SeamlessControl` are kept.
 
 To remove SeamlessControl from Omarchy, choose **Remove agent** in the panel, then:
 

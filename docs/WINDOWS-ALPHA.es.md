@@ -12,8 +12,8 @@ La imagen del mapa usa una dirección ficticia para la documentación.
 
 ## Instalar
 
-1. En [Compilaciones Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml), abre la ejecución **exitosa** más reciente y descarga el artefacto `seamlesscontrol-windows-x64`.
-2. Extrae `seamlesscontrol.exe` y `seamlesscontrold.exe` en la **misma carpeta**. Los dos archivos `.sha256` permiten comprobar sus hashes si lo deseas. Usa una carpeta propia, como Descargas o Documentos.
+1. Abre la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), lee sus notas de instalación y descarga en **Assets** **ambos** ejecutables Windows x64: `seamlesscontrol.exe` y `seamlesscontrold.exe`. Los archivos `.sha256` contiguos permiten comprobar cada descarga.
+2. Pon los dos ejecutables en la **misma carpeta** propia, como Descargas o Documentos. Para verificar uno desde PowerShell, ejecuta `Get-FileHash .\seamlesscontrol.exe -Algorithm SHA256` y compara el resultado con `seamlesscontrol.exe.sha256` del mismo release; puedes repetirlo para el agente.
 3. Haz doble clic en `seamlesscontrol.exe`. **Recibir control** se inicia automáticamente en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
 4. Cierra la ventana para dejar la aplicación en la bandeja. Pulsa su icono para abrirla de nuevo. **Exit SeamlessControl** en el menú de la bandeja termina las sesiones y cierra la aplicación.
 
@@ -52,7 +52,7 @@ El autodescubrimiento usa mDNS en la LAN privada y no sustituye el emparejamient
 
 ## Actualizar o desinstalar
 
-Para actualizar, selecciona **Exit SeamlessControl** en la bandeja, descarga el artefacto Windows x64 exitoso más reciente, reemplaza **ambos** `.exe` en su carpeta y abre la app de nuevo. Los emparejamientos de `%LOCALAPPDATA%\SeamlessControl` se conservan.
+Para actualizar, selecciona **Exit SeamlessControl** en la bandeja, descarga ambos ejecutables Windows x64 de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), reemplaza **ambos** `.exe` en su carpeta y abre la app de nuevo. Los emparejamientos de `%LOCALAPPDATA%\SeamlessControl` se conservan.
 
 Para desinstalar, sal desde la bandeja y borra la carpeta de los ejecutables. `%LOCALAPPDATA%\SeamlessControl` conserva la identidad y los pares por si reinstalas. Borra esa carpeta de datos solo si quieres una identidad nueva; los demás equipos deberán emparejarse otra vez. Retira también las reglas de firewall que hayas autorizado.
 

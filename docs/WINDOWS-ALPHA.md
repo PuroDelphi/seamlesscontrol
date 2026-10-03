@@ -12,8 +12,8 @@ The layout image uses a documentation-only example address.
 
 ## Install
 
-1. From [Windows x64 builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml), open the most recent **successful** run and download the `seamlesscontrol-windows-x64` artifact.
-2. Extract `seamlesscontrol.exe` and `seamlesscontrold.exe` into the **same folder**. The two adjacent `.sha256` files let you compare their hashes if you wish. Keep the folder somewhere you own, such as Downloads or Documents.
+1. Open the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), read its installation notes, and under **Assets** download **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` for Windows x64. Their adjacent `.sha256` assets allow you to verify each download.
+2. Put the two executables in the **same folder** somewhere you own, such as Downloads or Documents. To verify an executable in PowerShell, run `Get-FileHash .\seamlesscontrol.exe -Algorithm SHA256` and compare its hash with `seamlesscontrol.exe.sha256` from the same release; repeat for the agent if desired.
 3. Double click `seamlesscontrol.exe`. **Receive control** starts automatically on TCP `47832`. The app advertises this Windows computer to nearby SeamlessControl panels. If Windows asks about network access, choose **Private networks**.
 4. Close the window to leave it running in the tray. Click the tray icon to open it again. Choose **Exit SeamlessControl** from the tray menu to end sessions and exit.
 
@@ -52,7 +52,7 @@ Discovery uses mDNS on the private LAN. It does not replace the pairing code. If
 
 ## Update or remove
 
-To update, choose **Exit SeamlessControl** from the tray, download the newest successful Windows x64 artifact, replace **both** `.exe` files in the same folder and open the app again. Existing pairing data under `%LOCALAPPDATA%\SeamlessControl` stays intact.
+To update, choose **Exit SeamlessControl** from the tray, download both Windows x64 executables from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), replace **both** `.exe` files in the same folder and open the app again. Existing pairing data under `%LOCALAPPDATA%\SeamlessControl` stays intact.
 
 To remove it, exit from the tray and delete the folder containing the executables. `%LOCALAPPDATA%\SeamlessControl` keeps your local identity and pairings for a later reinstall. Delete that data folder too only if you want a new identity; other computers will then need to pair again. Remove any firewall rules you authorized in Windows Firewall.
 
