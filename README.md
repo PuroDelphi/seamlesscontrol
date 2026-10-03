@@ -43,7 +43,7 @@ Windows 11 normally has the required WebView2 runtime. If the app reports it mis
 
 1. On the computer you want to control, select **Receive control** and wait for **Available**. The Windows app starts this automatically.
 2. On the computer with the physical mouse, open **Computers**, select the discovered receiver and choose **Pair**. Compare the six digit code on **both** computers and approve on both. If discovery cannot find it, enter its private LAN `IP:port` manually.
-3. In Omarchy, place the receiver in **Computer layout** according to its physical position. In Windows, choose the **screen edge** facing the receiver.
+3. In **Computers → Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, select the paired computer and click a side, drag it there, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
 4. Select **Connect** on the computer with the physical mouse. When it says **Ready**, cross the chosen **outer edge**. Cross back from the receiver or press **Escape** on the physical keyboard to return.
 
 **Pair** records trust once; **Connect** starts a control session. Moving a tile in the layout sets the crossing direction and does not start the session. For file delivery, open **Files** on the receiver, allow its separate LAN port `47833` if needed, select **Wait for a file**, then choose and send a file from the source. The receiver approves the offer.

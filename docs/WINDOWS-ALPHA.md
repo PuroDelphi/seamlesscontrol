@@ -6,6 +6,10 @@ The Windows app uses the same trusted identities and control protocol as the Oma
 
 ![Windows overview with receiver and connection controls](images/windows-panel.png)
 
+![Windows screen layout with an example paired computer on the right](images/windows-layout.png)
+
+The layout image uses a documentation-only example address.
+
 ## Install
 
 1. From [Windows x64 builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha), open the most recent **successful** run and download the `seamlesscontrol-windows-x64-alpha` artifact.
@@ -30,7 +34,7 @@ On Omarchy, put Windows on the correct side of **Computer layout**. Select **Con
 
 ## Windows controls Omarchy
 
-On Omarchy, select **Receive control** and wait for **Available**. In the Windows app's **Overview**, enter the paired Omarchy `IP:47832` under **Control another computer**. Choose the **Windows screen edge** that faces Omarchy and select **Connect**. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session.
+On Omarchy, select **Receive control** and wait for **Available**. In the Windows app, open **Computers → Screen layout**. Select the paired Omarchy computer, then click its position around **This Windows**. You can also drag its row onto the map or focus the row and press an arrow key. Select **Connect** on its row: **Overview** opens with its address and saved edge. Select **Connect** there. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session. The map remains available while this Windows computer is receiving control.
 
 A Windows app can receive or initiate control. Starting **Connect** pauses this app's receiver so the physical Windows keyboard has one clear owner. Selecting **Stop** or losing the source connection starts **Receive control** again automatically.
 

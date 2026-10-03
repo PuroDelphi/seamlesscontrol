@@ -71,6 +71,8 @@ struct PairCode {
 struct Controller {
     cli: PathBuf,
     receive_port: u16,
+    layout_path: PathBuf,
+    layout: BTreeMap<String, String>,
     processes: BTreeMap<Slot, Process>,
     logs: VecDeque<String>,
     peers: BTreeMap<IpAddr, String>,
@@ -83,9 +85,20 @@ struct Controller {
 
 impl Controller {
     fn new(cli: PathBuf) -> Self {
+        let layout_path = std::env::var_os("LOCALAPPDATA")
+            .map(PathBuf::from)
+            .unwrap_or_default()
+            .join("SeamlessControl")
+            .join("ui-layout.json");
+        let layout = std::fs::read(&layout_path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default();
         Self {
             cli,
             receive_port: 47832,
+            layout_path,
+            layout,
             processes: BTreeMap::new(),
             logs: VecDeque::new(),
             peers: BTreeMap::new(),
@@ -291,6 +304,30 @@ impl Controller {
         }
     }
 
+    fn set_layout(&mut self, fingerprint: &str, edge: Option<&str>) -> Result<(), Box<dyn Error>> {
+        if !self.peers.values().any(|value| value == fingerprint) {
+            return Err("pair this computer before placing it in the layout".into());
+        }
+        if let Some(edge) = edge {
+            if !matches!(edge, "left" | "right" | "top" | "bottom") {
+                return Err("choose a valid layout edge".into());
+            }
+        }
+        let mut next = self.layout.clone();
+        next.remove(fingerprint);
+        if let Some(edge) = edge {
+            next.retain(|_, placed| placed != edge);
+            next.insert(fingerprint.to_owned(), edge.to_owned());
+        }
+        if let Some(parent) = self.layout_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&self.layout_path, serde_json::to_vec_pretty(&next)?)?;
+        self.layout = next;
+        self.log("Computer layout saved.");
+        Ok(())
+    }
+
     fn own_fingerprint(&self) -> String {
         self.command(&["identity"])
             .output()
@@ -346,6 +383,7 @@ impl Controller {
             "logs": self.logs,
             "discovered": discovered,
             "peers": peers,
+            "layout": self.layout,
         })
     }
 
@@ -475,6 +513,12 @@ impl Controller {
                     }
                     self.refresh_peers();
                     self.log(format!("Trust revoked for {ip}"));
+                }
+                "setLayout" => {
+                    self.set_layout(string("fingerprint"), Some(string("edge")))?;
+                }
+                "clearLayout" => {
+                    self.set_layout(string("fingerprint"), None)?;
                 }
                 "hide" => window.set_visible(false),
                 "quit" => {

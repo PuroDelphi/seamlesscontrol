@@ -6,6 +6,10 @@ La aplicación Windows usa las mismas identidades de confianza y el mismo protoc
 
 ![Vista principal de Windows con recepción y conexión](images/windows-panel.png)
 
+![Mapa de pantallas de Windows con un equipo de ejemplo a la derecha](images/windows-layout.png)
+
+La imagen del mapa usa una dirección ficticia para la documentación.
+
 ## Instalar
 
 1. En [Compilaciones Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha), abre la ejecución **exitosa** más reciente y descarga el artefacto `seamlesscontrol-windows-x64-alpha`.
@@ -30,7 +34,7 @@ En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **
 
 ## Windows controla Omarchy
 
-En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En **Inicio** de la app Windows, escribe la dirección Omarchy `IP:47832` en **Controlar otro equipo**. Escoge el **borde de Windows** que mira hacia Omarchy y pulsa **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. **Detener** finaliza la sesión.
+En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos → Mapa de pantallas**. Selecciona el Omarchy emparejado y pulsa su posición alrededor de **Este Windows**. También puedes arrastrar su fila al mapa o enfocarla y pulsar una flecha. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
 
 Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app pausa su receptor para que el teclado físico tenga un solo dueño. Al pulsar **Detener** o perderse la conexión de origen, vuelve a iniciar **Recibir control** automáticamente.
 
