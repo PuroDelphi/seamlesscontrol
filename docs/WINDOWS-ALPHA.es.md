@@ -6,7 +6,7 @@ El agente de consola para Windows usa la misma identidad Noise fijada, el códig
 
 ## Obtener la compilación x64
 
-Abre la [compilación Windows x64 verificada](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37098597043) de `alpha`. Al final de la página, en **Artifacts**, descarga `seamlesscontrol-windows-x64-alpha`. Extrae `seamlesscontrold.exe` y su archivo `.sha256` en una carpeta de tu cuenta de Windows. No hay instalador: se ejecuta desde esa carpeta. El workflow lo compila para `x86_64-pc-windows-msvc` con el entorno C integrado; es un artefacto de prueba sin firma. En PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` debe coincidir con el primer campo del archivo `.sha256`.
+Abre la [compilación Windows x64 verificada](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37098835696) de `alpha`. Al final de la página, en **Artifacts**, descarga `seamlesscontrol-windows-x64-alpha`. Extrae `seamlesscontrold.exe` y su archivo `.sha256` en una carpeta de tu cuenta de Windows. No hay instalador: se ejecuta desde esa carpeta. El workflow lo compila para `x86_64-pc-windows-msvc` con el entorno C integrado; es un artefacto de prueba sin firma. En PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` debe coincidir con el primer campo del archivo `.sha256`.
 
 También puedes compilar el código de `alpha` en Windows x64 con Rust instalado:
 

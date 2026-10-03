@@ -6,7 +6,7 @@ The Windows console agent uses the same pinned Noise identity, pairing code, pro
 
 ## Get the x64 build
 
-Open the [verified Windows x64 build](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37098597043) from `alpha`. At the bottom of the page, under **Artifacts**, download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. There is no installer: run the executable from that folder. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; it is an unsigned test artifact. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
+Open the [verified Windows x64 build](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37098835696) from `alpha`. At the bottom of the page, under **Artifacts**, download `seamlesscontrol-windows-x64-alpha`. Extract `seamlesscontrold.exe` and its adjacent `.sha256` file to a folder owned by your Windows account. There is no installer: run the executable from that folder. The workflow builds it natively for `x86_64-pc-windows-msvc` with a static C runtime; it is an unsigned test artifact. In PowerShell, `(Get-FileHash -Algorithm SHA256 .\seamlesscontrold.exe).Hash.ToLowerInvariant()` should match the first field of the `.sha256` file.
 
 You can also build from the `alpha` source on a Windows x64 computer with Rust installed:
 
