@@ -7,7 +7,7 @@ Este archivo resume los cambios publicados. Consulta los [resultados de pruebas]
 ## Sin publicar · alpha
 
 - Añade un receptor de consola para Windows x64 compatible con el emparejamiento y el protocolo cifrado de Omarchy. Puede solicitar el regreso por el borde de entrada y enviar o recibir archivos aprobados.
-- Compila y prueba el ejecutable Windows x64 en un workflow de `alpha`. En una prueba física con Windows 11 x64 se verificaron emparejamiento, cruce desde Omarchy, regreso por el borde, clic, una tecla, Super+E y regreso con Escape.
+- Compila y prueba el ejecutable Windows x64 en un workflow de `alpha`. En una prueba física con Windows 11 x64 se verificaron emparejamiento, cruce desde Omarchy, regreso por el borde, clic, varias combinaciones de teclas (incluida Super+E) y regreso con Escape.
 - Aclara en el panel el emparejamiento manual de Windows y el conflicto de identidades cuando dos sistemas reciben la misma IP.
 
 ## 0.20.0 — 2026-10-02

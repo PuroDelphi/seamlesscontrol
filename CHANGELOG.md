@@ -7,7 +7,7 @@ This file summarizes published changes. Consult the [test results](docs/TEST-RES
 ## Unreleased · alpha
 
 - Add a Windows x64 console receiver using the Omarchy pairing and encrypted input protocol. It can request return across its entry edge and send or receive approved files.
-- Build and test the Windows x64 executable in an `alpha` workflow. A physical Windows 11 x64 test verified pairing, crossing from Omarchy, edge return, a click, one key, Super+E, and Escape return.
+- Build and test the Windows x64 executable in an `alpha` workflow. A physical Windows 11 x64 test verified pairing, crossing from Omarchy, edge return, a click, several key combinations (including Super+E), and Escape return.
 - Clarify manual Windows pairing and same-IP identity conflicts in the panel.
 
 ## 0.20.0 — 2026-10-02
