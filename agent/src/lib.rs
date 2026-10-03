@@ -16,6 +16,8 @@ pub mod windows_keymap;
 #[cfg(target_os = "windows")]
 pub mod windows_agent;
 #[cfg(target_os = "windows")]
+pub mod windows_clipboard;
+#[cfg(target_os = "windows")]
 pub mod windows_input;
 
 #[cfg(target_os = "linux")]

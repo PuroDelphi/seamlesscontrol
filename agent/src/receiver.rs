@@ -21,6 +21,10 @@ pub trait Injector {
         ))
     }
 
+    fn heartbeat(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+
     fn ownership_changed(&mut self, _controlling: bool) {}
 
     fn active_epoch_changed(&mut self, _epoch: Option<u64>) {}
@@ -137,7 +141,7 @@ impl<I: Injector> InputReceiver<I> {
                 }
                 Ok(())
             }
-            Kind::Heartbeat => Ok(()),
+            Kind::Heartbeat => self.injector.heartbeat().map_err(ReceiverError::Clipboard),
             Kind::Clipboard => {
                 let packet =
                     ClipboardPacket::decode(&frame.payload).map_err(ReceiverError::Clipboard)?;

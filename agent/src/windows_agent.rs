@@ -242,7 +242,7 @@ fn serve_connection(
         .set_read_timeout(Some(Duration::from_secs(5)))?;
     let (mut reader, writer) = channel.into_tcp_halves()?;
     let pinned = load_peer_key(&config.join("peers"), ip)?.ok_or("peer was removed")?;
-    let injector = WindowsInjector::new(writer, pinned)?;
+    let injector = WindowsInjector::new(writer, identity.public, pinned)?;
     println!("Input session from {ip} is ready.");
     run_receiver_with_first(&mut reader, injector, Some(first_input))?;
     println!("Input session from {ip} ended; held keys and buttons were released.");

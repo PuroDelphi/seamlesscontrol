@@ -1,11 +1,12 @@
 //! Interactive Windows input adapter for an authenticated Omarchy source.
 
-use crate::clipboard::ClipboardPacket;
+use crate::clipboard::{ClipboardPacket, ClipboardSync};
 use crate::protocol::{EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::Injector;
 use crate::secure::SecureWriter;
 use crate::state::InputEvent;
 use crate::topology::{EdgeReturnDetector, Rect, edge_entry_point, edge_fraction};
+use crate::windows_clipboard::WindowsClipboard;
 use crate::windows_keymap::evdev_to_set1;
 use std::io;
 use std::net::TcpStream;
@@ -152,7 +153,8 @@ fn button(evdev: u32, pressed: bool) -> io::Result<()> {
 
 pub struct WindowsInjector {
     writer: SecureWriter<TcpStream>,
-    peer_id: [u8; 32],
+    clipboard: WindowsClipboard,
+    clipboard_sync: ClipboardSync,
     epoch: Option<u64>,
     sequence: u64,
     return_sent: bool,
@@ -164,10 +166,15 @@ pub struct WindowsInjector {
 }
 
 impl WindowsInjector {
-    pub fn new(writer: SecureWriter<TcpStream>, peer_id: [u8; 32]) -> io::Result<Self> {
+    pub fn new(
+        writer: SecureWriter<TcpStream>,
+        local_id: [u8; 32],
+        peer_id: [u8; 32],
+    ) -> io::Result<Self> {
         Ok(Self {
             writer,
-            peer_id,
+            clipboard: WindowsClipboard::new(),
+            clipboard_sync: ClipboardSync::new(local_id, peer_id),
             epoch: None,
             sequence: 0,
             return_sent: false,
@@ -179,18 +186,22 @@ impl WindowsInjector {
         })
     }
 
-    fn feedback(&mut self, epoch: u64, payload: Vec<u8>) -> io::Result<()> {
+    fn send_feedback(&mut self, kind: Kind, epoch: u64, payload: Vec<u8>) -> io::Result<()> {
         self.sequence = self.sequence.checked_add(1).ok_or_else(|| {
             io::Error::new(io::ErrorKind::InvalidData, "feedback sequence exhausted")
         })?;
         Frame {
-            kind: Kind::Control,
+            kind,
             epoch,
             sequence: self.sequence,
             payload,
         }
         .write_to(&mut self.writer)
         .map_err(io::Error::other)
+    }
+
+    fn feedback(&mut self, epoch: u64, payload: Vec<u8>) -> io::Result<()> {
+        self.send_feedback(Kind::Control, epoch, payload)
     }
 
     fn maybe_return(&mut self) -> io::Result<()> {
@@ -300,14 +311,32 @@ impl Injector for WindowsInjector {
     }
 
     fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
-        if packet.origin != self.peer_id {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "clipboard origin does not match authenticated peer",
-            ));
+        if !self.clipboard_sync.remote_needs_apply(&packet)? {
+            return Ok(());
         }
-        // Clipboard synchronization needs a separate Windows adapter. Ignore
-        // authenticated packets for now so input control stays usable.
+        if interactive_desktop().unwrap_or(false) {
+            if let Err(error) = self.clipboard.apply(&packet.event) {
+                eprintln!("SeamlessControl: Windows clipboard apply failed: {error}");
+            } else {
+                self.clipboard_sync.remote_applied(&packet);
+            }
+        }
+        Ok(())
+    }
+
+    fn heartbeat(&mut self) -> io::Result<()> {
+        if !interactive_desktop().unwrap_or(false) {
+            return Ok(());
+        }
+        match self.clipboard.changed() {
+            Ok(Some(event)) => {
+                if let Some(packet) = self.clipboard_sync.local_changed(&event) {
+                    self.send_feedback(Kind::Clipboard, 0, packet.encode())?;
+                }
+            }
+            Ok(None) => {}
+            Err(error) => eprintln!("SeamlessControl: Windows clipboard read failed: {error}"),
+        }
         Ok(())
     }
 
