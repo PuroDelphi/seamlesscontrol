@@ -1,6 +1,6 @@
 # Fase 0 · Comprobación de viabilidad en este equipo
 
-Inicio: 29 de septiembre de 2026. Las pruebas posteriores con dos Omarchy se registran por fecha más abajo. Las direcciones IP, subredes y nombres de interfaz de este documento se sustituyeron por datos ficticios coherentes; no son valores que deban copiarse al configurar una red.
+Inicio: 29 de septiembre de 2026. Este archivo conserva el registro cronológico de investigación: los pendientes y fallos descritos en cada fecha reflejan el estado de entonces, no el estado actual del producto. Consulta los [resultados de pruebas actuales](TEST-RESULTS.es.md) y las [guías de uso](../README.es.md). Las direcciones IP, subredes y nombres de interfaz de este documento se sustituyeron por datos ficticios coherentes; no son valores que deban copiarse al configurar una red.
 
 ## Inventario observado
 

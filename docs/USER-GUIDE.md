@@ -2,7 +2,7 @@
 
 [Back to README](../README.md) · [Español](USER-GUIDE.es.md)
 
-SeamlessControl lets one Omarchy computer (the **source**, with the physical mouse and keyboard) control another (the **receiver**). Set up the plugin and agent on both computers first. All steps below happen in the SeamlessControl panel. The screenshots show fictional computer names and addresses.
+This guide shows the Omarchy panel with two Omarchy computers: the **source** has the physical mouse and keyboard, and the **receiver** accepts control. SeamlessControl also connects Omarchy and Windows; follow the [Windows guide](WINDOWS-ALPHA.md) for that setup. Set up the plugin and agent on both Omarchy computers first. The screenshots show fictional computer names and addresses.
 
 The panel opens on **Main**. It contains agent installation, pairing, the computer layout, connecting, file transfer and both LAN firewall actions. **More** contains agent removal, revoking a paired computer, manual connection by IP, experimental mesh and the full-guide link. If a pairing code or file offer arrives while **More** is open, the panel returns to **Main** so you can respond.
 

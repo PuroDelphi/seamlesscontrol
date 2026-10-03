@@ -12,7 +12,7 @@ The layout image uses a documentation-only example address.
 
 ## Install
 
-1. From [Windows x64 builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha), open the most recent **successful** run and download the `seamlesscontrol-windows-x64-alpha` artifact.
+1. From [Windows x64 builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml), open the most recent **successful** run and download the `seamlesscontrol-windows-x64` artifact.
 2. Extract `seamlesscontrol.exe` and `seamlesscontrold.exe` into the **same folder**. The two adjacent `.sha256` files let you compare their hashes if you wish. Keep the folder somewhere you own, such as Downloads or Documents.
 3. Double click `seamlesscontrol.exe`. **Receive control** starts automatically on TCP `47832`. The app advertises this Windows computer to nearby SeamlessControl panels. If Windows asks about network access, choose **Private networks**.
 4. Close the window to leave it running in the tray. Click the tray icon to open it again. Choose **Exit SeamlessControl** from the tray menu to end sessions and exit.
@@ -34,7 +34,7 @@ On Omarchy, put Windows on the correct side of **Computer layout**. Select **Con
 
 ## Windows controls Omarchy
 
-On Omarchy, select **Receive control** and wait for **Available**. In the Windows app, open **Computers → Screen layout**. Select the paired Omarchy computer, then click its position around **This Windows**. You can also drag its row onto the map or focus the row and press an arrow key. Select **Connect** on its row: **Overview** opens with its address and saved edge. Select **Connect** there. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session. The map remains available while this Windows computer is receiving control.
+On Omarchy, select **Receive control** and wait for **Available**. In the Windows app, open **Computers**. Paired computers appear first, directly above **Screen layout**; the arrow points from that list to the map. Drag the Omarchy row to its place around **This Windows**, click its position after selecting the row, or focus the row and press an arrow key. Select **Connect** on its row: **Overview** opens with its address and saved edge. Select **Connect** there. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session. The map remains available while this Windows computer is receiving control.
 
 A Windows app can receive or initiate control. Starting **Connect** pauses this app's receiver so the physical Windows keyboard has one clear owner. Selecting **Stop** or losing the source connection starts **Receive control** again automatically.
 

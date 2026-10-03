@@ -1,8 +1,8 @@
-name: Windows x64 alpha
+name: Windows x64
 
 on:
   push:
-    branches: [alpha]
+    branches: [alpha, main]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +25,21 @@ jobs:
         env:
           RUSTFLAGS: -C target-feature=+crt-static
         run: cargo build --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --release --bin seamlesscontrol --bin seamlesscontrold
+      - name: Verify the Windows app icon
+        shell: pwsh
+        run: |
+          Add-Type @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class SeamlessIconCheck {
+              [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+              public static extern uint ExtractIconEx(string file, int index, IntPtr large, IntPtr small, uint count);
+          }
+          '@
+          $exe = (Resolve-Path 'agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol.exe').Path
+          if ([SeamlessIconCheck]::ExtractIconEx($exe, -1, [IntPtr]::Zero, [IntPtr]::Zero, 0) -lt 1) {
+            throw 'The Windows app executable has no embedded icon'
+          }
       - name: Start the Windows executable
         shell: pwsh
         run: |
@@ -44,7 +59,7 @@ jobs:
           }
       - uses: actions/upload-artifact@v4
         with:
-          name: seamlesscontrol-windows-x64-alpha
+          name: seamlesscontrol-windows-x64
           path: |
             agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe
             agent/target/x86_64-pc-windows-msvc/release/seamlesscontrold.exe.sha256

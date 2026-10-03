@@ -6,7 +6,7 @@ SeamlessControl controla la entrada entre equipos. Informa de las vulnerabilidad
 
 ## Versiones cubiertas
 
-Las correcciones de seguridad se dirigen a la última versión publicada y al `main` actual. No se mantienen versiones anteriores. SeamlessControl es experimental y no ha pasado una auditoría de seguridad independiente.
+Las correcciones de seguridad se dirigen a la última versión publicada y al `main` actual. No se mantienen versiones anteriores. SeamlessControl no ha pasado una auditoría de seguridad independiente.
 
 ## Informar de una vulnerabilidad
 

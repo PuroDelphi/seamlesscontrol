@@ -1,10 +1,10 @@
 # SeamlessControl
 
-[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Omarchy release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Windows x64 download](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha) · [MIT](LICENSE) · [Español](README.es.md)
+[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Omarchy release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Windows x64 download](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml) · [MIT](LICENSE) · [Español](README.es.md)
 
 **One mouse. One keyboard. Every screen in reach.** Move the pointer across an edge to work on the next computer, then cross back or press **Escape** to return. SeamlessControl brings Omarchy and Windows together on your private network, with the same pairing and control protocol on both systems.
 
-![A cursor crossing between two SeamlessControl monitors](preview.png)
+![Omarchy and Windows screens connected by mouse, keyboard, clipboard and files](preview.png)
 
 ![Omarchy computers and a Windows computer in one workspace](docs/images/ecosystem.svg)
 
@@ -15,7 +15,7 @@
 - **Send files deliberately:** the receiver approves each offer; the transferred file is checked before it is published. File reception uses its own port.
 - **Use the interface you expect:** an Omarchy panel and a Windows app that stays in the system tray. Both offer English and Spanish.
 
-SeamlessControl is developed continuously. See the [technical guide](docs/TECHNICAL.md) for architecture, permissions and verification records.
+Use your Omarchy and Windows computers in one workspace: control crosses in either direction, while trusted pairing, discovery and text clipboard keep the session familiar. SeamlessControl is developed continuously. See the [technical guide](docs/TECHNICAL.md) for architecture, permissions and verification records.
 
 ## Get started on Omarchy
 
@@ -31,7 +31,7 @@ Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, c
 
 ## Get started on Windows x64
 
-Download the latest successful **Windows x64 alpha** artifact from [Windows builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha). Extract **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` into the same folder. Double click **`seamlesscontrol.exe`**. It starts receiving on port `47832`, advertises this Windows computer on the LAN and continues running when you close the window; open it again from the tray icon. Choose **Español** in the top right if desired.
+Download the latest successful **Windows x64** artifact from [Windows builds](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Extract **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` into the same folder. Double click **`seamlesscontrol.exe`**. It starts receiving on port `47832`, advertises this Windows computer on the LAN and continues running when you close the window; open it again from the tray icon. Choose **Español** in the top right if desired.
 
 ![The SeamlessControl Windows app](docs/images/windows-panel.png)
 
@@ -43,7 +43,7 @@ Windows 11 normally has the required WebView2 runtime. If the app reports it mis
 
 1. On the computer you want to control, select **Receive control** and wait for **Available**. The Windows app starts this automatically.
 2. On the computer with the physical mouse, open **Computers**, select the discovered receiver and choose **Pair**. Compare the six digit code on **both** computers and approve on both. If discovery cannot find it, enter its private LAN `IP:port` manually.
-3. In **Computers → Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, select the paired computer and click a side, drag it there, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
+3. In **Computers → Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, paired computers appear directly above the map: drag one along the arrow, click a side, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
 4. Select **Connect** on the computer with the physical mouse. When it says **Ready**, cross the chosen **outer edge**. Cross back from the receiver or press **Escape** on the physical keyboard to return.
 
 **Pair** records trust once; **Connect** starts a control session. Moving a tile in the layout sets the crossing direction and does not start the session. For file delivery, open **Files** on the receiver, allow its separate LAN port `47833` if needed, select **Wait for a file**, then choose and send a file from the source. The receiver approves the offer.
@@ -68,7 +68,7 @@ To remove SeamlessControl from Omarchy, choose **Remove agent** in the panel, th
 omarchy plugin remove seamlesscontrol.control
 ```
 
-On Windows, choose **Exit SeamlessControl** from the tray and delete the folder containing the two executables. The user data folder `%LOCALAPPDATA%\SeamlessControl` is intentionally kept so your identity and pairings survive an update; delete it too only if you want a completely fresh identity. Firewall rules can be removed in Windows Firewall by their `SeamlessControl TCP … Private LAN` names.
+On Windows, choose **Exit SeamlessControl** from the tray and delete the folder containing the two executables. The user data folder `%LOCALAPPDATA%\SeamlessControl` is intentionally kept so your identity and pairings survive an update; delete it too only if you want a completely fresh identity. Firewall rules can be removed in Windows Firewall by their `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` names.
 
 ## Documentation and community
 

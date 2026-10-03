@@ -620,6 +620,7 @@ fn request_firewall_rule(
 }
 
 fn icon_rgba() -> Vec<u8> {
+    // Keep these pixels in sync with assets/seamlesscontrol.ico, the EXE icon.
     let mut pixels = vec![0u8; 32 * 32 * 4];
     for y in 0..32 {
         for x in 0..32 {

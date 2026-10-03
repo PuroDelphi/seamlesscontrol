@@ -1,4 +1,4 @@
-# Pruebas de dos equipos · en curso
+# Plan de pruebas adicionales
 
 El agente compila y supera las pruebas locales. En octubre de 2026 se emparejaron dos Omarchy de la misma LAN y se observó movimiento real del puntero en el receptor tras cruzar el borde desde el origen. Con `d9079bf` instalado en ambos, el usuario confirmó dos recorridos físicos de ida y vuelta por los bordes derecho e izquierdo, y comprobó que Escape físico devolvió el control al origen. También se confirmó el atajo físico Super+V y una transferencia de archivo aceptada entre esos equipos; los detalles constan en [Resultados de pruebas](TEST-RESULTS.es.md). Los casos restantes se enumeran abajo; estos resultados corresponden a una sola pareja de equipos y disposición de pantallas.
 
@@ -10,7 +10,7 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 
 ## Preparación
 
-1. Instalar la misma revisión en ambos Omarchy con los dos comandos de instalación del README; el segundo compila el binario de release e instala las dependencias que falten.
+1. Instalar el plugin en ambos Omarchy con el comando estándar del README y, en cada panel, pulsar **Instalar agente** o **Actualizar agente** para obtener las dependencias y la misma revisión del binario.
 2. Registrar `omarchy --version`, `hyprctl version`, `quickshell --version`, versión del portal, monitores (`hyprctl monitors`) y distribución de teclado en ambos.
 3. Confirmar conectividad LAN y que el puerto elegido acepta TCP únicamente desde la LAN. No abrirlo hacia Internet.
 4. Mantener un terminal accesible en cada máquina. Al primer emparejamiento, comparar el código de seis cifras en ambos paneles o terminales antes de aprobar en ambos. Por CLI: `seamlesscontrold status` y `seamlesscontrold approve <código>`.
@@ -29,10 +29,10 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 4. Configurar el mapa inverso en B. Activar el control en B, alejar el cursor al menos 16 píxeles del borde hacia A y cruzar ese borde. Confirmar que A recupera el control una sola vez y que una nueva activación sigue siendo posible. Repetir con monitores escalados y uniones internas, que no deben activar la vuelta.
 5. Interrumpir la red mientras se mantiene una tecla y luego un botón. Confirmar que B los libera al vencer el plazo de latido y que A recupera el control.
 6. Repetir cambiando A y B, y con los cuatro bordes. Registrar p50/p95 del tiempo desde el cruce hasta el primer movimiento o tecla visible en destino.
-7. Con la conexión activa, copiar texto ASCII, Unicode, texto vacío y más de 256 KiB en A y B. Comprobar la sincronización bidireccional, que el texto excesivo no se transmite y que no hay rebotes repetidos. Copiar casi a la vez en ambos extremos y comprobar que terminan con el mismo contenido. Probar una selección marcada como sensible por `wl-clipboard`; no debe llegar al otro equipo. Repetir tras reconectar. Estos casos siguen pendientes de dos máquinas físicas.
+7. Con la conexión activa, copiar texto ASCII, Unicode, texto vacío y más de 256 KiB en A y B. Comprobar la sincronización bidireccional, que el texto excesivo no se transmite y que no hay rebotes repetidos. Copiar casi a la vez en ambos extremos y comprobar que terminan con el mismo contenido. Probar una selección marcada como sensible por `wl-clipboard`; no debe llegar al otro equipo. Repetir tras reconectar. El usuario confirmó texto en ambos sentidos entre Omarchy y Windows; estos casos de estrés adicionales aún no tienen registro físico completo.
 8. **Completado en un sentido:** tras abrir el puerto LAN de archivos en el receptor, el panel ofreció, aceptó y guardó un archivo de texto enviado desde el otro Omarchy físico; el emisor confirmó la entrega verificada. **Pendiente:** repetir en sentido inverso y por CLI con `receive-file <IP-B:47833> <directorio>` en B y `send-file <IP-B:47833> <archivo>` en A. Probar rechazo, archivo vacío, Unicode, límite de tamaño, archivo existente, origen que crece durante el envío, destino sin espacio, corte de red y reintento. Comprobar SHA-256 en ambos y que nunca quede un archivo final incompleto ni se reemplace uno existente.
 
-## Casos que deben pasar antes de cerrar la fase 0
+## Casos de cobertura adicional
 
 - Ratón, teclado, modificadores, rueda y arrastre en ambos sentidos, sin duplicación local.
 - Cruces rápidos, esquinas y pantalla completa; salida de emergencia bajo pérdida de red.
@@ -49,4 +49,4 @@ La prueba automatizada `bash tests/pair_loopback.sh` sí comprueba dos identidad
 - Con A conectado a B, medir `latency` desde C hacia B: el diagnóstico debe responder sin desplazar a A. Intentar controlar B desde C: C debe recibir `BUSY` antes de solicitar el portal y reintentar; al terminar A, C debe obtener `READY`. Una sesión nueva de emparejamiento debe rechazarse mientras A posee la entrada.
 - Actualizar el agente y el plugin en ambos extremos mientras hay una sesión activa: comprobar que el binario instalado se reemplaza completo, que el proceso antiguo puede terminar limpiamente y que, después de reiniciar ambos agentes, siguen los pares, la cuadrícula y la misma identidad. Probar también la retirada del plugin y del binario sin tocar `/usr/share/omarchy/` ni borrar las claves privadas por accidente.
 
-Anotar en `docs/FEASIBILITY.md` resultados observados, comandos, versiones y límites. Un fallo de captura física o de cesión de foco bloquea la puerta de salida de la fase 0.
+Anotar resultados observados, comandos, versiones y límites en [TEST-RESULTS.es.md](TEST-RESULTS.es.md). Un fallo de captura física o cesión de foco debe resolverse antes de declarar cubierto ese escenario.

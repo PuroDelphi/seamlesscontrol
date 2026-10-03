@@ -12,7 +12,7 @@ La imagen del mapa usa una dirección ficticia para la documentación.
 
 ## Instalar
 
-1. En [Compilaciones Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha), abre la ejecución **exitosa** más reciente y descarga el artefacto `seamlesscontrol-windows-x64-alpha`.
+1. En [Compilaciones Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml), abre la ejecución **exitosa** más reciente y descarga el artefacto `seamlesscontrol-windows-x64`.
 2. Extrae `seamlesscontrol.exe` y `seamlesscontrold.exe` en la **misma carpeta**. Los dos archivos `.sha256` permiten comprobar sus hashes si lo deseas. Usa una carpeta propia, como Descargas o Documentos.
 3. Haz doble clic en `seamlesscontrol.exe`. **Recibir control** se inicia automáticamente en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
 4. Cierra la ventana para dejar la aplicación en la bandeja. Pulsa su icono para abrirla de nuevo. **Exit SeamlessControl** en el menú de la bandeja termina las sesiones y cierra la aplicación.
@@ -34,7 +34,7 @@ En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **
 
 ## Windows controla Omarchy
 
-En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos → Mapa de pantallas**. Selecciona el Omarchy emparejado y pulsa su posición alrededor de **Este Windows**. También puedes arrastrar su fila al mapa o enfocarla y pulsar una flecha. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
+En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos**. Los equipos emparejados aparecen primero, justo encima del **Mapa de pantallas**; una flecha indica cómo llevarlos al mapa. Arrastra la fila de Omarchy a su posición alrededor de **Este Windows**, pulsa su posición tras seleccionar la fila o enfócala y usa una flecha del teclado. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
 
 Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app pausa su receptor para que el teclado físico tenga un solo dueño. Al pulsar **Detener** o perderse la conexión de origen, vuelve a iniciar **Recibir control** automáticamente.
 

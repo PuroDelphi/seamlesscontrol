@@ -2,7 +2,7 @@
 
 [Español](CONTRIBUTING.es.md) · [Code of conduct](CODE_OF_CONDUCT.md)
 
-Bug fixes, documentation improvements, translations and focused features are welcome. SeamlessControl is experimental; the [test results](docs/TEST-RESULTS.md) distinguish physical checks from simulated ones. Please do not present an untested path as working on two real computers.
+Bug fixes, documentation improvements, translations and focused features are welcome. The [test results](docs/TEST-RESULTS.md) distinguish physical checks from simulated ones. Please describe new paths according to the evidence available for them.
 
 ## Before you start
 

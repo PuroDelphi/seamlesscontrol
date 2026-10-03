@@ -6,9 +6,10 @@ Este archivo resume los cambios publicados. Consulta los [resultados de pruebas]
 
 ## Sin publicar · alpha
 
-- Añade un receptor de consola para Windows x64 compatible con el emparejamiento y el protocolo cifrado de Omarchy. Puede solicitar el regreso por el borde de entrada y enviar o recibir archivos aprobados.
-- Compila y prueba el ejecutable Windows x64 en un workflow de `alpha`. En una prueba física con Windows 11 x64 se verificaron emparejamiento, cruce desde Omarchy, regreso por el borde, clic, varias combinaciones de teclas (incluida Super+E), regreso con Escape y un archivo enviado desde la UI de Omarchy y guardado en Windows.
-- Añade un adaptador de portapapeles de texto para Windows en ambos sentidos, pendiente de prueba física con el nuevo ejecutable.
+- Añade una aplicación Windows x64 de bandeja sobre el agente de consola existente, con pantallas en inglés y español, emparejamiento, descubrimiento, archivos y mapa arrastrable. Inserta el emblema de bandeja en el ejecutable gráfico y sitúa los equipos emparejados justo encima del mapa, con una guía para arrastrarlos.
+- Compila y prueba ambos ejecutables Windows x64 en el workflow. Pruebas físicas con Windows 11 x64 verificaron emparejamiento, descubrimiento automático desde Omarchy, control en ambos sentidos, regreso por el borde y Escape, clics, las combinaciones de teclas probadas y una transferencia Omarchy→Windows.
+- Sincroniza el portapapeles de texto en ambos sentidos entre Omarchy y Windows; el usuario confirmó ambos sentidos con equipos físicos.
+- Renueva la vista previa y las guías bilingües para mostrar ratón, teclado, portapapeles, archivos y el espacio compartido entre Omarchy y Windows.
 - Aclara en el panel el emparejamiento manual de Windows y el conflicto de identidades cuando dos sistemas reciben la misma IP.
 
 ## 0.20.0 — 2026-10-02

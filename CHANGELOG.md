@@ -6,9 +6,10 @@ This file summarizes published changes. Consult the [test results](docs/TEST-RES
 
 ## Unreleased · alpha
 
-- Add a Windows x64 console receiver using the Omarchy pairing and encrypted input protocol. It can request return across its entry edge and send or receive approved files.
-- Build and test the Windows x64 executable in an `alpha` workflow. A physical Windows 11 x64 test verified pairing, crossing from Omarchy, edge return, a click, several key combinations (including Super+E), Escape return, and a file sent from the Omarchy UI and saved on Windows.
-- Add bidirectional text clipboard adapter for Windows; the new executable still needs a physical test.
+- Add a Windows x64 tray app around the existing console agent, with English and Spanish screens, pairing, discovery, file actions and a draggable computer layout. Embed the tray emblem in the GUI executable and place paired computers directly above the layout with a drag guide.
+- Build and test both Windows x64 executables in the Windows workflow. Physical Windows 11 x64 tests verified pairing, automatic LAN discovery in Omarchy, control in both directions, edge and Escape return, clicks, tested key combinations and an Omarchy-to-Windows file transfer.
+- Synchronize text clipboard content in both directions between Omarchy and Windows; the user confirmed both directions on physical computers.
+- Refresh the preview and bilingual guides to show mouse, keyboard, clipboard, file transfer and the shared Omarchy/Windows workspace.
 - Clarify manual Windows pairing and same-IP identity conflicts in the panel.
 
 ## 0.20.0 — 2026-10-02

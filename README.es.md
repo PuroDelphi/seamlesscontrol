@@ -1,10 +1,10 @@
 # SeamlessControl
 
-[![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Versión Omarchy](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha) · [MIT](LICENSE) · [English](README.md)
+[![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Versión Omarchy](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml) · [MIT](LICENSE) · [English](README.md)
 
 **Un ratón. Un teclado. Todas tus pantallas al alcance.** Cruza el borde para trabajar en el siguiente equipo y vuelve cruzando en sentido contrario o pulsando **Escape**. SeamlessControl une Omarchy y Windows en tu red privada con el mismo protocolo de emparejamiento y control.
 
-![Un cursor cruzando entre monitores con SeamlessControl](preview.png)
+![Pantallas Omarchy y Windows unidas por ratón, teclado, portapapeles y archivos](preview.png)
 
 ![Equipos Omarchy y Windows en un mismo espacio de trabajo](docs/images/ecosystem.svg)
 
@@ -15,7 +15,7 @@
 - **Envía archivos con aprobación:** el receptor autoriza cada oferta y verifica el archivo antes de guardarlo. La recepción utiliza un puerto independiente.
 - **Usa una interfaz familiar:** panel Omarchy y aplicación Windows que permanece en la bandeja. Ambas tienen inglés y español.
 
-Seguiremos mejorando SeamlessControl continuamente. La [guía técnica](docs/TECHNICAL.es.md) explica la arquitectura, los permisos y las verificaciones.
+Usa tus equipos Omarchy y Windows en un mismo espacio: el control cruza en ambos sentidos y el emparejamiento, el descubrimiento y el portapapeles de texto facilitan cada sesión. Seguiremos mejorando SeamlessControl continuamente. La [guía técnica](docs/TECHNICAL.es.md) explica la arquitectura, los permisos y las verificaciones.
 
 ## Empezar en Omarchy
 
@@ -31,7 +31,7 @@ Abre **SeamlessControl** desde la barra de Omarchy. En **Preparar este equipo**,
 
 ## Empezar en Windows x64
 
-Descarga el último artefacto exitoso **Windows x64 alpha** en [Compilaciones Windows](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml?query=branch%3Aalpha). Extrae **juntos** `seamlesscontrol.exe` y `seamlesscontrold.exe` en una carpeta. Haz doble clic en **`seamlesscontrol.exe`**. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo al cerrar la ventana; vuelve a abrirlo desde el icono de la bandeja. Puedes escoger **Español** arriba a la derecha.
+Descarga el último artefacto exitoso **Windows x64** en [Compilaciones Windows](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Extrae **juntos** `seamlesscontrol.exe` y `seamlesscontrold.exe` en una carpeta. Haz doble clic en **`seamlesscontrol.exe`**. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo al cerrar la ventana; vuelve a abrirlo desde el icono de la bandeja. Puedes escoger **Español** arriba a la derecha.
 
 ![La aplicación SeamlessControl para Windows](docs/images/windows-panel.png)
 
@@ -43,7 +43,7 @@ Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, ins
 
 1. En el equipo que quieres controlar, pulsa **Recibir control** y espera a **Disponible**. La app Windows lo inicia automáticamente.
 2. En el equipo con el ratón físico, abre **Equipos**, elige el receptor descubierto y pulsa **Emparejar**. Compara el código de seis cifras y aprueba en **ambos** equipos. Si no aparece, escribe manualmente su `IP:puerto` de la red privada.
-3. En **Equipos → Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, selecciona el equipo y haz clic en un lado, arrástralo o usa las flechas. Su posición rellena el borde al preparar **Conectar**.
+3. En **Equipos → Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, los equipos emparejados aparecen justo encima del mapa: arrastra uno siguiendo la flecha, pulsa un lado o usa las flechas del teclado. Su posición rellena el borde al preparar **Conectar**.
 4. Pulsa **Conectar** en el equipo con el ratón físico. Cuando indique **Listo**, cruza el **borde exterior** elegido. Regresa por el borde del receptor o pulsa **Escape** en el teclado físico.
 
 **Emparejar** guarda la confianza una vez; **Conectar** inicia cada sesión. Mover una ficha del mapa solo define el lado de cruce. Para enviar archivos, abre **Archivos** en el receptor, autoriza si hace falta su puerto LAN independiente `47833`, pulsa **Esperar un archivo** y después elige y envía el archivo desde el origen. El receptor aprueba la oferta.
@@ -68,7 +68,7 @@ Para retirarlo de Omarchy, pulsa **Retirar agente** en el panel y después:
 omarchy plugin remove seamlesscontrol.control
 ```
 
-En Windows, escoge **Exit SeamlessControl** en la bandeja y borra la carpeta con los dos ejecutables. `%LOCALAPPDATA%\SeamlessControl` se conserva para mantener la identidad y los emparejamientos tras una actualización; bórrala también solo si deseas crear una identidad nueva. Puedes quitar las reglas en Firewall de Windows por sus nombres `SeamlessControl TCP … Private LAN`.
+En Windows, escoge **Exit SeamlessControl** en la bandeja y borra la carpeta con los dos ejecutables. `%LOCALAPPDATA%\SeamlessControl` se conserva para mantener la identidad y los emparejamientos tras una actualización; bórrala también solo si deseas crear una identidad nueva. Puedes quitar las reglas en Firewall de Windows por sus nombres `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN`.
 
 ## Documentación y comunidad
 

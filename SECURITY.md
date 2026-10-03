@@ -6,7 +6,7 @@ SeamlessControl controls input across computers. Please report vulnerabilities p
 
 ## Supported versions
 
-Security fixes target the latest published release and current `main`. Older releases are not maintained. SeamlessControl is experimental and has not undergone an independent security audit.
+Security fixes target the latest published release and current `main`. Older releases are not maintained. SeamlessControl has not undergone an independent security audit.
 
 ## Report a vulnerability
 

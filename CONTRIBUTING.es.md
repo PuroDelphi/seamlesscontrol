@@ -2,7 +2,7 @@
 
 [English](CONTRIBUTING.md) · [Normas de conducta](CODE_OF_CONDUCT.es.md)
 
-Se aceptan correcciones, documentación, traducciones y funciones concretas. SeamlessControl es experimental; los [resultados de pruebas](docs/TEST-RESULTS.es.md) distinguen las verificaciones físicas de las simuladas. No presentes como funcional entre dos equipos reales una ruta que no se haya probado así.
+Se aceptan correcciones, documentación, traducciones y funciones concretas. Los [resultados de pruebas](docs/TEST-RESULTS.es.md) distinguen las verificaciones físicas de las simuladas. Describe las funciones nuevas conforme a la evidencia disponible.
 
 ## Antes de empezar
 
