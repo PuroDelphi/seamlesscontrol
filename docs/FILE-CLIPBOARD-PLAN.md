@@ -4,7 +4,7 @@ Status: implementation in progress on `alpha` (2026-10-03).
 
 Implementation choice: the existing versioned, authenticated file `Offer` is the file event. It stays separate from the text clipboard channel, so older agents keep their existing text behavior and file contents are never sent before approval.
 
-Progress: [x] copy detection and safe source validation (implemented and unit tested); [x] receiver service and approval outside the panel (implemented; Omarchy notification actions confirmed available); [x] verified staging and local clipboard paste (implemented and unit tested); [x] Linux and Windows x64 CI for the notification revision (commit `f9793ef`); [x] Omarchy panel loaded locally with its automatic listener on TCP `47834` and clipboard watcher running; [ ] physical cross-platform approval, paste and virtual-desktop/workspace checks. The user guides have been updated. Delete this plan only after all items pass.
+Progress: [x] copy detection and safe source validation (implemented and unit tested); [x] receiver service and approval outside the panel (implemented; Omarchy notification actions confirmed available); [x] verified staging and local clipboard paste (implemented and unit tested); [x] Linux and Windows x64 CI for the notification revision (`f9793ef`) and reorganized panel (`a9ac0ab`); [x] Omarchy panel loaded locally with its automatic listener on TCP `47834` and clipboard watcher running; [x] Home, Computers, Files and Settings navigation with incoming-file actions visible above every section; [ ] physical cross-platform approval, paste and virtual-desktop/workspace checks. The user guides have been updated. Delete this plan only after all items pass.
 
 ## User experience
 
