@@ -18,6 +18,11 @@ Item {
     if (!Number.isInteger(number) || number < 1 || number > 10240) return false
     fileLimitMiB = number
     fileLimitFile.setText(String(number) + "\n")
+    if (clipboardReadProcess.running) clipboardReadProcess.running = false
+    if (clipboardReceiveProcess.running && clipboardOffer === null) {
+      stoppingClipboardReceiver = true
+      clipboardReceiveProcess.running = false
+    }
     return true
   }
   function fileCommand(args) {
@@ -64,6 +69,7 @@ Item {
   property string lastClipboardSentPath: ""
   property var clipboardOffer: null
   property bool clipboardFileListening: false
+  property bool stoppingClipboardReceiver: false
   property string clipboardFileResult: ""
   property string clipboardFileError: ""
   property bool pickerBusy: false
@@ -126,7 +132,10 @@ Item {
       return
     }
     setupBusy = true
-    if (clipboardReceiveProcess.running) clipboardReceiveProcess.running = false
+    if (clipboardReceiveProcess.running) {
+      stoppingClipboardReceiver = true
+      clipboardReceiveProcess.running = false
+    }
     if (clipboardReadProcess.running) clipboardReadProcess.running = false
     setupError = ""
     setupMessage = "Se abrió una terminal de Omarchy. Autorice los cambios allí y vuelva a este panel."
@@ -796,7 +805,9 @@ Item {
       root.clipboardFileListening = false
       root.clipboardOffer = null
       if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
-      if (code !== 0 && root.installed) root.clipboardFileError = root.t("No se pudo esperar el archivo copiado. Revise el puerto 47834.")
+      if (code !== 0 && root.installed && !root.stoppingClipboardReceiver && !root.setupBusy)
+        root.clipboardFileError = root.t("No se pudo esperar el archivo copiado. Revise el puerto 47834.")
+      root.stoppingClipboardReceiver = false
     }
   }
 

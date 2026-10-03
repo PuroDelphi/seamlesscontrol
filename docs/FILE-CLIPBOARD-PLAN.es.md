@@ -4,7 +4,7 @@ Estado: implementación en curso en `alpha` (2026-10-03).
 
 Decisión de implementación: la `Offer` de archivos existente, versionada y autenticada, sirve como evento. Se mantiene separada del canal de texto para que los agentes antiguos conserven su comportamiento y no se envíe contenido antes de aprobar.
 
-Avance: [x] detección de copia y validación del origen (implementado y probado con tests unitarios); [x] servicio receptor y aprobación fuera del panel (implementado; Omarchy confirmó compatibilidad con botones en las notificaciones); [x] carpeta temporal verificada y pegado local (implementado y probado con tests unitarios); [x] CI Linux inicial y compilación Windows x64; [ ] CI final después de los cambios de progreso, caducidad y documentación; [ ] prueba física de aprobación, pegado y avisos entre plataformas, escritorios y workspaces. Las guías de usuario ya están actualizadas. Eliminar este plan solo cuando todo haya pasado.
+Avance: [x] detección de copia y validación del origen (implementado y probado con tests unitarios); [x] servicio receptor y aprobación fuera del panel (implementado; Omarchy confirmó compatibilidad con botones en las notificaciones); [x] carpeta temporal verificada y pegado local (implementado y probado con tests unitarios); [x] CI Linux inicial y compilación Windows x64; [x] CI Linux tras los cambios de progreso, caducidad y documentación (commit `09c9852`); [ ] CI Linux y Windows x64 final de la revisión de notificaciones; [ ] prueba física de aprobación, pegado y avisos entre plataformas, escritorios y workspaces. Las guías de usuario ya están actualizadas. Eliminar este plan solo cuando todo haya pasado.
 
 ## Experiencia de uso
 

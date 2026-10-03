@@ -47,7 +47,7 @@ Windows 11 normally has the required WebView2 runtime. If the app reports it mis
 3. In **Computers → Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, paired computers appear directly above the map: drag one along the arrow, click a side, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
 4. Select **Connect** on the computer with the physical mouse. When it says **Ready**, cross the chosen **outer edge**. Cross back from the receiver or press **Escape** on the physical keyboard to return.
 
-**Pair** records trust once; **Connect** starts a control session. Moving a tile in the layout sets the crossing direction and does not start the session. For file delivery, open **Files** on the receiver, allow its separate LAN port `47833` if needed, select **Wait for a file**, then choose and send a file from the source. The receiver approves the offer.
+**Pair** records trust once; **Connect** starts a control session. Moving a tile in the layout sets the crossing direction and does not start the session. For file delivery, open **Files** on the receiver, allow its separate LAN port `47833` if needed, select **Wait for a file**, then choose and send a file from the source. The receiver approves the offer. For everyday copying, allow TCP `47834` on the receiving computer, copy one file in Explorer or the Omarchy file manager, approve the prominent incoming prompt, and paste it into the destination folder. This copied-file flow works without an active control session.
 
 ![Pair and Connect in the Omarchy panel](docs/images/connect-context-en.png)
 

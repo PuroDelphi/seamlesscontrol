@@ -2135,6 +2135,12 @@ mod linux {
                 "clipboard-file-current" | "clipboard-file-event"
             )
         {
+            if args[1] == "clipboard-file-event"
+                && std::env::var("CLIPBOARD_STATE").as_deref() == Ok("sensitive")
+            {
+                println!("null");
+                return Ok(());
+            }
             let staging = clipboard_staging_dir()?;
             let path = clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging)?
                 .and_then(|path| path.to_str().map(str::to_owned));

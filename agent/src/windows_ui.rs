@@ -63,7 +63,7 @@ enum UiEvent {
     Discovery(Vec<DiscoveredServer>),
     Tray(TrayIconEvent),
     Menu(MenuEvent),
-    ClipboardDecision(bool),
+    ClipboardDecision(String, bool),
 }
 
 struct Process {
@@ -822,7 +822,7 @@ fn show_copied_file_prompt(offer: String, spanish: bool, proxy: EventLoopProxy<U
                 MB_YESNO | MB_ICONQUESTION | MB_TOPMOST | MB_SETFOREGROUND,
             )
         };
-        let _ = proxy.send_event(UiEvent::ClipboardDecision(response == 6));
+        let _ = proxy.send_event(UiEvent::ClipboardDecision(offer, response == 6));
     });
 }
 
@@ -1054,13 +1054,13 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                 }
                 push_state(&webview, &controller);
             }
-            Event::UserEvent(UiEvent::ClipboardDecision(accept)) => {
-                if controller.clipboard_offer.is_some() {
+            Event::UserEvent(UiEvent::ClipboardDecision(offer, accept)) => {
+                if controller.clipboard_offer.as_deref() == Some(offer.as_str()) {
                     if let Err(error) = controller.decide_copied_file(accept) {
                         controller.log(format!("Could not answer file offer: {error}"));
                     }
+                    controller.clipboard_notification_open = false;
                 }
-                controller.clipboard_notification_open = false;
                 push_state(&webview, &controller);
             }
             Event::UserEvent(UiEvent::Discovery(items)) => {

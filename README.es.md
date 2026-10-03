@@ -47,7 +47,7 @@ Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, ins
 3. En **Equipos → Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, los equipos emparejados aparecen justo encima del mapa: arrastra uno siguiendo la flecha, pulsa un lado o usa las flechas del teclado. Su posición rellena el borde al preparar **Conectar**.
 4. Pulsa **Conectar** en el equipo con el ratón físico. Cuando indique **Listo**, cruza el **borde exterior** elegido. Regresa por el borde del receptor o pulsa **Escape** en el teclado físico.
 
-**Emparejar** guarda la confianza una vez; **Conectar** inicia cada sesión. Mover una ficha del mapa solo define el lado de cruce. Para enviar archivos, abre **Archivos** en el receptor, autoriza si hace falta su puerto LAN independiente `47833`, pulsa **Esperar un archivo** y después elige y envía el archivo desde el origen. El receptor aprueba la oferta.
+**Emparejar** guarda la confianza una vez; **Conectar** inicia cada sesión. Mover una ficha del mapa solo define el lado de cruce. Para enviar archivos, abre **Archivos** en el receptor, autoriza si hace falta su puerto LAN independiente `47833`, pulsa **Esperar un archivo** y después elige y envía el archivo desde el origen. El receptor aprueba la oferta. Para copiar normalmente, permite TCP `47834` en el receptor, copia un archivo en el explorador Windows u Omarchy, aprueba el aviso de entrada y pégalo en la carpeta de destino. No hace falta una sesión de control activa.
 
 ![Emparejar y Conectar en el panel Omarchy](docs/images/connect-context-es.png)
 
