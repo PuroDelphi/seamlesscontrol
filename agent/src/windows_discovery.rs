@@ -4,6 +4,7 @@
 
 use crate::secure::Identity;
 use crate::storage::key_fingerprint;
+use if_addrs::IfAddr;
 use mdns_sd::{DaemonEvent, ServiceDaemon, ServiceEvent, ServiceInfo};
 use std::collections::BTreeMap;
 use std::io;
@@ -28,14 +29,57 @@ fn lan_ipv4(ip: Ipv4Addr) -> bool {
 }
 
 fn route_address(port: u16) -> io::Result<SocketAddr> {
-    let probe = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
-    probe.connect((Ipv4Addr::new(224, 0, 0, 251), 5353))?;
-    let IpAddr::V4(ip) = probe.local_addr()?.ip() else {
-        return Err(io::Error::other("mDNS route is not IPv4"));
-    };
-    if !lan_ipv4(ip) {
-        return Err(io::Error::other("no private IPv4 LAN route for discovery"));
-    }
+    // Windows may route the mDNS group through a virtual adapter or report
+    // 0.0.0.0, even while Wi-Fi has a usable private address. A UDP connect to
+    // a regular address does not send traffic; it only reveals the route.
+    let preferred = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))
+        .and_then(|probe| {
+            probe.connect((Ipv4Addr::new(1, 1, 1, 1), 53))?;
+            probe.local_addr()
+        })
+        .ok()
+        .and_then(|address| match address.ip() {
+            IpAddr::V4(ip) if lan_ipv4(ip) => Some(ip),
+            _ => None,
+        });
+    let mut candidates: Vec<_> = if_addrs::get_if_addrs()?
+        .into_iter()
+        .filter_map(|interface| {
+            if !interface.is_oper_up() || interface.is_loopback() || interface.is_p2p() {
+                return None;
+            }
+            let IfAddr::V4(address) = interface.addr else {
+                return None;
+            };
+            if !lan_ipv4(address.ip) {
+                return None;
+            }
+            let name = interface.name.to_ascii_lowercase();
+            let virtual_adapter = [
+                "virtual",
+                "vethernet",
+                "tailscale",
+                "docker",
+                "vmware",
+                "wireguard",
+                "wsl",
+                "hyper-v",
+                "tunnel",
+                "tap-",
+                "tun-",
+            ]
+            .iter()
+            .any(|part| name.contains(part));
+            Some((address.ip, virtual_adapter, address.ip.is_link_local()))
+        })
+        .collect();
+    candidates.sort_by_key(|(ip, virtual_adapter, link_local)| {
+        (*virtual_adapter, Some(*ip) != preferred, *link_local, *ip)
+    });
+    let ip = candidates
+        .first()
+        .map(|candidate| candidate.0)
+        .ok_or_else(|| io::Error::other("no active private IPv4 network adapter for discovery"))?;
     Ok(SocketAddr::new(IpAddr::V4(ip), port))
 }
 
