@@ -6,7 +6,6 @@ use crate::file_session;
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::run_receiver_with_first;
 use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter};
-use crate::state::InputEvent;
 use crate::storage::{
     is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
     relocate_peer_key, remember_peer_key, revoke_peer_key,
@@ -377,6 +376,8 @@ fn connect_source(
         return Err("Omarchy did not accept the input claim".into());
     }
     channel.stream_mut().set_read_timeout(None)?;
+    let (capture_tx, capture_rx) = sync_channel(4096);
+    let capture = CaptureHandle::start(edge, capture_tx)?;
     let (mut reader, mut writer) = channel.into_tcp_halves()?;
     let mut sequence = 0;
     send_source_frame(&mut writer, &mut sequence, Kind::Heartbeat, 0, Vec::new())?;
@@ -390,8 +391,6 @@ fn connect_source(
             }
         }
     });
-    let (capture_tx, capture_rx) = sync_channel(4096);
-    let capture = CaptureHandle::start(edge, capture_tx)?;
     let mut clipboard = WindowsClipboard::new();
     let mut clipboard_sync = ClipboardSync::new(identity.public, peer.public_key);
     let mut heartbeat = Instant::now();
@@ -529,6 +528,7 @@ fn connect_source(
     })();
     drop(capture);
     let _ = writer.stream_mut().shutdown(Shutdown::Both);
+    drop(feedback_rx);
     let _ = feedback_reader.join();
     result
 }
