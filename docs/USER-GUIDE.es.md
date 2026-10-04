@@ -2,9 +2,11 @@
 
 [Volver al README](../README.es.md) · [English](USER-GUIDE.md)
 
-Esta guía muestra el panel Omarchy con dos equipos Omarchy: el **origen** tiene el ratón y teclado físicos, y el **receptor** acepta el control. SeamlessControl también conecta Omarchy con Windows; sigue la [guía Windows](WINDOWS-ALPHA.es.md) para esa combinación. Primero instala el plugin y el agente en ambos Omarchy. Las capturas usan nombres y direcciones ficticios.
+Esta guía muestra el panel Omarchy con dos equipos Omarchy: el **origen** tiene el ratón y teclado físicos, y el **receptor** acepta el control. SeamlessControl también conecta Omarchy con Windows; sigue la [guía Windows](WINDOWS.es.md) para esa combinación. Primero instala el plugin y el agente en ambos Omarchy. Las capturas usan nombres y direcciones ficticios.
 
 El panel tiene cuatro secciones. **Inicio** muestra la instalación del agente, el estado del control y las acciones inmediatas de la sesión. **Equipos** reúne búsqueda, emparejamiento, pares de confianza y mapa de pantallas. **Archivos** contiene ofertas de archivos copiados, envíos manuales y límite de tamaño. **Ajustes** reúne la aprobación de archivos entrantes, las reglas del firewall receptor, la retirada del agente y las opciones avanzadas. Inicio tiene un acceso directo para preparar el puerto de archivos copiados. Una oferta de archivo que necesita aprobación también aparece arriba de cualquier sección con botones **Aceptar** y **Rechazar**; los códigos de emparejamiento y las ofertas manuales abren automáticamente su sección.
+
+Después de actualizar el plugin, reinicia el shell de Omarchy como indica el [README](../README.es.md#actualizar-y-desinstalar) y vuelve a abrir el panel. Si no aparece **Aprobación de archivos entrantes** en **Ajustes**, el shell todavía muestra una versión anterior del panel.
 
 ## Primera conexión, paso a paso
 

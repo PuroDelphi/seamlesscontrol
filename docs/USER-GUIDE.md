@@ -2,9 +2,11 @@
 
 [Back to README](../README.md) · [Español](USER-GUIDE.es.md)
 
-This guide shows the Omarchy panel with two Omarchy computers: the **source** has the physical mouse and keyboard, and the **receiver** accepts control. SeamlessControl also connects Omarchy and Windows; follow the [Windows guide](WINDOWS-ALPHA.md) for that setup. Set up the plugin and agent on both Omarchy computers first. The screenshots show fictional computer names and addresses.
+This guide shows the Omarchy panel with two Omarchy computers: the **source** has the physical mouse and keyboard, and the **receiver** accepts control. SeamlessControl also connects Omarchy and Windows; follow the [Windows guide](WINDOWS.md) for that setup. Set up the plugin and agent on both Omarchy computers first. The screenshots show fictional computer names and addresses.
 
 The panel has four sections. **Home** shows agent installation, control status and immediate session actions. **Computers** contains discovery, pairing, trusted peers and the screen layout. **Files** contains copied-file offers, manual transfers and the size limit. **Settings** contains incoming file approval, receiver firewall rules, agent removal and advanced connection options. Home has a shortcut to set up the copied-file port. Incoming copied-file offers that need approval also appear at the top of every section with **Accept** and **Decline** buttons; pairing codes and manual file offers open their relevant section automatically.
+
+After updating the plugin, restart the Omarchy shell as described in the [README](../README.md#update-and-remove) and reopen the panel. If **Incoming file approval** is missing under **Settings**, the shell is still showing an older loaded panel.
 
 ## First connection, one step at a time
 

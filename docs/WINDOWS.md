@@ -1,6 +1,6 @@
 # SeamlessControl on Windows x64
 
-[Español](WINDOWS-ALPHA.es.md) · [Home](../README.md) · [Technical guide](TECHNICAL.md)
+[Español](WINDOWS.es.md) · [Home](../README.md) · [Technical guide](TECHNICAL.md)
 
 The Windows app uses the same trusted identities and control protocol as the Omarchy plugin. It can receive control from Omarchy, control Omarchy from the physical Windows mouse and keyboard, synchronize text clipboard content and send or receive approved files. The window can be hidden in the system tray while the agent stays active.
 

@@ -2,7 +2,7 @@
 
 [English](SUPPORT.md)
 
-Comienza por la [guía ilustrada de Omarchy](docs/USER-GUIDE.es.md) o la [guía Windows](docs/WINDOWS-ALPHA.es.md) para instalar, emparejar, conectar y recuperar el control. La [guía técnica](docs/TECHNICAL.es.md) explica los comandos y los [resultados de pruebas](docs/TEST-RESULTS.es.md) precisan el alcance de las verificaciones físicas.
+Comienza por la [guía ilustrada de Omarchy](docs/USER-GUIDE.es.md) o la [guía Windows](docs/WINDOWS.es.md) para instalar, emparejar, conectar y recuperar el control. La [guía técnica](docs/TECHNICAL.es.md) explica los comandos y los [resultados de pruebas](docs/TEST-RESULTS.es.md) precisan el alcance de las verificaciones físicas.
 
 Si puedes reproducir un problema, [abre un reporte de error](https://github.com/PuroDelphi/seamlesscontrol/issues/new/choose). Indica el sistema y la versión de la app o plugin en cada equipo, si sucede en el origen o receptor, el estado del panel o la sección **Actividad** de Windows, los pasos y el resultado observado. Puede ayudar una captura. Indica si ambos equipos usan la misma revisión del agente.
 

@@ -1,6 +1,6 @@
 # SeamlessControl en Windows x64
 
-[English](WINDOWS-ALPHA.md) · [Inicio](../README.es.md) · [Guía técnica](TECHNICAL.es.md)
+[English](WINDOWS.md) · [Inicio](../README.es.md) · [Guía técnica](TECHNICAL.es.md)
 
 La aplicación Windows usa las mismas identidades de confianza y el mismo protocolo de control que el plugin Omarchy. Puede recibir control desde Omarchy, controlar Omarchy con el ratón y teclado físicos de Windows, sincronizar texto del portapapeles y enviar o recibir archivos aprobados. La ventana puede ocultarse en la bandeja mientras el agente sigue activo.
 

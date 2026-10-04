@@ -736,7 +736,7 @@ Panel {
               ? root.backend.discoveryError
               : root.backend && root.backend.discovered.length > 0
                 ? root.t("Compare el código al emparejar. Una IP nueva se verifica con la clave guardada.")
-                : root.t("Sin receptores descubiertos. En otro Omarchy, inicie Recibir control. Para Windows alpha, use Alternativa manual · IP:puerto.")
+                : root.t("Sin receptores descubiertos. En el otro equipo, inicie Recibir control. Si la búsqueda no lo muestra, use Alternativa manual · IP:puerto.")
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
             color: root.muted

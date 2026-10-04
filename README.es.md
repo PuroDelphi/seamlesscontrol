@@ -42,7 +42,7 @@ Abre la [última versión y sus notas de instalación](https://github.com/PuroDe
 
 Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) y ábrela de nuevo. Si Windows pregunta por el acceso a la red, permite solamente **Redes privadas**. En **Ajustes → Firewall de Windows**, la app puede pedir autorización de administrador para reglas LAN privadas del puerto de control, el de archivos y el autodescubrimiento mDNS (`UDP 5353`). Los botones TCP toman los puertos que ves en la interfaz.
 
-[Guía Windows paso a paso](docs/WINDOWS-ALPHA.es.md) · [Guía ilustrada Omarchy](docs/USER-GUIDE.es.md)
+[Guía Windows paso a paso](docs/WINDOWS.es.md) · [Guía ilustrada Omarchy](docs/USER-GUIDE.es.md)
 
 ## Conectar tus pantallas
 
@@ -77,7 +77,7 @@ En Windows, escoge **Exit SeamlessControl** en la bandeja y borra la carpeta con
 
 ## Documentación y comunidad
 
-[Guía Omarchy](docs/USER-GUIDE.es.md) · [Guía Windows](docs/WINDOWS-ALPHA.es.md) · [Guía técnica](docs/TECHNICAL.es.md) · [Registro de verificación](docs/TEST-RESULTS.es.md) · [Ayuda](SUPPORT.es.md) · [Contribuir](CONTRIBUTING.es.md) · [Normas de conducta](CODE_OF_CONDUCT.es.md) · [Seguridad](SECURITY.es.md) · [Novedades](CHANGELOG.es.md)
+[Guía Omarchy](docs/USER-GUIDE.es.md) · [Guía Windows](docs/WINDOWS.es.md) · [Guía técnica](docs/TECHNICAL.es.md) · [Registro de verificación](docs/TEST-RESULTS.es.md) · [Ayuda](SUPPORT.es.md) · [Contribuir](CONTRIBUTING.es.md) · [Normas de conducta](CODE_OF_CONDUCT.es.md) · [Seguridad](SECURITY.es.md) · [Novedades](CHANGELOG.es.md)
 
 Powered by JhonnySuarez - PuroDelphi. Si SeamlessControl te resulta útil, apoya su desarrollo continuo mediante [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) o [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ).
 

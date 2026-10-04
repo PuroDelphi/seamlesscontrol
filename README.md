@@ -42,7 +42,7 @@ Open the [latest release and its installation notes](https://github.com/PuroDelp
 
 Windows 11 normally has the required WebView2 runtime. If the app reports it missing, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and open the app again. Windows may ask about network access: allow **Private networks**. In **Settings → Windows firewall**, the app can request administrator approval for private LAN rules on the control port, the file port and mDNS discovery (`UDP 5353`). The TCP buttons follow the ports shown in the app.
 
-[Windows step by step guide](docs/WINDOWS-ALPHA.md) · [Illustrated Omarchy guide](docs/USER-GUIDE.md)
+[Windows step by step guide](docs/WINDOWS.md) · [Illustrated Omarchy guide](docs/USER-GUIDE.md)
 
 ## Connect your screens
 
@@ -77,7 +77,7 @@ On Windows, choose **Exit SeamlessControl** from the tray and delete the folder 
 
 ## Documentation and community
 
-[Omarchy user guide](docs/USER-GUIDE.md) · [Windows user guide](docs/WINDOWS-ALPHA.md) · [Technical guide](docs/TECHNICAL.md) · [Verification record](docs/TEST-RESULTS.md) · [Support](SUPPORT.md) · [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+[Omarchy user guide](docs/USER-GUIDE.md) · [Windows user guide](docs/WINDOWS.md) · [Technical guide](docs/TECHNICAL.md) · [Verification record](docs/TEST-RESULTS.md) · [Support](SUPPORT.md) · [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 Powered by JhonnySuarez - PuroDelphi. If SeamlessControl is useful to you, support its continued development through [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) or [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ).
 

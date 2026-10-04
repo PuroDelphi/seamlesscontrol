@@ -2,7 +2,7 @@
 
 [Español](SUPPORT.es.md)
 
-Start with the [illustrated Omarchy guide](docs/USER-GUIDE.md) or [Windows guide](docs/WINDOWS-ALPHA.md) for installation, pairing, connection and recovery. The [technical guide](docs/TECHNICAL.md) covers commands and the [test results](docs/TEST-RESULTS.md) give the scope of physical verification.
+Start with the [illustrated Omarchy guide](docs/USER-GUIDE.md) or [Windows guide](docs/WINDOWS.md) for installation, pairing, connection and recovery. The [technical guide](docs/TECHNICAL.md) covers commands and the [test results](docs/TEST-RESULTS.md) give the scope of physical verification.
 
 For a reproducible problem, [open a bug report](https://github.com/PuroDelphi/seamlesscontrol/issues/new/choose). Include each computer's system and app or plugin version, whether the problem happens on the source or receiver, the panel status or Windows **Activity**, the steps you took, and what happened instead. A screenshot can help. State whether both computers use the same agent revision.
 

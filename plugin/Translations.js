@@ -90,7 +90,7 @@ var english = {
   "EQUIPOS EN LA RED": "COMPUTERS ON THE NETWORK",
   "Emparejar autoriza un equipo una sola vez. Conectar inicia cada sesión de control.": "Pair authorizes a computer once. Connect starts each control session.",
   "Compare el código al emparejar. Una IP nueva se verifica con la clave guardada.": "Compare the codes when pairing. A new IP address is checked against the saved key.",
-  "Sin receptores descubiertos. En otro Omarchy, inicie Recibir control. Para Windows alpha, use Alternativa manual · IP:puerto.": "No receivers discovered. Start Receive control on the other Omarchy. For Windows alpha, use Manual option · IP:port.",
+  "Sin receptores descubiertos. En el otro equipo, inicie Recibir control. Si la búsqueda no lo muestra, use Alternativa manual · IP:puerto.": "No receivers discovered. Start Receive control on the other computer. If discovery does not show it, use Manual option · IP:port.",
   "Esta IP ya está emparejada con otra identidad. Compruebe si otro sistema usa la misma IP; no revoque la identidad anterior si quiere volver a usarla.": "This IP is already paired with another identity. Check whether another system uses the same IP; do not revoke the previous identity if you plan to use it again.",
   "Búsqueda local no disponible. Puede usar una IP manual.": "Network discovery is unavailable. You can enter an IP manually.",
   "Buscar": "Scan",
