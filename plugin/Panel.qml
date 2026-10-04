@@ -1625,7 +1625,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("De 1 a 10 240 MiB; valor inicial: 100 MiB. Se aplica al enviar y al comenzar a esperar. Si ya espera un archivo, detenga y reinicie la espera.")
+          text: root.t("De 1 MiB a 10 GiB (10.240 MiB); valor inicial: 100 MiB. Se aplica al enviar y al comenzar a esperar. Si ya espera un archivo, detenga y reinicie la espera.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.ink

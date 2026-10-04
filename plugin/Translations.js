@@ -155,7 +155,7 @@ var english = {
   "En el destino, elija un directorio y pulse Esperar un archivo. La IP local se elige sola; cada archivo requiere aceptación. Ajuste abajo el tamaño máximo por equipo.": "On the receiver, choose a folder and select Wait for a file. The local IP is selected automatically; every file needs approval. Set the per-computer size limit below.",
   "Tamaño máximo de archivo · MiB": "Maximum file size · MiB",
   "Guardar límite": "Save limit",
-  "De 1 a 10 240 MiB; valor inicial: 100 MiB. Se aplica al enviar y al comenzar a esperar. Si ya espera un archivo, detenga y reinicie la espera.": "1 to 10,240 MiB; initial value: 100 MiB. Applies to sending and when waiting starts. If already waiting, stop and start waiting again.",
+  "De 1 MiB a 10 GiB (10.240 MiB); valor inicial: 100 MiB. Se aplica al enviar y al comenzar a esperar. Si ya espera un archivo, detenga y reinicie la espera.": "1 MiB to 10 GiB (10,240 MiB); initial value: 100 MiB. Applies to sending and when waiting starts. If already waiting, stop and start waiting again.",
   "Automático · 47833 (o IP:puerto)": "Automatic · 47833 (or IP:port)",
   "Directorio de destino": "Destination folder",
   "Elegir": "Choose",
