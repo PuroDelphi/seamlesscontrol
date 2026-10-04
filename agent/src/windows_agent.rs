@@ -680,6 +680,17 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         [_, command, bind, directory] if command == "receive-file" => {
             receive_file(bind.parse()?, Path::new(directory), &identity, &peers)?;
         }
+        [_, command, bind, directory] if command == "receive-file-ui" => {
+            file_session::receive_once(
+                bind.parse()?,
+                Path::new(directory),
+                &identity,
+                &peers,
+                file_session::configured_limit()?,
+                file_session::panel_approval,
+                |_| Ok(()),
+            )?;
+        }
         [_, command, bind] if command == "receive-file-clipboard-ui" => {
             let staging = clipboard_file::staging_dir(&config)?;
             let session = clipboard_file::staging_session_dir(&staging)?;

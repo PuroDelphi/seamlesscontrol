@@ -15,6 +15,8 @@
 
 The [copied-file plan](FILE-CLIPBOARD-PLAN.md) retains the checks requiring two Omarchy or two Windows computers and other physical edge cases. The detailed observations follow below.
 
+The `alpha` incoming-file approval settings (ask every time, automatic, and timed per paired computer) and the single Windows approval dialog were implemented after these physical transfers. They still need physical cross-computer verification.
+
 Two physical Omarchy computers on one LAN paired using matching six digit codes on both machines. The receiver initially timed out because its firewall blocked the chosen TCP port; a rule scoped to its local interface, subnet, address and port allowed pairing. The user later confirmed that **Preview LAN rule** and **Authorize this rule** worked from the receiver panel.
 
 The mouse crossed from the source's right edge to the receiver and returned across the receiver's left edge on two separate physical attempts. The user confirmed local mouse control after each return. A physical Escape press also returned control. These results used the same two computers and one monitor arrangement; the development log records the agent revisions and earlier failures.

@@ -4,7 +4,7 @@
 
 This guide shows the Omarchy panel with two Omarchy computers: the **source** has the physical mouse and keyboard, and the **receiver** accepts control. SeamlessControl also connects Omarchy and Windows; follow the [Windows guide](WINDOWS-ALPHA.md) for that setup. Set up the plugin and agent on both Omarchy computers first. The screenshots show fictional computer names and addresses.
 
-The panel has four sections. **Home** shows agent installation, control status and immediate session actions. **Computers** contains discovery, pairing, trusted peers and the screen layout. **Files** contains copied-file offers, manual transfers and the size limit. **Settings** contains receiver firewall rules, agent removal and advanced connection options. Home has a shortcut to set up the copied-file port. Incoming copied-file offers also appear at the top of every section with **Accept** and **Decline** buttons; pairing codes and manual file offers open their relevant section automatically.
+The panel has four sections. **Home** shows agent installation, control status and immediate session actions. **Computers** contains discovery, pairing, trusted peers and the screen layout. **Files** contains copied-file offers, manual transfers and the size limit. **Settings** contains incoming file approval, receiver firewall rules, agent removal and advanced connection options. Home has a shortcut to set up the copied-file port. Incoming copied-file offers that need approval also appear at the top of every section with **Accept** and **Decline** buttons; pairing codes and manual file offers open their relevant section automatically.
 
 ## First connection, one step at a time
 
@@ -69,6 +69,16 @@ Use the **Copy here, paste there** card at the top of **Files** in Windows. **Wa
 4. After verification, open the destination folder in the receiver's file manager and press **Paste**. The verified file stays in SeamlessControl's private staging folder until pasted; files are kept for up to seven days and staging is size limited. To send several files, copy and approve them one at a time.
 
 The offer expires after two minutes without approval; copy the file again or use the offer button to retry. Both apps show transfer progress. The maximum file size setting on **both** computers applies to copied files too. If the offer cannot reach the receiver, confirm that the receiver is running and its TCP `47834` rule is allowed. **Wait for a file / Send file** remains available for choosing a destination folder directly.
+
+### Choose how incoming files are approved
+
+On each receiving computer, open **Settings → Incoming file approval**. The preference applies to copied files on TCP `47834` and manual **Wait for a file** transfers on TCP `47833`:
+
+- **Ask every time** (default): approve or decline each offer.
+- **Accept automatically**: files from already paired computers are accepted without an approval prompt. The sender must still pass authentication, size and storage checks.
+- **Ask, then accept for a while**: enter 1–1,440 minutes. Approve the first file from each paired computer; that computer’s later files are accepted until its time expires. The next file asks again. A declined file does not start the time window. Changing the mode or restarting the app/plugin clears active windows; the preference itself remains saved.
+
+In Windows, the incoming copied-file dialog now shows the sender, file size and paste instructions in **one prompt**. After acceptance, transfer and verification progress appears in **Activity**; there is no second confirmation to dismiss. In automatic mode there is no approval prompt. Keep SeamlessControl running on the receiver. These modes do not open firewall ports or start **Wait for a file** automatically.
 
 You can copy from **Recent** in GNOME Files as well as from a normal folder. Other Linux file managers can work when they expose a local file through the usual clipboard file formats; the exact behavior depends on the manager. Copy one regular local file at a time. Folders, remote locations and multi-file selections are not offered automatically; use **Send file** for a file that cannot be copied this way.
 

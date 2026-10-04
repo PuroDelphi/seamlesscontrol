@@ -15,6 +15,8 @@
 
 El [plan de archivos copiados](FILE-CLIPBOARD-PLAN.es.md) conserva las comprobaciones que requieren dos Omarchy o dos Windows y otros casos físicos pendientes. Debajo figuran las observaciones detalladas.
 
+Los ajustes de aprobación de archivos entrantes de `alpha` (preguntar siempre, automática y temporal por equipo emparejado), junto con el diálogo único de Windows, se implementaron después de estas transferencias físicas. Aún requieren una prueba real entre equipos.
+
 Dos equipos Omarchy físicos en la misma LAN se emparejaron tras mostrar y aprobar el mismo código de seis cifras en ambos. La conexión agotaba el tiempo al principio porque el firewall del receptor bloqueaba el puerto TCP elegido; una regla limitada a su interfaz local, subred, dirección y puerto permitió el emparejamiento. Después, el usuario confirmó que **Preparar regla LAN** y **Autorizar esta regla** funcionaron en el panel receptor.
 
 El ratón cruzó desde el borde derecho del origen al receptor y regresó por el borde izquierdo del receptor en dos pruebas físicas separadas. El usuario confirmó que volvió a controlar el ratón local tras cada regreso. Escape físico también devolvió el control. Estas pruebas usaron los mismos dos equipos y una disposición concreta de monitores; el registro de desarrollo documenta las revisiones y fallos anteriores.

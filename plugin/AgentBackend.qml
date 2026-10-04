@@ -7,6 +7,9 @@ Item {
   id: root
   property string language: "en"
   property int fileLimitMiB: 100
+  property string approvalMode: "always"
+  property int approvalMinutes: 15
+  property var approvalUntil: ({})
   function t(spanish) { return Tr.text(spanish, language) }
   function setLanguage(next) {
     if (next !== "en" && next !== "es") return
@@ -27,6 +30,29 @@ Item {
   }
   function fileCommand(args) {
     return ["env", "SEAMLESSCONTROL_MAX_FILE_BYTES=" + String(fileLimitMiB * 1048576), "seamlesscontrold"].concat(args)
+  }
+  function setApprovalSettings(mode, minutesText) {
+    var minutes = Number(minutesText)
+    if (!["always", "automatic", "timed"].includes(mode)
+        || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) return false
+    approvalMode = mode
+    approvalMinutes = minutes
+    approvalUntil = ({})
+    approvalFile.setText(mode + "\t" + String(minutes) + "\n")
+    return true
+  }
+  function autoAcceptFrom(peer) {
+    var machine = peers.find(function(item) { return item.ip === peer })
+    return approvalMode === "automatic"
+      || approvalMode === "timed" && machine && Number(approvalUntil[machine.key] || 0) > Date.now()
+  }
+  function rememberApproval(peer) {
+    var machine = peers.find(function(item) { return item.ip === peer })
+    if (approvalMode === "timed" && machine) {
+      var next = Object.assign({}, approvalUntil)
+      next[machine.key] = Date.now() + approvalMinutes * 60000
+      approvalUntil = next
+    }
   }
   property bool installed: false
   property bool available: false
@@ -121,6 +147,22 @@ Item {
     onLoaded: {
       var value = Number(String(text() || "").trim())
       root.fileLimitMiB = Number.isInteger(value) && value >= 1 && value <= 10240 ? value : 100
+    }
+    onFileChanged: reload()
+  }
+
+  FileView {
+    id: approvalFile
+    path: Quickshell.env("HOME") + "/.config/seamlesscontrol-file-approval"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      var fields = String(text() || "").trim().split("\t")
+      var minutes = Number(fields[1])
+      root.approvalMode = ["always", "automatic", "timed"].includes(fields[0]) ? fields[0] : "always"
+      root.approvalMinutes = Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : 15
+      root.approvalUntil = ({})
     }
     onFileChanged: reload()
   }
@@ -259,7 +301,9 @@ Item {
 
   function decideFile(accept) {
     if (!receiveFileProcess.running || !fileOffer) return
+    var peer = fileOffer.peer
     receiveFileProcess.write(accept ? "SI\n" : "NO\n")
+    if (accept) rememberApproval(peer)
     fileOffer = null
   }
 
@@ -289,7 +333,9 @@ Item {
 
   function decideClipboardFile(accept) {
     if (!clipboardReceiveProcess.running || !clipboardOffer) return
+    var peer = clipboardOffer.peer
     clipboardReceiveProcess.write(accept ? "SI\n" : "NO\n")
+    if (accept) rememberApproval(peer)
     clipboardOffer = null
     if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
   }
@@ -672,6 +718,10 @@ Item {
             size: Number(fields[3]),
             hash: fields[4]
           }
+          if (root.autoAcceptFrom(fields[1])) {
+            receiveFileProcess.write("SI\n")
+            root.fileOffer = null
+          }
         } else if (line.indexOf("Archivo guardado en ") === 0) {
           root.fileResult = String(line).replace(/^Archivo guardado en /, root.t("Archivo guardado en "))
         } else if (line.indexOf("Archivo rechazado") === 0) {
@@ -776,11 +826,16 @@ Item {
           root.clipboardFileResult = ""
           root.clipboardFileError = ""
           root.clipboardOffer = { peer: fields[1], name: fields[2], size: Number(fields[3]), hash: fields[4] }
-          clipboardNotificationProcess.command = ["notify-send", "--urgency=critical",
-            "--app-name=SeamlessControl", "--action=accept=" + root.t("Aceptar"),
-            "--action=reject=" + root.t("Rechazar"), root.t("Archivo copiado desde otro equipo"),
-            fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes")]
-          clipboardNotificationProcess.running = true
+          if (root.autoAcceptFrom(fields[1])) {
+            clipboardReceiveProcess.write("SI\n")
+            root.clipboardOffer = null
+          } else {
+            clipboardNotificationProcess.command = ["notify-send", "--urgency=critical",
+              "--app-name=SeamlessControl", "--action=accept=" + root.t("Aceptar"),
+              "--action=reject=" + root.t("Rechazar"), root.t("Archivo copiado desde otro equipo"),
+              fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes")]
+            clipboardNotificationProcess.running = true
+          }
         } else if (fields[0] === "FILE_READY" && fields.length === 2) {
           root.clipboardFileError = ""
           try {

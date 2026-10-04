@@ -4,7 +4,7 @@
 
 Esta guía muestra el panel Omarchy con dos equipos Omarchy: el **origen** tiene el ratón y teclado físicos, y el **receptor** acepta el control. SeamlessControl también conecta Omarchy con Windows; sigue la [guía Windows](WINDOWS-ALPHA.es.md) para esa combinación. Primero instala el plugin y el agente en ambos Omarchy. Las capturas usan nombres y direcciones ficticios.
 
-El panel tiene cuatro secciones. **Inicio** muestra la instalación del agente, el estado del control y las acciones inmediatas de la sesión. **Equipos** reúne búsqueda, emparejamiento, pares de confianza y mapa de pantallas. **Archivos** contiene ofertas de archivos copiados, envíos manuales y límite de tamaño. **Ajustes** reúne las reglas del firewall receptor, la retirada del agente y las opciones avanzadas. Inicio tiene un acceso directo para preparar el puerto de archivos copiados. Una oferta de archivo copiado también aparece arriba de cualquier sección con botones **Aceptar** y **Rechazar**; los códigos de emparejamiento y las ofertas manuales abren automáticamente su sección.
+El panel tiene cuatro secciones. **Inicio** muestra la instalación del agente, el estado del control y las acciones inmediatas de la sesión. **Equipos** reúne búsqueda, emparejamiento, pares de confianza y mapa de pantallas. **Archivos** contiene ofertas de archivos copiados, envíos manuales y límite de tamaño. **Ajustes** reúne la aprobación de archivos entrantes, las reglas del firewall receptor, la retirada del agente y las opciones avanzadas. Inicio tiene un acceso directo para preparar el puerto de archivos copiados. Una oferta de archivo que necesita aprobación también aparece arriba de cualquier sección con botones **Aceptar** y **Rechazar**; los códigos de emparejamiento y las ofertas manuales abren automáticamente su sección.
 
 ## Primera conexión, paso a paso
 
@@ -69,6 +69,16 @@ En Windows usa la tarjeta **Copia aquí, pega allá** al principio de **Archivos
 4. Tras la verificación, abre la carpeta deseada en el explorador del receptor y pulsa **Pegar**. El archivo verificado permanece en la carpeta temporal privada de SeamlessControl hasta pegarlo; se conserva hasta siete días y la carpeta tiene un límite de tamaño. Para varios archivos, cópialos y apruébalos uno por uno.
 
 La oferta caduca pasados dos minutos sin aprobación; vuelve a copiar el archivo o usa el botón de oferta para reintentar. Ambas apps muestran el progreso. El límite de tamaño configurado en **ambos** equipos también se aplica a los archivos copiados. Si la oferta no llega, comprueba que el receptor siga abierto y permita TCP `47834`. **Esperar un archivo / Enviar archivo** sigue disponible para escoger directamente la carpeta de destino.
+
+### Elegir cómo se aprueban los archivos entrantes
+
+En cada equipo receptor, abre **Ajustes → Aprobación de archivos entrantes**. La preferencia se aplica tanto a los archivos copiados por TCP `47834` como a los envíos manuales de **Esperar un archivo** por TCP `47833`:
+
+- **Preguntar siempre** (predeterminado): acepta o rechaza cada oferta.
+- **Aceptar automáticamente**: recibe sin preguntar los archivos de equipos ya emparejados. El emisor todavía debe superar las comprobaciones de autenticación, tamaño y espacio.
+- **Aceptar por un tiempo**: elige entre 1 y 1.440 minutos. Aprueba el primer archivo de cada equipo emparejado; los siguientes de ese equipo se aceptan hasta que venza su plazo. El próximo vuelve a pedir autorización. Rechazar un archivo no abre el plazo. Cambiar el modo o reiniciar la app o el plugin borra los plazos activos; la preferencia permanece guardada.
+
+En Windows, el aviso del archivo copiado muestra remitente, tamaño e instrucciones para pegarlo en **una sola ventana**. Tras aceptar, el progreso y la verificación aparecen en **Actividad**, sin otra confirmación que cerrar. En modo automático no aparece la solicitud de aprobación. Mantén SeamlessControl abierto en el receptor. Estos modos no abren puertos del firewall ni inician **Esperar un archivo** automáticamente.
 
 También puedes copiar desde **Recientes** en Archivos de GNOME, además de una carpeta normal. Otros exploradores Linux pueden funcionar cuando publican el archivo local en los formatos habituales del portapapeles; el resultado depende de cada explorador. Copia un único archivo local normal por vez. Las carpetas, ubicaciones remotas y selecciones múltiples no se ofrecen automáticamente; usa **Enviar archivo** si un archivo no puede copiarse así.
 

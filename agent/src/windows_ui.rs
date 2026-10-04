@@ -81,6 +81,10 @@ struct Controller {
     receive_port: u16,
     file_limit_mib: u64,
     file_limit_path: PathBuf,
+    approval_path: PathBuf,
+    approval_mode: String,
+    approval_minutes: u64,
+    approval_until: BTreeMap<String, Instant>,
     language: String,
     layout_path: PathBuf,
     layout: BTreeMap<String, String>,
@@ -112,6 +116,21 @@ impl Controller {
             .join("SeamlessControl")
             .join("ui-layout.json");
         let file_limit_path = layout_path.with_file_name("file-limit-mib");
+        let approval_path = layout_path.with_file_name("file-approval.json");
+        let approval_settings = std::fs::read(&approval_path)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
+        let approval_mode = approval_settings
+            .as_ref()
+            .and_then(|settings| settings["mode"].as_str())
+            .filter(|mode| matches!(*mode, "always" | "automatic" | "timed"))
+            .unwrap_or("always")
+            .to_owned();
+        let approval_minutes = approval_settings
+            .as_ref()
+            .and_then(|settings| settings["minutes"].as_u64())
+            .filter(|minutes| (1..=1440).contains(minutes))
+            .unwrap_or(15);
         let clipboard_staging = layout_path.with_file_name("clipboard-files");
         let file_limit_mib = std::fs::read_to_string(&file_limit_path)
             .ok()
@@ -127,6 +146,10 @@ impl Controller {
             receive_port: 47832,
             file_limit_mib,
             file_limit_path,
+            approval_path,
+            approval_mode,
+            approval_minutes,
+            approval_until: BTreeMap::new(),
             language: "en".into(),
             layout_path,
             layout,
@@ -360,8 +383,16 @@ impl Controller {
                 });
             }
         }
-        if slot == Slot::ReceiveFile && line.starts_with("Archivo de ") {
+        if slot == Slot::ReceiveFile && line.starts_with("OFFER\t") {
             self.file_offer = Some(line.to_owned());
+            if let Some(peer) = offer_peer(line)
+                && self.should_auto_accept(peer)
+            {
+                if self.reply(Slot::ReceiveFile, "SI").is_ok() {
+                    self.file_offer = None;
+                    self.log(format!("File automatically accepted from {peer}."));
+                }
+            }
         }
         if slot == Slot::ReceiveClipboard {
             if line.starts_with("OFFER\t") {
@@ -369,6 +400,15 @@ impl Controller {
                 self.clipboard_notification_open = false;
                 self.clipboard_offer_since = Some(Instant::now());
                 self.clipboard_progress = None;
+                if let Some(peer) = offer_peer(line)
+                    && self.should_auto_accept(peer)
+                {
+                    if self.reply(Slot::ReceiveClipboard, "SI").is_ok() {
+                        self.clipboard_offer = None;
+                        self.clipboard_offer_since = None;
+                        self.log(format!("Copied file automatically accepted from {peer}."));
+                    }
+                }
             } else if let Some(percent) = line.strip_prefix("PROGRESS\t") {
                 self.clipboard_progress = percent.parse::<u8>().ok().filter(|value| *value <= 100);
             } else if let Some(encoded) = line.strip_prefix("FILE_READY\t") {
@@ -471,12 +511,76 @@ impl Controller {
     }
 
     fn decide_copied_file(&mut self, accept: bool) -> io::Result<()> {
-        if self.clipboard_offer.is_none() {
-            return Err(io::Error::other("no copied file offer is waiting"));
-        }
+        let peer = self
+            .clipboard_offer
+            .as_deref()
+            .and_then(offer_peer)
+            .ok_or_else(|| io::Error::other("no copied file offer is waiting"))?;
         self.reply(Slot::ReceiveClipboard, if accept { "SI" } else { "NO" })?;
+        if accept {
+            self.remember_approval(peer);
+        }
         self.clipboard_offer = None;
         self.clipboard_offer_since = None;
+        Ok(())
+    }
+
+    fn decide_manual_file(&mut self, accept: bool) -> io::Result<()> {
+        let peer = self
+            .file_offer
+            .as_deref()
+            .and_then(offer_peer)
+            .ok_or_else(|| io::Error::other("no file offer is waiting"))?;
+        self.reply(Slot::ReceiveFile, if accept { "SI" } else { "NO" })?;
+        if accept {
+            self.remember_approval(peer);
+        }
+        self.file_offer = None;
+        Ok(())
+    }
+
+    fn should_auto_accept(&self, peer: IpAddr) -> bool {
+        match self.approval_mode.as_str() {
+            "automatic" => true,
+            "timed" => self
+                .peers
+                .get(&peer)
+                .and_then(|fingerprint| self.approval_until.get(fingerprint))
+                .is_some_and(|until| Instant::now() < *until),
+            _ => false,
+        }
+    }
+
+    fn remember_approval(&mut self, peer: IpAddr) {
+        if self.approval_mode == "timed" {
+            if let Some(fingerprint) = self.peers.get(&peer) {
+                self.approval_until.insert(
+                    fingerprint.clone(),
+                    Instant::now() + Duration::from_secs(self.approval_minutes * 60),
+                );
+            }
+        }
+    }
+
+    fn set_file_approval(&mut self, mode: &str, minutes: &str) -> Result<(), Box<dyn Error>> {
+        if !matches!(mode, "always" | "automatic" | "timed") {
+            return Err("choose a valid file approval mode".into());
+        }
+        let minutes: u64 = minutes.parse()?;
+        if !(1..=1440).contains(&minutes) {
+            return Err("approval time must be between 1 and 1440 minutes".into());
+        }
+        if let Some(parent) = self.approval_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let bytes = serde_json::to_vec(&serde_json::json!({"mode": mode, "minutes": minutes}))?;
+        let temporary = self.approval_path.with_extension("json.tmp");
+        std::fs::write(&temporary, bytes)?;
+        std::fs::rename(temporary, &self.approval_path)?;
+        self.approval_mode = mode.to_owned();
+        self.approval_minutes = minutes;
+        self.approval_until.clear();
+        self.log("File approval preference saved. Existing temporary approvals were cleared.");
         Ok(())
     }
 
@@ -567,6 +671,8 @@ impl Controller {
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
             "fileLimitMiB": self.file_limit_mib,
+            "approvalMode": self.approval_mode,
+            "approvalMinutes": self.approval_minutes,
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
             "fileOffer": self.file_offer,
             "clipboardOffer": self.clipboard_offer,
@@ -652,6 +758,7 @@ impl Controller {
                         self.clipboard_receiver_attempt = Instant::now() - Duration::from_secs(5);
                     }
                 }
+                "setFileApproval" => self.set_file_approval(string("mode"), string("minutes"))?,
                 "setLanguage" => {
                     if !matches!(string("language"), "en" | "es") {
                         return Err("choose English or Español".into());
@@ -673,7 +780,7 @@ impl Controller {
                     self.start(
                         Slot::ReceiveFile,
                         &[
-                            "receive-file",
+                            "receive-file-ui",
                             &format!("0.0.0.0:{port}"),
                             &directory.to_string_lossy(),
                         ],
@@ -681,20 +788,8 @@ impl Controller {
                     )?;
                 }
                 "stopFile" => self.stop(Slot::ReceiveFile),
-                "acceptFile" => {
-                    if self.file_offer.is_none() {
-                        return Err("no file offer is waiting".into());
-                    }
-                    self.reply(Slot::ReceiveFile, "SI")?;
-                    self.file_offer = None;
-                }
-                "declineFile" => {
-                    if self.file_offer.is_none() {
-                        return Err("no file offer is waiting".into());
-                    }
-                    self.reply(Slot::ReceiveFile, "NO")?;
-                    self.file_offer = None;
-                }
+                "acceptFile" => self.decide_manual_file(true)?,
+                "declineFile" => self.decide_manual_file(false)?,
                 "browseFile" => {
                     self.file_path = choose_file(window);
                 }
@@ -769,6 +864,13 @@ fn parse_port(value: &str) -> Result<u16, Box<dyn Error>> {
     Ok(port)
 }
 
+fn offer_peer(line: &str) -> Option<IpAddr> {
+    let mut fields = line.split('\t');
+    (fields.next() == Some("OFFER"))
+        .then(|| fields.next()?.parse::<IpAddr>().ok())
+        .flatten()
+}
+
 fn parse_address(value: &str) -> Result<SocketAddr, Box<dyn Error>> {
     let address: SocketAddr = value.parse()?;
     if address.port() == 0 {
@@ -791,12 +893,12 @@ fn show_copied_file_prompt(offer: String, spanish: bool, proxy: EventLoopProxy<U
         let fields: Vec<_> = offer.split('\t').collect();
         let body = if fields.len() == 5 && spanish {
             format!(
-                "{}\n\nDe: {}\nTamaño: {} bytes\n\n¿Aceptar este archivo para poder pegarlo?",
+                "{}\n\nDe: {}\nTamaño: {} bytes\n\nSi lo acepta, se verificará y quedará listo para pegar en el Explorador. El resultado aparecerá en Actividad.",
                 fields[2], fields[1], fields[3]
             )
         } else if fields.len() == 5 {
             format!(
-                "{}\n\nFrom: {}\nSize: {} bytes\n\nAccept this file and make it available to paste?",
+                "{}\n\nFrom: {}\nSize: {} bytes\n\nIf accepted, it will be verified and made ready to paste in Explorer. The result appears in Activity.",
                 fields[2], fields[1], fields[3]
             )
         } else {
@@ -823,32 +925,6 @@ fn show_copied_file_prompt(offer: String, spanish: bool, proxy: EventLoopProxy<U
             )
         };
         let _ = proxy.send_event(UiEvent::ClipboardDecision(offer, response == 6));
-    });
-}
-
-fn show_file_ready(spanish: bool) {
-    thread::spawn(move || {
-        let body = if spanish {
-            "Archivo verificado y listo. Abra la carpeta de destino y pulse Pegar.\0"
-        } else {
-            "Verified file ready. Open the destination folder and press Paste.\0"
-        };
-        let title: Vec<u16> = if spanish {
-            "SeamlessControl · Archivo listo\0"
-        } else {
-            "SeamlessControl · File ready\0"
-        }
-        .encode_utf16()
-        .collect();
-        let body: Vec<u16> = body.encode_utf16().collect();
-        unsafe {
-            MessageBoxW(
-                std::ptr::null_mut(),
-                body.as_ptr(),
-                title.as_ptr(),
-                MB_OK | MB_TOPMOST | MB_SETFOREGROUND,
-            )
-        };
     });
 }
 
@@ -1038,8 +1114,6 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                 }
             }
             Event::UserEvent(UiEvent::Line(slot, line)) => {
-                let copied_file_ready =
-                    slot == Slot::ReceiveClipboard && line.starts_with("FILE_READY\t");
                 controller.line(slot, line);
                 if controller.clipboard_offer.is_some() && !controller.clipboard_notification_open {
                     controller.clipboard_notification_open = true;
@@ -1048,9 +1122,6 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                         controller.language == "es",
                         proxy.clone(),
                     );
-                }
-                if copied_file_ready {
-                    show_file_ready(controller.language == "es");
                 }
                 push_state(&webview, &controller);
             }

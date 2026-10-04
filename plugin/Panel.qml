@@ -1064,6 +1064,89 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
+          text: root.t("APROBACIÓN DE ARCHIVOS ENTRANTES")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        HelpDisclosure {
+          Layout.fillWidth: true
+          title: root.t("Ayuda · Aprobación de archivos")
+          description: root.t("Se aplica a archivos copiados y envíos manuales desde equipos emparejados. En modo temporal, apruebe el primer archivo de cada equipo; los siguientes se aceptan durante el plazo elegido. El plazo se borra al reiniciar el plugin o cambiar el modo.")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Button {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.approvalMode === "always" ? "● " : "○ ") + root.t("Preguntar siempre")
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setApprovalSettings("always", String(root.backend.approvalMinutes))
+        }
+        Button {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.approvalMode === "automatic" ? "● " : "○ ") + root.t("Aceptar automáticamente")
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setApprovalSettings("automatic", String(root.backend.approvalMinutes))
+        }
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Button {
+            Layout.fillWidth: true
+            text: (root.backend && root.backend.approvalMode === "timed" ? "● " : "○ ") + root.t("Aceptar por un tiempo")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.setApprovalSettings("timed", approvalMinutesInput.text.trim())
+          }
+          Controls.TextField {
+            id: approvalMinutesInput
+            Layout.preferredWidth: 72
+            text: root.backend ? String(root.backend.approvalMinutes) : "15"
+            inputMethodHints: Qt.ImhDigitsOnly
+            validator: IntValidator { bottom: 1; top: 1440 }
+            color: root.ink
+            font.family: root.face
+            background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+            onAccepted: if (root.backend) root.backend.setApprovalSettings("timed", text.trim())
+          }
+          Text {
+            text: root.t("min")
+            color: root.ink
+            font.family: root.face
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Solo los equipos ya emparejados pueden enviar archivos. El modo temporal pregunta otra vez al vencer el plazo; aceptar uno nuevo abre otro plazo para ese equipo.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "settings"
+          spacing: Style.space(12)
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
           visible: root.backend && root.backend.installed
           text: root.t("FIREWALL · SOLO EN EL RECEPTOR")
           foreground: root.ink
@@ -1412,7 +1495,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Copiar y pegar archivos")
-          description: root.t("Copie un archivo en el explorador. Con un solo equipo emparejado se ofrece automáticamente; con varios, elija el destino aquí. El otro equipo debe autorizarlo desde la notificación. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
+          description: root.t("Copie un archivo en el explorador. Con un solo equipo emparejado se ofrece automáticamente; con varios, elija el destino aquí. La aprobación depende del modo elegido en Ajustes del receptor. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
           foreground: root.ink
           fontFamily: root.face
         }

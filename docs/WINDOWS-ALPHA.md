@@ -52,11 +52,13 @@ In **Files**, use the top **Copy here, paste there** card. The **Wait for a file
 
 With both apps running and computers paired, copy **one local file** in Explorer or the Omarchy file manager. If there is one paired peer, the app offers it automatically; otherwise choose a destination under **Files → Copy here, paste there**. The receiver must allow TCP `47834` on its private LAN. A native Windows approval dialog appears even with the app hidden in the tray; the Omarchy receiver shows an actionable desktop notification across workspaces. Accept or decline. After the verified transfer, open the destination folder and use **Paste**. No control session or manual **Wait for a file** is needed for this flow. The per-computer file size limit applies on both ends. An unanswered offer expires after two minutes. Transfer progress appears in the app. One file at a time is supported.
 
+Under **Settings → Incoming file approval**, choose **Ask every time** (default), **Accept automatically**, or **Ask, then accept for a while** (1–1,440 minutes). Timed mode asks for the first file from each paired computer; accepting it opens that computer's temporary window. The same preference applies to manual file receiving. Windows now shows sender, size and paste instructions in one approval dialog; completion appears in **Activity** without a second dialog. See the [full approval guide](USER-GUIDE.md#choose-how-incoming-files-are-approved).
+
 ## Firewall and discovery
 
 Use **Settings → Windows firewall** when another computer cannot reach this Windows receiver. **Allow control port** requests Windows administrator approval for inbound TCP on the currently displayed control port. **Allow file port** does the same for the manual transfer port. **Allow pasted-file port 47834** enables copied-file offers. If Windows does not appear automatically in Omarchy, **Allow discovery · UDP 5353** permits local mDNS queries. The generated rules are limited to the **Private** network profile and **LocalSubnet** addresses. If you change a TCP port, change it in the relevant field before pressing its firewall button. The app reports that approval was *requested*; the elevated Windows console reports the result. You can remove rules named `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` in Windows Firewall.
 
-![Windows Settings screen with the private LAN firewall actions](images/windows-settings-en.png)
+![Windows Settings screen with incoming file approval and private LAN firewall actions](images/windows-settings-en.png)
 
 Discovery uses mDNS on the private LAN. It does not replace the pairing code. If routers, Wi-Fi isolation or multicast filtering hide a computer, enter its private `IP:port` manually. If pairing times out, verify that the receiver is active and its control port is permitted. File transfers need the separate file port permitted on the file **receiver**.
 

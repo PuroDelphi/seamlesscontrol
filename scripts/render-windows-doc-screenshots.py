@@ -25,6 +25,7 @@ window.seamlessReceive({
   clipboardOffer: '', clipboardProgress: null,
   peers: [{ip:'192.0.2.20', fingerprint:'0123456789abcdef0123456789abcdef'}],
   discovered: [], layout: {}, logs: [], fileLimitMiB: 100,
+  approvalMode: 'timed', approvalMinutes: 15,
   defaultDownload: 'Downloads'
 });
 tab('__VIEW__');
@@ -37,7 +38,7 @@ tab('__VIEW__');
         [
             chromium, "--headless", "--no-sandbox", "--disable-gpu",
             "--hide-scrollbars", f"--user-data-dir={directory / 'profile'}",
-            "--window-size=1440,1000", f"--screenshot={output}", page.as_uri(),
+            "--window-size=1440,1200", f"--screenshot={output}", page.as_uri(),
         ],
         check=True,
     )
