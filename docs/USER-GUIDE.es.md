@@ -8,6 +8,56 @@ El panel tiene cuatro secciones. **Inicio** muestra la instalación del agente, 
 
 Después de actualizar el plugin, reinicia el shell de Omarchy como indica el [README](../README.es.md#actualizar-y-desinstalar) y vuelve a abrir el panel. Si no aparece **Aprobación de archivos entrantes** en **Ajustes**, el shell todavía muestra una versión anterior del panel.
 
+## Recorrido por el panel de Omarchy
+
+Estas capturas corresponden al panel actual de Omarchy. El nombre del equipo, la dirección, la clave y la carpeta personal que aparecen son ejemplos. Las filas de **Ayuda** se despliegan con un clic o enfocándolas y pulsando Enter; empiezan plegadas.
+
+### Inicio: preparar este equipo y recibir control
+
+![Pestaña Inicio: idioma, agente, acceso a archivos copiados y Recibir control](images/omarchy-overview-es.png)
+
+- **English / Español** cambia el idioma del panel. **Instalar agente** aparece después de añadir el plugin; **Actualizar agente** aparece cuando ya está instalado. El botón abre una terminal para instalar o actualizar el agente y los paquetes necesarios. Detén una sesión activa antes de actualizar.
+- **Preparar recepción de archivos copiados · TCP 47834** abre la sección correspondiente del firewall en Ajustes. Se necesita en el equipo que recibirá archivos copiados en el explorador de otro equipo.
+- **Automático · 47832 (u otro puerto)** es la dirección de **Recibir control**. Deja Automático para una red local normal; si eliges otro puerto, usa ese mismo en el receptor y en su regla de firewall. **Recibir control** pone este equipo a escuchar y lo anuncia para el descubrimiento.
+- La línea de estado indica si el agente está disponible, listo, controlando, en pausa o reconectando. Según la sesión aparecen **Pausar/Reanudar captura**, **Devolver control al origen**, **Cortar entrada remota · emergencia / Reanudar recepción**, **Reiniciar captura de este equipo** y **Terminar sesión iniciada desde el panel**. Sus usos se explican [más abajo](#para-qué-sirve-cada-función).
+
+### Equipos: descubrir, emparejar, ubicar y conectar
+
+![Pestaña Equipos: mapa de dos por dos y equipo descubierto](images/omarchy-map-es.png)
+
+- **Mapa de equipos** muestra **Este equipo** y las casillas a su lado. Arrastra un equipo emparejado a la casilla que corresponda a su posición física, o selecciona su ficha y la casilla de destino. **Ayuda · Mapa y teclado** explica Tab, Enter, las flechas y Escape. La ubicación guarda la dirección de cruce; no inicia la sesión.
+- **Equipos en la red** muestra receptores anunciados en la LAN. **Buscar** actualiza la lista. **Emparejar** aparece para uno nuevo: compara el código de seis cifras en ambos equipos y apruébalo en cada uno. **Conectar** aparece para un equipo de confianza e inicia el control. Si el descubrimiento falla, escribe `IP:puerto` en **Alternativa manual** y pulsa **Emparejar** para un equipo nuevo.
+
+![Pestaña Equipos: emparejamiento manual y revocación de confianza](images/omarchy-peers-es.png)
+
+- **Equipos emparejados** muestra las claves de confianza guardadas. **Revocar** retira la confianza después de una confirmación; para conectar otra vez habrá que emparejar. Si cambia la IP de un equipo conocido, el panel comprueba la identidad guardada. El aviso **Clave cambió** exige comprobar el equipo y emparejarlo otra vez.
+- Durante el emparejamiento aparecen el código y **Coincide · aprobar aquí / No coincide · rechazar**. Compara ambos monitores antes de aprobar. Si el receptor está ubicado pero no aparece en el descubrimiento, **Ajustes → Conectar por IP** inicia la sesión.
+
+### Archivos: copiar y pegar, o enviar a una carpeta
+
+![Pestaña Archivos: archivos copiados, límite de tamaño y espera de archivos](images/omarchy-files-receive-es.png)
+
+- **Copiar y pegar archivos** detecta un archivo local copiado en el explorador. Su estado indica si TCP `47834` está listo. Con un solo equipo emparejado puede ofrecerse automáticamente; con varios, **Ofrecer archivo copiado a…** permite elegir. El receptor ve **Aceptar archivo / Rechazar** salvo que su configuración permita autoaceptar. Tras verificarlo, pégalo en una carpeta de destino.
+- **Tamaño máximo de archivo · MiB / Guardar límite** establece el límite de este equipo entre 1 y 10.240 MiB; el valor inicial es 100 MiB. Emisor y receptor aplican sus propios límites. Si ya estabas en **Esperar un archivo**, reinicia la espera después de cambiar el límite.
+- **Automático · 47833 (o IP:puerto)** y el botón **Elegir** de la carpeta configuran la recepción manual. **Esperar un archivo** escucha una oferta; **Dejar de esperar archivo** la detiene. **Preparar regla LAN para archivos** y después **Autorizar esta regla** permiten ese puerto en el firewall de Omarchy si es necesario.
+
+![Pestaña Archivos: regla LAN y controles de Enviar archivo](images/omarchy-files-send-es.png)
+
+- Para el envío manual, elige el receptor emparejado con **Enviar a…** o escribe su `IP:47833`, elige un archivo local y pulsa **Enviar archivo**. El receptor acepta o rechaza la oferta. Vuelve a pulsar **Esperar un archivo** para otro envío. Esta opción guarda directamente en la carpeta elegida y usa TCP `47833`; copiar y pegar usa TCP `47834`.
+
+### Ajustes: aprobaciones, firewall y conexiones avanzadas
+
+![Pestaña Ajustes: modos de aprobación de archivos y firewall de control](images/omarchy-approval-es.png)
+
+- **Retirar agente** pide confirmación y retira el agente administrado y los paquetes que SeamlessControl instaló para él. Las claves emparejadas y el mapa siguen guardados; el README explica cómo retirar el plugin.
+- **Aprobación de archivos entrantes** se aplica a ambos flujos. **Preguntar siempre** es el valor inicial; **Aceptar automáticamente** recibe archivos de equipos emparejados sin avisar; **Aceptar por un tiempo** pregunta por el primer archivo de cada equipo emparejado y recuerda su aprobación durante los minutos elegidos (1–1.440). Al vencer el plazo, cambiar el modo o reiniciar la app vuelve a preguntar. Hay [más detalles abajo](#elegir-cómo-se-aprueban-los-archivos-entrantes).
+- **Firewall · solo en el receptor** usa el puerto TCP del control, normalmente `47832`. **Preparar regla LAN** muestra una regla limitada a la red local detectada. Revísala, pulsa **Autorizar esta regla** y acepta el diálogo del sistema. Hace falta en el receptor cuando la conexión agota el tiempo.
+
+![Pestaña Ajustes: firewall de archivos copiados, Conectar por IP, malla y guía completa](images/omarchy-settings-advanced-es.png)
+
+- **Archivos copiados · preparar recepción** prepara la regla independiente de TCP `47834` para los archivos pegados; revísala y autorízala en el equipo receptor. La pestaña **Archivos** tiene otra regla para los envíos manuales por TCP `47833`. Abrir uno no abre los demás.
+- **Conectar por IP** inicia el control de un equipo ya emparejado y ubicado si no aparece en el descubrimiento. **Conectar varios equipos** inicia una sesión de malla con dos o tres receptores ubicados alrededor de un origen; con un solo receptor usa **Conectar**. **Abrir guía completa** abre el README del proyecto.
+
 ## Primera conexión, paso a paso
 
 1. **Inicia el receptor.** En el equipo que quieres controlar, abre SeamlessControl. En **Iniciar sesión**, deja vacía la dirección y pulsa **Recibir control**. La parte superior del panel debe indicar **Disponible**. Deja esta sesión abierta.
