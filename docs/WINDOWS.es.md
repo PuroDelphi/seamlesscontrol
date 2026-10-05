@@ -4,7 +4,7 @@
 
 La aplicación Windows usa las mismas identidades de confianza y el mismo protocolo de control que el plugin Omarchy. Puede recibir control desde Omarchy, controlar Omarchy con el ratón y teclado físicos de Windows, sincronizar texto del portapapeles y enviar o recibir archivos aprobados. La ventana puede ocultarse en la bandeja mientras el agente sigue activo.
 
-![Vista principal de Windows con recepción y conexión](images/windows-panel.png)
+![Vista principal de Windows con la última dirección y borde de pantalla restaurados](images/windows-home-es.png)
 
 ![Mapa de pantallas de Windows con un equipo de ejemplo a la derecha](images/windows-layout.png)
 
@@ -14,16 +14,16 @@ Las capturas muestran la interfaz actual con nombres, archivos y direcciones fic
 
 1. Abre la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), lee sus notas de instalación y descarga en **Assets** **`seamlesscontrol-windows-x64.zip`**. Su archivo `.sha256` contiguo permite comprobar esa única descarga.
 2. Extrae el ZIP en una carpeta propia, como Descargas o Documentos. Ya incluye juntos los dos ejecutables. Para verificar la descarga desde PowerShell, ejecuta `Get-FileHash .\seamlesscontrol-windows-x64.zip -Algorithm SHA256` y compara el resultado con `seamlesscontrol-windows-x64.zip.sha256` del mismo release.
-3. Haz doble clic en `seamlesscontrol.exe`. **Recibir control** se inicia automáticamente en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
+3. Haz doble clic en `seamlesscontrol.exe`. La primera vez se inicia **Recibir control** en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Las siguientes veces restaura el modo de control que dejaste activo. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
 4. Cierra la ventana para dejar la aplicación en la bandeja. Pulsa su icono para abrirla de nuevo. **Exit SeamlessControl** en el menú de la bandeja termina las sesiones y cierra la aplicación.
 
-Para abrirla automáticamente al iniciar tu próxima sesión de Windows, ve a **Ajustes → Iniciar con Windows** y pulsa **Activar**. La app aparece en la bandeja e inicia **Recibir control** como cuando la abres manualmente. Esta opción solo afecta a tu cuenta de Windows y no pide permisos de administrador. Pulsa **Desactivar** en la misma tarjeta para retirarla. Si mueves la carpeta con los dos ejecutables, abre la app desde la nueva ubicación y pulsa **Activar** otra vez para actualizar la ruta guardada.
+Para abrirla automáticamente al iniciar tu próxima sesión de Windows, ve a **Ajustes → Iniciar con Windows** y pulsa **Activar**. La app aparece en la bandeja y restaura el último modo de control elegido. Esta opción solo afecta a tu cuenta de Windows y no pide permisos de administrador. Pulsa **Desactivar** en la misma tarjeta para retirarla. Si mueves la carpeta con los dos ejecutables, abre la app desde la nueva ubicación y pulsa **Activar** otra vez para actualizar la ruta guardada.
 
 Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). Los ejecutables se distribuyen actualmente sin firma digital.
 
 ## Emparejar una vez
 
-1. Conecta ambos equipos a la misma LAN privada. En el **receptor**, deja activo **Recibir control**. Windows lo inicia al abrir la aplicación; en Omarchy debes pulsar **Recibir control**.
+1. Conecta ambos equipos a la misma LAN privada. En el **receptor**, deja activo **Recibir control**. Windows lo inicia la primera vez y lo restaura después solo si lo dejaste activo; en Omarchy debes pulsar **Recibir control**.
 2. En el equipo con el ratón físico, abre **Equipos**. Selecciona el receptor cercano y pulsa **Emparejar**. Si no aparece, escribe su `IP:47832` privada en **Dirección manual**.
 3. Compara el **código de seis cifras** en ambos equipos y apruébalo en ambos. En Windows, escribe esas cifras en la aplicación y pulsa **Coinciden · aprobar**. La huella de identidad larga es otro valor; no eliges ni modificas el código.
 4. Ahora el equipo figura como emparejado. El descubrimiento solo proporciona la dirección; la identidad y el código siguen autorizando la confianza.
@@ -38,7 +38,7 @@ En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **
 
 En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos**. Los equipos emparejados aparecen primero, justo encima del **Mapa de pantallas**; una flecha indica cómo llevarlos al mapa. Arrastra la fila de Omarchy a su posición alrededor de **Este Windows**, pulsa su posición tras seleccionar la fila o enfócala y usa una flecha del teclado. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
 
-Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app pausa su receptor para que el teclado físico tenga un solo dueño. Al pulsar **Detener** o perderse la conexión de origen, vuelve a iniciar **Recibir control** automáticamente.
+Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app pausa su receptor para que el teclado físico tenga un solo dueño. La app recuerda la última `IP:puerto` y el borde de pantalla; aparecen de nuevo en **Inicio → Controlar otro equipo** al abrirla. Si dejaste **Conectar** activo, la app vuelve a conectarse al equipo emparejado al iniciarse y sigue reintentando si no está disponible. **Detener** termina esa conexión y pasa a **Recibir control**. Detén también **Recibir control** si quieres que la app vuelva a abrirse sin una sesión de control. El regreso con Escape o por el borde deja la conexión lista para otro cruce.
 
 ## Portapapeles y archivos
 

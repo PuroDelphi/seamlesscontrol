@@ -4,7 +4,7 @@
 
 The Windows app uses the same trusted identities and control protocol as the Omarchy plugin. It can receive control from Omarchy, control Omarchy from the physical Windows mouse and keyboard, synchronize text clipboard content and send or receive approved files. The window can be hidden in the system tray while the agent stays active.
 
-![Windows overview with receiver and connection controls](images/windows-panel.png)
+![Windows overview with the last computer address and screen edge restored](images/windows-home-en.png)
 
 ![Windows screen layout with an example paired computer on the right](images/windows-layout.png)
 
@@ -14,16 +14,16 @@ The screenshots render the app's current interface with fictional names, files a
 
 1. Open the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), read its installation notes, and under **Assets** download **`seamlesscontrol-windows-x64.zip`**. Its adjacent `.sha256` file lets you verify this one download.
 2. Extract the ZIP into a folder you own, such as Downloads or Documents. Both executables are already inside it together. To verify the download in PowerShell, run `Get-FileHash .\seamlesscontrol-windows-x64.zip -Algorithm SHA256` and compare its hash with `seamlesscontrol-windows-x64.zip.sha256` from the same release.
-3. Double click `seamlesscontrol.exe`. **Receive control** starts automatically on TCP `47832`. The app advertises this Windows computer to nearby SeamlessControl panels. If Windows asks about network access, choose **Private networks**.
+3. Double click `seamlesscontrol.exe`. On its first launch, **Receive control** starts on TCP `47832` and advertises this Windows computer to nearby SeamlessControl panels. Later launches restore the control mode you last chose. If Windows asks about network access, choose **Private networks**.
 4. Close the window to leave it running in the tray. Click the tray icon to open it again. Choose **Exit SeamlessControl** from the tray menu to end sessions and exit.
 
-To open it automatically at your next Windows sign-in, go to **Settings → Start with Windows** and select **Turn on**. The app starts in the tray and begins **Receive control** as it does when opened manually. This setting belongs only to your Windows account and needs no administrator approval. Select **Turn off** in the same card to remove it. If you move the folder containing the two executables, reopen the app from its new location and select **Turn on** again to update the saved path.
+To open it automatically at your next Windows sign-in, go to **Settings → Start with Windows** and select **Turn on**. The app starts in the tray and restores your last chosen control mode. This setting belongs only to your Windows account and needs no administrator approval. Select **Turn off** in the same card to remove it. If you move the folder containing the two executables, reopen the app from its new location and select **Turn on** again to update the saved path.
 
 Windows 11 typically includes WebView2; if the app says it is missing, install [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The app and agent are currently distributed as unsigned executables.
 
 ## Pair once
 
-1. Make sure both computers are on the same private LAN. On the **receiver**, leave **Receive control** active. Windows starts it when the app opens; on Omarchy, select **Receive control** in the panel.
+1. Make sure both computers are on the same private LAN. On the **receiver**, leave **Receive control** active. Windows starts it on first launch and restores it on later launches only if it was left active; on Omarchy, select **Receive control** in the panel.
 2. On the computer with your physical mouse, open **Computers**. Select the nearby receiver and choose **Pair**. If it does not appear, enter its private LAN `IP:47832` under **Manual address**.
 3. Compare the **six digit pairing code** shown on both computers. Approve it on both. In Windows, enter the six digits shown in the app and choose **Codes match · approve**. The longer identity fingerprint is different; it is not a code you choose or edit.
 4. The computer now appears as paired. Discovery only supplies an address; the identity check and code still authorize trust.
@@ -38,7 +38,7 @@ On Omarchy, put Windows on the correct side of **Computer layout**. Select **Con
 
 On Omarchy, select **Receive control** and wait for **Available**. In the Windows app, open **Computers**. Paired computers appear first, directly above **Screen layout**; the arrow points from that list to the map. Drag the Omarchy row to its place around **This Windows**, click its position after selecting the row, or focus the row and press an arrow key. Select **Connect** on its row: **Overview** opens with its address and saved edge. Select **Connect** there. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. Select **Stop** to end the session. The map remains available while this Windows computer is receiving control.
 
-A Windows app can receive or initiate control. Starting **Connect** pauses this app's receiver so the physical Windows keyboard has one clear owner. Selecting **Stop** or losing the source connection starts **Receive control** again automatically.
+A Windows app can receive or initiate control. Starting **Connect** pauses this app's receiver so the physical Windows keyboard has one clear owner. The app remembers the last `IP:port` and screen edge; they appear again in **Overview → Control another computer** when it reopens. If **Connect** was left active, the app reconnects to that paired computer on launch and keeps retrying if it is unavailable. **Stop** ends that outgoing session and switches to **Receive control**. Stop **Receive control** too if you want the app to reopen without a control session. Returning with Escape or across the screen edge keeps the connection ready for another crossing.
 
 ## Clipboard and files
 

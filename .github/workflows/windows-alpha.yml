@@ -21,6 +21,8 @@ jobs:
         run: cargo fmt --manifest-path agent/Cargo.toml --check
       - name: Test portable core on Windows x64
         run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
+      - name: Test Windows app session preferences
+        run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --bin seamlesscontrol
       - name: Build Windows x64 app and agent
         env:
           RUSTFLAGS: -C target-feature=+crt-static

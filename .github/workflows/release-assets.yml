@@ -55,6 +55,8 @@ jobs:
           targets: x86_64-pc-windows-msvc
       - name: Test portable core
         run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
+      - name: Test Windows app session preferences
+        run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --bin seamlesscontrol
       - name: Build tagged Windows executables
         env:
           RUSTFLAGS: -C target-feature=+crt-static

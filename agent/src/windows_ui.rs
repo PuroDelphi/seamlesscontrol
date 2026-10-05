@@ -9,7 +9,7 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::net::{IpAddr, SocketAddr};
 use std::os::windows::ffi::OsStrExt;
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -39,6 +39,105 @@ const DEFAULT_FILE_LIMIT_MIB: u64 = 100;
 const MAX_FILE_LIMIT_MIB: u64 = 10240;
 const STARTUP_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const STARTUP_VALUE: &str = "SeamlessControl";
+const CONTROL_RETRY_DELAY: Duration = Duration::from_secs(5);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ControlMode {
+    Idle,
+    Receive,
+    Connect,
+}
+
+impl ControlMode {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Receive => "receive",
+            Self::Connect => "connect",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct SessionPreferences {
+    mode: ControlMode,
+    receive_port: u16,
+    address: Option<SocketAddr>,
+    edge: String,
+}
+
+impl Default for SessionPreferences {
+    fn default() -> Self {
+        Self {
+            mode: ControlMode::Receive,
+            receive_port: 47832,
+            address: None,
+            edge: "left".to_owned(),
+        }
+    }
+}
+
+impl SessionPreferences {
+    fn from_json(source: &str) -> Option<Self> {
+        let value: serde_json::Value = serde_json::from_str(source).ok()?;
+        let mode = match value["mode"].as_str()? {
+            "idle" => ControlMode::Idle,
+            "receive" => ControlMode::Receive,
+            "connect" => ControlMode::Connect,
+            _ => return None,
+        };
+        let receive_port = u16::try_from(value["receivePort"].as_u64()?).ok()?;
+        if receive_port == 0 {
+            return None;
+        }
+        let address = value["address"]
+            .as_str()
+            .filter(|address| !address.is_empty())
+            .map(parse_address)
+            .transpose()
+            .ok()?;
+        let edge = value["edge"].as_str()?;
+        if !matches!(edge, "left" | "right" | "top" | "bottom")
+            || (mode == ControlMode::Connect && address.is_none())
+        {
+            return None;
+        }
+        Some(Self {
+            mode,
+            receive_port,
+            address,
+            edge: edge.to_owned(),
+        })
+    }
+
+    fn load(path: &Path) -> Self {
+        match std::fs::read_to_string(path) {
+            Ok(source) => Self::from_json(&source).unwrap_or(Self {
+                mode: ControlMode::Idle,
+                ..Self::default()
+            }),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Self::default(),
+            Err(_) => Self {
+                mode: ControlMode::Idle,
+                ..Self::default()
+            },
+        }
+    }
+
+    fn save(&self, path: &Path) -> io::Result<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let bytes = serde_json::to_vec_pretty(&serde_json::json!({
+            "mode": self.mode.as_str(),
+            "receivePort": self.receive_port,
+            "address": self.address.map(|address| address.to_string()).unwrap_or_default(),
+            "edge": self.edge,
+        }))
+        .map_err(io::Error::other)?;
+        std::fs::write(path, bytes)
+    }
+}
 
 fn wide(value: &str) -> Vec<u16> {
     value.encode_utf16().chain(std::iter::once(0)).collect()
@@ -178,7 +277,9 @@ struct Controller {
     cli: PathBuf,
     executable: PathBuf,
     startup: &'static str,
-    receive_port: u16,
+    session_path: PathBuf,
+    session: SessionPreferences,
+    retry_control_after: Option<Instant>,
     file_limit_mib: u64,
     file_limit_path: PathBuf,
     approval_path: PathBuf,
@@ -218,6 +319,8 @@ impl Controller {
             .join("ui-layout.json");
         let file_limit_path = layout_path.with_file_name("file-limit-mib");
         let approval_path = layout_path.with_file_name("file-approval.json");
+        let session_path = layout_path.with_file_name("ui-session.json");
+        let session = SessionPreferences::load(&session_path);
         let approval_settings = std::fs::read(&approval_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
@@ -246,7 +349,9 @@ impl Controller {
             cli,
             executable,
             startup,
-            receive_port: 47832,
+            session_path,
+            session,
+            retry_control_after: None,
             file_limit_mib,
             file_limit_path,
             approval_path,
@@ -284,6 +389,41 @@ impl Controller {
         while self.logs.len() > 36 {
             self.logs.pop_front();
         }
+    }
+
+    fn remember_session(&mut self, next: SessionPreferences) -> io::Result<()> {
+        next.save(&self.session_path)?;
+        self.session = next;
+        self.retry_control_after = None;
+        Ok(())
+    }
+
+    fn start_desired_control(&mut self, proxy: &EventLoopProxy<UiEvent>) -> io::Result<()> {
+        let receive_port = self.session.receive_port;
+        let address = self.session.address.map(|address| address.to_string());
+        let edge = self.session.edge.clone();
+        let result = match self.session.mode {
+            ControlMode::Idle => Ok(()),
+            ControlMode::Receive => self.start(
+                Slot::Serve,
+                &["serve", &format!("0.0.0.0:{receive_port}")],
+                proxy,
+            ),
+            ControlMode::Connect => self.start(
+                Slot::Connect,
+                &[
+                    "connect",
+                    address.as_deref().expect("validated saved address"),
+                    &edge,
+                ],
+                proxy,
+            ),
+        };
+        self.retry_control_after = result
+            .as_ref()
+            .err()
+            .map(|_| Instant::now() + CONTROL_RETRY_DELAY);
+        result
     }
 
     fn command(&self, args: &[&str]) -> Command {
@@ -407,8 +547,19 @@ impl Controller {
             if slot == Slot::SendFile {
                 self.copied_send_active = false;
             }
-            if slot == Slot::Connect {
-                let _ = self.resume_receiving(proxy);
+            if (slot == Slot::Connect && self.session.mode == ControlMode::Connect)
+                || (slot == Slot::Serve && self.session.mode == ControlMode::Receive)
+            {
+                self.retry_control_after = Some(Instant::now() + CONTROL_RETRY_DELAY);
+                self.log(format!("{} will retry in 5 seconds", slot.name()));
+            }
+        }
+        if self
+            .retry_control_after
+            .is_some_and(|next| Instant::now() >= next)
+        {
+            if let Err(error) = self.start_desired_control(proxy) {
+                self.log(format!("Control retry failed: {error}"));
             }
         }
         if !self.processes.contains_key(&Slot::ReceiveClipboard)
@@ -453,14 +604,6 @@ impl Controller {
             let _ = self.decide_copied_file(false);
             self.log("Copied-file offer expired after two minutes.");
         }
-    }
-
-    fn resume_receiving(&mut self, proxy: &EventLoopProxy<UiEvent>) -> io::Result<()> {
-        self.start(
-            Slot::Serve,
-            &["serve", &format!("0.0.0.0:{}", self.receive_port)],
-            proxy,
-        )
     }
 
     fn shutdown(&mut self) {
@@ -770,6 +913,10 @@ impl Controller {
         serde_json::json!({
             "receive": self.processes.contains_key(&Slot::Serve),
             "connect": self.processes.contains_key(&Slot::Connect),
+            "controlMode": self.session.mode.as_str(),
+            "receivePort": self.session.receive_port,
+            "lastAddress": self.session.address.map(|address| address.to_string()).unwrap_or_default(),
+            "lastEdge": self.session.edge,
             "pairing": self.processes.contains_key(&Slot::Pair),
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
@@ -811,27 +958,40 @@ impl Controller {
             match action {
                 "startReceive" => {
                     let port = parse_port(string("port"))?;
-                    self.receive_port = port;
+                    let mut next = self.session.clone();
+                    next.mode = ControlMode::Receive;
+                    next.receive_port = port;
+                    self.remember_session(next)?;
                     self.stop(Slot::Connect);
-                    self.resume_receiving(proxy)?;
+                    self.start_desired_control(proxy)?;
                 }
-                "stopReceive" => self.stop(Slot::Serve),
+                "stopReceive" => {
+                    let mut next = self.session.clone();
+                    next.mode = ControlMode::Idle;
+                    self.remember_session(next)?;
+                    self.stop(Slot::Serve);
+                    self.stop(Slot::Connect);
+                }
                 "connect" => {
                     let address = parse_address(string("address"))?;
                     let edge = string("edge");
                     if !matches!(edge, "left" | "right" | "top" | "bottom") {
                         return Err("choose the Windows edge facing the other computer".into());
                     }
+                    let mut next = self.session.clone();
+                    next.mode = ControlMode::Connect;
+                    next.address = Some(address);
+                    next.edge = edge.to_owned();
+                    self.remember_session(next)?;
                     self.stop(Slot::Serve);
-                    self.start(
-                        Slot::Connect,
-                        &["connect", &address.to_string(), edge],
-                        proxy,
-                    )?;
+                    self.start_desired_control(proxy)?;
                 }
                 "stopConnect" => {
+                    let mut next = self.session.clone();
+                    next.mode = ControlMode::Receive;
+                    self.remember_session(next)?;
                     self.stop(Slot::Connect);
-                    self.resume_receiving(proxy)?;
+                    self.start_desired_control(proxy)?;
                 }
                 "pair" => {
                     let address = parse_address(string("address"))?;
@@ -1145,6 +1305,59 @@ pub fn run() {
     }
 }
 
+#[cfg(test)]
+mod session_tests {
+    use super::*;
+
+    #[test]
+    fn saved_control_mode_and_target_round_trip() {
+        let path = std::env::temp_dir().join(format!(
+            "seamlesscontrol-ui-session-{}.json",
+            std::process::id()
+        ));
+        let expected = SessionPreferences {
+            mode: ControlMode::Connect,
+            receive_port: 47840,
+            address: Some("192.168.50.20:47832".parse().unwrap()),
+            edge: "right".to_owned(),
+        };
+        expected.save(&path).unwrap();
+        let actual = SessionPreferences::load(&path);
+        std::fs::remove_file(path).unwrap();
+        assert_eq!(actual.mode, ControlMode::Connect);
+        assert_eq!(actual.receive_port, 47840);
+        assert_eq!(actual.address, expected.address);
+        assert_eq!(actual.edge, "right");
+    }
+
+    #[test]
+    fn saved_idle_mode_keeps_last_target_without_starting_it() {
+        let saved = SessionPreferences::from_json(
+            r#"{"mode":"idle","receivePort":47832,"address":"192.168.50.20:47832","edge":"top"}"#,
+        )
+        .unwrap();
+        assert_eq!(saved.mode, ControlMode::Idle);
+        assert_eq!(saved.address.unwrap().to_string(), "192.168.50.20:47832");
+        assert_eq!(saved.edge, "top");
+    }
+
+    #[test]
+    fn invalid_or_public_connection_cannot_auto_restore() {
+        assert!(
+            SessionPreferences::from_json(
+                r#"{"mode":"connect","receivePort":47832,"address":"8.8.8.8:47832","edge":"left"}"#
+            )
+            .is_none()
+        );
+        assert!(
+            SessionPreferences::from_json(
+                r#"{"mode":"connect","receivePort":47832,"address":"","edge":"left"}"#
+            )
+            .is_none()
+        );
+    }
+}
+
 fn run_app() -> Result<(), Box<dyn Error>> {
     let background = std::env::args_os().skip(1).any(|arg| arg == "--background");
     let current = std::env::current_exe()?;
@@ -1195,8 +1408,8 @@ fn run_app() -> Result<(), Box<dyn Error>> {
     }));
     let mut controller = Controller::new(cli, current);
     controller.refresh_peers();
-    if let Err(error) = controller.start(Slot::Serve, &["serve", "0.0.0.0:47832"], &proxy) {
-        controller.log(format!("Could not receive control automatically: {error}"));
+    if let Err(error) = controller.start_desired_control(&proxy) {
+        controller.log(format!("Could not restore the saved control mode: {error}"));
     }
     let own_fingerprint = controller.own_fingerprint();
     let discovery_proxy = proxy.clone();

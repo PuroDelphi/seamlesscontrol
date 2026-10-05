@@ -20,7 +20,9 @@ def render(chromium: str, language: str, view: str, directory: Path) -> None:
 language = '__LANG__';
 applyLanguage();
 window.seamlessReceive({
-  receive: true, connect: false, fileReceive: false,
+  receive: __VIEW_IS_NOT_HOME__, connect: __VIEW_IS_HOME__, fileReceive: false,
+  controlMode: '__CONTROL_MODE__', receivePort: 47832,
+  lastAddress: '192.0.2.20:47832', lastEdge: 'right',
   clipboardReady: true, copiedFile: 'example-notes.txt',
   clipboardOffer: '', clipboardProgress: null,
   peers: [{ip:'192.0.2.20', fingerprint:'0123456789abcdef0123456789abcdef'}],
@@ -30,7 +32,11 @@ window.seamlessReceive({
   defaultDownload: 'Downloads'
 });
 tab('__VIEW__');
-</script></body>""".replace("__LANG__", language).replace("__VIEW__", view)
+</script></body>""".replace("__LANG__", language).replace("__VIEW__", view).replace(
+        "__VIEW_IS_NOT_HOME__", "false" if view == "home" else "true"
+    ).replace("__VIEW_IS_HOME__", "true" if view == "home" else "false").replace(
+        "__CONTROL_MODE__", "connect" if view == "home" else "receive"
+    )
     html = html.replace("</body>", fixture)
     page = directory / f"windows-{view}-{language}.html"
     page.write_text(html)
@@ -52,7 +58,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="seamlesscontrol-doc-") as temp:
         directory = Path(temp)
         for language in ("en", "es"):
-            for view in ("files", "settings"):
+            for view in ("home", "files", "settings"):
                 render(chromium, language, view, directory)
 
 

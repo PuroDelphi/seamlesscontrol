@@ -34,11 +34,11 @@ Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, c
 
 ## Get started on Windows x64
 
-Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download the single **`seamlesscontrol-windows-x64.zip`** and extract it into a folder you own. It already contains both required executables together. Double click **`seamlesscontrol.exe`**. The adjacent `seamlesscontrol-windows-x64.zip.sha256` lets you verify the download. It starts receiving on port `47832`, advertises this Windows computer on the LAN and stays active in the tray when you close the window. Choose **Español** in the top right if desired.
+Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download the single **`seamlesscontrol-windows-x64.zip`** and extract it into a folder you own. It already contains both required executables together. Double click **`seamlesscontrol.exe`**. The adjacent `seamlesscontrol-windows-x64.zip.sha256` lets you verify the download. On first launch it starts receiving on port `47832`; later it restores your last control mode, including an outgoing connection. It stays active in the tray when you close the window. Choose **Español** in the top right if desired.
 
 For hands-free startup, turn on **Settings → Start with Windows** in the app. It will open in the tray when you sign in; you can turn it off from the same screen.
 
-![The SeamlessControl Windows app](docs/images/windows-panel.png)
+![The SeamlessControl Windows app with the last connection restored](docs/images/windows-home-en.png)
 
 ![Copy a file in Windows and offer it to a paired computer](docs/images/windows-files-en.png)
 
@@ -48,7 +48,7 @@ Windows 11 normally has the required WebView2 runtime. If the app reports it mis
 
 ## Connect your screens
 
-1. On the computer you want to control, select **Receive control** and wait for **Available**. The Windows app starts this automatically.
+1. On the computer you want to control, select **Receive control** and wait for **Available**. The Windows app starts this on first launch and restores it if you left it active.
 2. On the computer with the physical mouse, open **Computers**, select the discovered receiver and choose **Pair**. Compare the six digit code on **both** computers and approve on both. If discovery cannot find it, enter its private LAN `IP:port` manually.
 3. In **Computers → Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, paired computers appear directly above the map: drag one along the arrow, click a side, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
 4. Select **Connect** on the computer with the physical mouse. When it says **Ready**, cross the chosen **outer edge**. Cross back from the receiver or press **Escape** on the physical keyboard to return.

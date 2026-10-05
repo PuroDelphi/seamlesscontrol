@@ -34,11 +34,11 @@ Abre **SeamlessControl** desde la barra de Omarchy. En **Preparar este equipo**,
 
 ## Empezar en Windows x64
 
-Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga el único **`seamlesscontrol-windows-x64.zip`** y extráelo en una carpeta propia. Ya contiene juntos los dos ejecutables necesarios. Haz doble clic en **`seamlesscontrol.exe`**. El archivo contiguo `seamlesscontrol-windows-x64.zip.sha256` permite verificar la descarga. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
+Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga el único **`seamlesscontrol-windows-x64.zip`** y extráelo en una carpeta propia. Ya contiene juntos los dos ejecutables necesarios. Haz doble clic en **`seamlesscontrol.exe`**. El archivo contiguo `seamlesscontrol-windows-x64.zip.sha256` permite verificar la descarga. La primera vez comienza a recibir en el puerto `47832`; después restaura el último modo de control, incluida una conexión saliente. Sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
 
 Para iniciarlo automáticamente, activa **Ajustes → Iniciar con Windows** en la app. Se abrirá en la bandeja cuando inicies sesión; puedes desactivarlo desde la misma pantalla.
 
-![La aplicación SeamlessControl para Windows](docs/images/windows-panel.png)
+![La aplicación SeamlessControl para Windows con la última conexión restaurada](docs/images/windows-home-es.png)
 
 ![Copiar un archivo en Windows y ofrecerlo a un equipo emparejado](docs/images/windows-files-es.png)
 
@@ -48,7 +48,7 @@ Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, ins
 
 ## Conectar tus pantallas
 
-1. En el equipo que quieres controlar, pulsa **Recibir control** y espera a **Disponible**. La app Windows lo inicia automáticamente.
+1. En el equipo que quieres controlar, pulsa **Recibir control** y espera a **Disponible**. La app Windows lo inicia la primera vez y lo restaura si lo dejaste activo.
 2. En el equipo con el ratón físico, abre **Equipos**, elige el receptor descubierto y pulsa **Emparejar**. Compara el código de seis cifras y aprueba en **ambos** equipos. Si no aparece, escribe manualmente su `IP:puerto` de la red privada.
 3. En **Equipos → Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, los equipos emparejados aparecen justo encima del mapa: arrastra uno siguiendo la flecha, pulsa un lado o usa las flechas del teclado. Su posición rellena el borde al preparar **Conectar**.
 4. Pulsa **Conectar** en el equipo con el ratón físico. Cuando indique **Listo**, cruza el **borde exterior** elegido. Regresa por el borde del receptor o pulsa **Escape** en el teclado físico.
