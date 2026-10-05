@@ -77,6 +77,25 @@ impl Default for SessionPreferences {
     }
 }
 
+fn temporary_approval_expired(
+    mode: &str,
+    approvals: &BTreeMap<String, Instant>,
+    now: Instant,
+) -> bool {
+    mode == "timed" && approvals.values().any(|deadline| *deadline <= now)
+}
+
+fn write_approval_settings(path: &Path, mode: &str, minutes: u64) -> io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let bytes = serde_json::to_vec(&serde_json::json!({"mode": mode, "minutes": minutes}))
+        .map_err(io::Error::other)?;
+    let temporary = path.with_extension("json.tmp");
+    std::fs::write(&temporary, bytes)?;
+    std::fs::rename(temporary, path)
+}
+
 impl SessionPreferences {
     fn from_json(source: &str) -> Option<Self> {
         let value: serde_json::Value = serde_json::from_str(source).ok()?;
@@ -286,6 +305,7 @@ struct Controller {
     approval_mode: String,
     approval_minutes: u64,
     approval_until: BTreeMap<String, Instant>,
+    approval_feedback: &'static str,
     language: String,
     layout_path: PathBuf,
     layout: BTreeMap<String, String>,
@@ -324,17 +344,35 @@ impl Controller {
         let approval_settings = std::fs::read(&approval_path)
             .ok()
             .and_then(|bytes| serde_json::from_slice::<serde_json::Value>(&bytes).ok());
-        let approval_mode = approval_settings
+        let saved_approval_mode = approval_settings
             .as_ref()
             .and_then(|settings| settings["mode"].as_str())
             .filter(|mode| matches!(*mode, "always" | "automatic" | "timed"))
             .unwrap_or("always")
             .to_owned();
+        let approval_mode = if saved_approval_mode == "timed" {
+            "always".to_owned()
+        } else {
+            saved_approval_mode
+        };
         let approval_minutes = approval_settings
             .as_ref()
             .and_then(|settings| settings["minutes"].as_u64())
             .filter(|minutes| (1..=1440).contains(minutes))
             .unwrap_or(15);
+        let approval_feedback = if approval_settings
+            .as_ref()
+            .and_then(|settings| settings["mode"].as_str())
+            == Some("timed")
+        {
+            if write_approval_settings(&approval_path, "always", approval_minutes).is_ok() {
+                "expired"
+            } else {
+                "error"
+            }
+        } else {
+            ""
+        };
         let clipboard_staging = layout_path.with_file_name("clipboard-files");
         let file_limit_mib = std::fs::read_to_string(&file_limit_path)
             .ok()
@@ -358,6 +396,7 @@ impl Controller {
             approval_mode,
             approval_minutes,
             approval_until: BTreeMap::new(),
+            approval_feedback,
             language: "en".into(),
             layout_path,
             layout,
@@ -511,6 +550,16 @@ impl Controller {
     }
 
     fn poll(&mut self, proxy: &EventLoopProxy<UiEvent>) {
+        if temporary_approval_expired(&self.approval_mode, &self.approval_until, Instant::now()) {
+            let minutes = self.approval_minutes.to_string();
+            if let Err(error) = self.set_file_approval("always", &minutes) {
+                self.approval_feedback = "error";
+                self.log(format!("Could not end temporary file approval: {error}"));
+            } else {
+                self.approval_feedback = "expired";
+                self.log("Temporary file approval expired; asking for every file again.");
+            }
+        }
         let mut finished = Vec::new();
         for (&slot, process) in &mut self.processes {
             if let Ok(Some(status)) = process.child.try_wait() {
@@ -816,16 +865,11 @@ impl Controller {
         if !(1..=1440).contains(&minutes) {
             return Err("approval time must be between 1 and 1440 minutes".into());
         }
-        if let Some(parent) = self.approval_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let bytes = serde_json::to_vec(&serde_json::json!({"mode": mode, "minutes": minutes}))?;
-        let temporary = self.approval_path.with_extension("json.tmp");
-        std::fs::write(&temporary, bytes)?;
-        std::fs::rename(temporary, &self.approval_path)?;
+        write_approval_settings(&self.approval_path, mode, minutes)?;
         self.approval_mode = mode.to_owned();
         self.approval_minutes = minutes;
         self.approval_until.clear();
+        self.approval_feedback = "saved";
         self.log("File approval preference saved. Existing temporary approvals were cleared.");
         Ok(())
     }
@@ -924,6 +968,7 @@ impl Controller {
             "startup": self.startup,
             "approvalMode": self.approval_mode,
             "approvalMinutes": self.approval_minutes,
+            "approvalFeedback": self.approval_feedback,
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
             "fileOffer": self.file_offer,
             "clipboardOffer": self.clipboard_offer,
@@ -1118,6 +1163,9 @@ impl Controller {
             Ok(())
         })();
         if let Err(error) = result {
+            if action == "setFileApproval" {
+                self.approval_feedback = "error";
+            }
             self.log(error.to_string());
         }
         action == "quit"
@@ -1308,6 +1356,24 @@ pub fn run() {
 #[cfg(test)]
 mod session_tests {
     use super::*;
+
+    #[test]
+    fn temporary_file_permission_expires_into_ask_every_time() {
+        let now = Instant::now();
+        let mut approvals = BTreeMap::new();
+        approvals.insert("paired-computer".to_owned(), now + Duration::from_secs(60));
+        assert!(!temporary_approval_expired("timed", &approvals, now));
+        assert!(temporary_approval_expired(
+            "timed",
+            &approvals,
+            now + Duration::from_secs(60)
+        ));
+        assert!(!temporary_approval_expired(
+            "automatic",
+            &approvals,
+            now + Duration::from_secs(60)
+        ));
+    }
 
     #[test]
     fn saved_control_mode_and_target_round_trip() {

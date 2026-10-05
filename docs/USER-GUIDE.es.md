@@ -50,7 +50,7 @@ Estas capturas corresponden al panel actual de Omarchy. El nombre del equipo, la
 ![Pestaña Ajustes: modos de aprobación de archivos y firewall de control](images/omarchy-approval-es.png)
 
 - **Retirar agente** pide confirmación y retira el agente administrado y los paquetes que SeamlessControl instaló para él. Las claves emparejadas y el mapa siguen guardados; el README explica cómo retirar el plugin.
-- **Aprobación de archivos entrantes** se aplica a ambos flujos. **Preguntar siempre** es el valor inicial; **Aceptar automáticamente** recibe archivos de equipos emparejados sin avisar; **Aceptar por un tiempo** pregunta por el primer archivo de cada equipo emparejado y recuerda su aprobación durante los minutos elegidos (1–1.440). Al vencer el plazo, cambiar el modo o reiniciar la app vuelve a preguntar. Hay [más detalles abajo](#elegir-cómo-se-aprueban-los-archivos-entrantes).
+- **Aprobación de archivos entrantes** se aplica a ambos flujos. **Preguntar siempre** es el valor inicial; **Aceptar automáticamente** recibe archivos de equipos emparejados sin avisar; **Aceptar por un tiempo** pregunta por el primer archivo de cada equipo emparejado y recuerda su aprobación durante los minutos elegidos (1–1.440). Al vencer el plazo o reiniciar la app, el ajuste vuelve visiblemente a **Preguntar siempre**. Hay [más detalles abajo](#elegir-cómo-se-aprueban-los-archivos-entrantes).
 - **Firewall · solo en el receptor** usa el puerto TCP del control, normalmente `47832`. **Preparar regla LAN** muestra una regla limitada a la red local detectada. Revísala, pulsa **Autorizar esta regla** y acepta el diálogo del sistema. Hace falta en el receptor cuando la conexión agota el tiempo.
 
 ![Pestaña Ajustes: firewall de archivos copiados, Conectar por IP, malla y guía completa](images/omarchy-settings-advanced-es.png)
@@ -128,7 +128,7 @@ En cada equipo receptor, abre **Ajustes → Aprobación de archivos entrantes**.
 
 - **Preguntar siempre** (predeterminado): acepta o rechaza cada oferta.
 - **Aceptar automáticamente**: recibe sin preguntar los archivos de equipos ya emparejados. El emisor todavía debe superar las comprobaciones de autenticación, tamaño y espacio.
-- **Aceptar por un tiempo**: elige entre 1 y 1.440 minutos. Aprueba el primer archivo de cada equipo emparejado; los siguientes de ese equipo se aceptan hasta que venza su plazo. El próximo vuelve a pedir autorización. Rechazar un archivo no abre el plazo. Cambiar el modo o reiniciar la app o el plugin borra los plazos activos; la preferencia permanece guardada.
+- **Aceptar por un tiempo**: elige entre 1 y 1.440 minutos. Aprueba el primer archivo de cada equipo emparejado; los siguientes de ese equipo se aceptan hasta que venza su plazo. Al vencer cualquier plazo activo, el ajuste cambia a **Preguntar siempre** en ambas aplicaciones y el siguiente archivo vuelve a pedir autorización. Rechazar un archivo no abre el plazo. Reiniciar la app o el plugin también termina la aprobación temporal. Para abrir otro plazo, activa de nuevo el modo temporal.
 
 En Windows, el aviso del archivo copiado muestra remitente, tamaño e instrucciones para pegarlo en **una sola ventana**. Tras aceptar, el progreso y la verificación aparecen en **Actividad**, sin otra confirmación que cerrar. En modo automático no aparece la solicitud de aprobación. Mantén SeamlessControl abierto en el receptor. Estos modos no abren puertos del firewall ni inician **Esperar un archivo** automáticamente.
 

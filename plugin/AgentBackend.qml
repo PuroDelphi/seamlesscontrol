@@ -10,6 +10,11 @@ Item {
   property string approvalMode: "always"
   property int approvalMinutes: 15
   property var approvalUntil: ({})
+  property string approvalFeedback: ""
+  property string approvalPendingMode: ""
+  property int approvalPendingMinutes: 0
+  property bool approvalExpiryPending: false
+  property bool approvalLoadedOnce: false
   function t(spanish) { return Tr.text(spanish, language) }
   function setLanguage(next) {
     if (next !== "en" && next !== "es") return
@@ -34,10 +39,16 @@ Item {
   function setApprovalSettings(mode, minutesText) {
     var minutes = Number(minutesText)
     if (!["always", "automatic", "timed"].includes(mode)
-        || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) return false
+        || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+      approvalFeedback = "error"
+      return false
+    }
     approvalMode = mode
     approvalMinutes = minutes
     approvalUntil = ({})
+    approvalFeedback = "saving"
+    approvalPendingMode = mode
+    approvalPendingMinutes = minutes
     approvalFile.setText(mode + "\t" + String(minutes) + "\n")
     return true
   }
@@ -163,6 +174,22 @@ Item {
       root.approvalMode = ["always", "automatic", "timed"].includes(fields[0]) ? fields[0] : "always"
       root.approvalMinutes = Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : 15
       root.approvalUntil = ({})
+      if (!root.approvalLoadedOnce) {
+        root.approvalLoadedOnce = true
+        if (root.approvalMode === "timed") {
+          root.approvalMode = "always"
+          root.approvalFeedback = "expired"
+          approvalFile.setText("always\t" + String(root.approvalMinutes) + "\n")
+          return
+        }
+      }
+      if (root.approvalPendingMode !== "") {
+        root.approvalFeedback = root.approvalMode === root.approvalPendingMode
+          && root.approvalMinutes === root.approvalPendingMinutes
+          ? (root.approvalExpiryPending ? "expired" : "saved") : "error"
+        root.approvalPendingMode = ""
+        root.approvalExpiryPending = false
+      }
     }
     onFileChanged: reload()
   }
@@ -877,6 +904,20 @@ Item {
   }
 
   Process { id: clipboardReadyNotificationProcess }
+
+  Timer {
+    interval: 1000
+    repeat: true
+    running: root.approvalMode === "timed" && Object.keys(root.approvalUntil).length > 0
+    onTriggered: {
+      if (Object.keys(root.approvalUntil).some(function(key) {
+        return Number(root.approvalUntil[key]) <= Date.now()
+      })) {
+        root.approvalExpiryPending = true
+        root.setApprovalSettings("always", String(root.approvalMinutes))
+      }
+    }
+  }
 
   Timer {
     interval: 120000

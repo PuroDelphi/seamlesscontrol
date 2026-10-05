@@ -1072,7 +1072,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Aprobación de archivos")
-          description: root.t("Se aplica a archivos copiados y envíos manuales desde equipos emparejados. En modo temporal, apruebe el primer archivo de cada equipo; los siguientes se aceptan durante el plazo elegido. El plazo se borra al reiniciar el plugin o cambiar el modo.")
+          description: root.t("Se aplica a archivos copiados y envíos manuales desde equipos emparejados. En modo temporal, apruebe el primer archivo de cada equipo; los siguientes se aceptan durante el plazo elegido. Al vencer el plazo o reiniciar el plugin, vuelve a Preguntar siempre.")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -1130,7 +1130,23 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("Solo los equipos ya emparejados pueden enviar archivos. El modo temporal pregunta otra vez al vencer el plazo; aceptar uno nuevo abre otro plazo para ese equipo.")
+          visible: root.backend && root.backend.approvalFeedback !== ""
+          text: !root.backend ? "" : root.backend.approvalFeedback === "saved"
+            ? root.t("Modo de aprobación guardado.")
+            : root.backend.approvalFeedback === "saving"
+              ? root.t("Guardando modo de aprobación…")
+              : root.backend.approvalFeedback === "expired"
+                ? root.t("Terminó el plazo. Se preguntará por cada archivo.")
+                : root.t("No se pudo guardar el modo de aprobación. Revise el tiempo elegido.")
+          color: root.backend && root.backend.approvalFeedback === "error" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Solo los equipos ya emparejados pueden enviar archivos. Al vencer el plazo, el ajuste vuelve a Preguntar siempre. Active el modo temporal otra vez si lo desea.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted

@@ -50,7 +50,7 @@ These screenshots come from the current Omarchy panel. The computer name, addres
 ![Settings tab: incoming file approval modes and control firewall](images/omarchy-approval-en.png)
 
 - **Remove agent** asks for confirmation and removes the managed agent and packages SeamlessControl installed for it. Paired keys and the layout stay saved; the README explains how to remove the plugin itself.
-- **Incoming file approval** applies to both file workflows. **Ask every time** is the default; **Accept automatically** accepts files from paired computers without a prompt; **Ask, then accept for a while** asks for the first file from each paired computer and remembers that approval for the selected number of minutes (1–1,440). Expiry, a mode change or restarting the app makes it ask again. The detailed behavior is [below](#choose-how-incoming-files-are-approved).
+- **Incoming file approval** applies to both file workflows. **Ask every time** is the default; **Accept automatically** accepts files from paired computers without a prompt; **Ask, then accept for a while** asks for the first file from each paired computer and remembers that approval for the selected number of minutes (1–1,440). When the time ends or the app restarts, the setting visibly returns to **Ask every time**. The detailed behavior is [below](#choose-how-incoming-files-are-approved).
 - **Firewall · receiver only** accepts the control listener's TCP port, normally `47832`. **Preview LAN rule** shows the rule restricted to the detected local network. Review it, then **Authorize this rule** and approve Omarchy's system prompt. The rule is needed on the receiver when connections time out.
 
 ![Settings tab: copied-file firewall, Connect by IP, mesh and full guide](images/omarchy-settings-advanced-en.png)
@@ -128,7 +128,7 @@ On each receiving computer, open **Settings → Incoming file approval**. The pr
 
 - **Ask every time** (default): approve or decline each offer.
 - **Accept automatically**: files from already paired computers are accepted without an approval prompt. The sender must still pass authentication, size and storage checks.
-- **Ask, then accept for a while**: enter 1–1,440 minutes. Approve the first file from each paired computer; that computer’s later files are accepted until its time expires. The next file asks again. A declined file does not start the time window. Changing the mode or restarting the app/plugin clears active windows; the preference itself remains saved.
+- **Ask, then accept for a while**: enter 1–1,440 minutes. Approve the first file from each paired computer; that computer’s later files are accepted until its time expires. When any active window ends, the setting switches to **Ask every time** on both apps, so the next file asks again. A declined file does not start the time window. Restarting the app/plugin also ends temporary approval. Select timed mode again to open a new window.
 
 In Windows, the incoming copied-file dialog now shows the sender, file size and paste instructions in **one prompt**. After acceptance, transfer and verification progress appears in **Activity**; there is no second confirmation to dismiss. In automatic mode there is no approval prompt. Keep SeamlessControl running on the receiver. These modes do not open firewall ports or start **Wait for a file** automatically.
 

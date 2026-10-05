@@ -1,10 +1,12 @@
 # Plan: copy a file here, paste it on another computer
 
-Status: cross-platform flow implemented and physically verified on `alpha` (2026-10-03); extended device and edge-case matrix pending.
+Status: cross-platform flow implemented and physically verified on `alpha`; Windows approval modes received further physical verification on 2026-10-05. The extended device and edge-case matrix keeps this plan open.
 
 Implementation choice: the existing versioned, authenticated file `Offer` is the file event. It stays separate from the text clipboard channel, so older agents keep their existing text behavior and file contents are never sent before approval.
 
 Progress: [x] copy detection and safe source validation (implemented and unit tested); [x] receiver service and approval outside the panel; [x] verified staging and local clipboard paste; [x] Linux and Windows x64 CI; [x] Omarchy automatic listener on TCP `47834` and clipboard watcher; [x] Home, Computers, Files and Settings navigation with incoming-file actions visible above every section; [x] physical Windows → Omarchy and Omarchy → Windows acceptance and Paste; [x] notification on another Omarchy workspace and Windows virtual desktop; [x] rejection without transfer; [x] Ctrl+C detection in both file managers, including GNOME Files **Recent** → Windows approval and Paste; [x] bilingual user guides, current Windows Files and Settings screenshots with fictional data, and a test summary; [ ] physical Omarchy ↔ Omarchy and Windows ↔ Windows checks when those computers are available; [ ] physical checks with other Linux file managers and remaining edge cases in step 5. Keep this plan until the remaining checks pass.
+
+On 2026-10-05, physical Windows tests passed for all three incoming approval modes with Omarchy sending: one prompt in **Ask every time**, silent receipt and paste in **Accept automatically**, and a prompt for the first file, silent acceptance within one minute, and another prompt after expiry in timed mode. **Accept automatically** also passed on Omarchy with a file copied from Windows. The first Omarchy timed-mode attempt did not establish a new transfer because the Windows source was a file previously received through SeamlessControl; the sender excludes those files to prevent an echo loop. Repeat with a fresh file created on Windows and verify that both updated interfaces visibly return to **Ask every time** after expiry.
 
 ## User experience
 
