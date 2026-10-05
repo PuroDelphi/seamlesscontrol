@@ -969,6 +969,10 @@ impl Controller {
             "approvalMode": self.approval_mode,
             "approvalMinutes": self.approval_minutes,
             "approvalFeedback": self.approval_feedback,
+            "approvalSecondsRemaining": self.approval_until.values()
+                .filter_map(|deadline| deadline.checked_duration_since(Instant::now()))
+                .map(|remaining| remaining.as_secs() + 1)
+                .max().unwrap_or(0),
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
             "fileOffer": self.file_offer,
             "clipboardOffer": self.clipboard_offer,

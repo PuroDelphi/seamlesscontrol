@@ -1065,6 +1065,7 @@ Panel {
         PanelSectionHeader {
           Layout.fillWidth: true
           text: root.t("APROBACIÓN DE ARCHIVOS ENTRANTES")
+            + (root.backend && root.backend.approvalFeedback === "saved" ? " · " + root.t("GUARDADO") : "")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -1142,6 +1143,19 @@ Panel {
           font.family: root.face
           font.pixelSize: Style.font.caption
           wrapMode: Text.WordWrap
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.approvalMode === "timed"
+            && root.backend.approvalSecondsRemaining > 0
+          text: !root.backend ? "" : root.t("Permiso temporal activo: ")
+            + Math.floor(root.backend.approvalSecondsRemaining / 60) + ":"
+            + (root.backend.approvalSecondsRemaining % 60 < 10 ? "0" : "")
+            + (root.backend.approvalSecondsRemaining % 60)
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         Text {

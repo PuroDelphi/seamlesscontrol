@@ -10,6 +10,7 @@ Item {
   property string approvalMode: "always"
   property int approvalMinutes: 15
   property var approvalUntil: ({})
+  property int approvalSecondsRemaining: 0
   property string approvalFeedback: ""
   property string approvalPendingMode: ""
   property int approvalPendingMinutes: 0
@@ -46,10 +47,19 @@ Item {
     approvalMode = mode
     approvalMinutes = minutes
     approvalUntil = ({})
+    approvalSecondsRemaining = 0
     approvalFeedback = "saving"
     approvalPendingMode = mode
     approvalPendingMinutes = minutes
-    approvalFile.setText(mode + "\t" + String(minutes) + "\n")
+    try {
+      approvalFile.setText(mode + "\t" + String(minutes) + "\n")
+      approvalFeedback = approvalExpiryPending ? "expired" : "saved"
+    } catch (error) {
+      approvalFeedback = "error"
+      approvalPendingMode = ""
+      approvalExpiryPending = false
+      return false
+    }
     return true
   }
   function autoAcceptFrom(peer) {
@@ -63,6 +73,7 @@ Item {
       var next = Object.assign({}, approvalUntil)
       next[machine.key] = Date.now() + approvalMinutes * 60000
       approvalUntil = next
+      approvalSecondsRemaining = approvalMinutes * 60
     }
   }
   property bool installed: false
@@ -171,9 +182,14 @@ Item {
     onLoaded: {
       var fields = String(text() || "").trim().split("\t")
       var minutes = Number(fields[1])
-      root.approvalMode = ["always", "automatic", "timed"].includes(fields[0]) ? fields[0] : "always"
-      root.approvalMinutes = Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : 15
-      root.approvalUntil = ({})
+      var loadedMode = ["always", "automatic", "timed"].includes(fields[0]) ? fields[0] : "always"
+      var loadedMinutes = Number.isInteger(minutes) && minutes >= 1 && minutes <= 1440 ? minutes : 15
+      if (root.approvalMode !== loadedMode || root.approvalMinutes !== loadedMinutes) {
+        root.approvalUntil = ({})
+        root.approvalSecondsRemaining = 0
+      }
+      root.approvalMode = loadedMode
+      root.approvalMinutes = loadedMinutes
       if (!root.approvalLoadedOnce) {
         root.approvalLoadedOnce = true
         if (root.approvalMode === "timed") {
@@ -910,9 +926,11 @@ Item {
     repeat: true
     running: root.approvalMode === "timed" && Object.keys(root.approvalUntil).length > 0
     onTriggered: {
-      if (Object.keys(root.approvalUntil).some(function(key) {
-        return Number(root.approvalUntil[key]) <= Date.now()
-      })) {
+      var deadlines = Object.keys(root.approvalUntil).map(function(key) {
+        return Number(root.approvalUntil[key])
+      })
+      root.approvalSecondsRemaining = Math.max(0, Math.ceil((Math.max.apply(null, deadlines) - Date.now()) / 1000))
+      if (deadlines.some(function(deadline) { return deadline <= Date.now() })) {
         root.approvalExpiryPending = true
         root.setApprovalSettings("always", String(root.approvalMinutes))
       }

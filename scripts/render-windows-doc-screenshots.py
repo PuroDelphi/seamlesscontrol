@@ -28,6 +28,7 @@ window.seamlessReceive({
   peers: [{ip:'192.0.2.20', fingerprint:'0123456789abcdef0123456789abcdef'}],
   discovered: [], layout: {}, logs: [], fileLimitMiB: 100,
   approvalMode: 'timed', approvalMinutes: 15, approvalFeedback: 'saved',
+  approvalSecondsRemaining: 735,
   startup: 'on',
   defaultDownload: 'Downloads'
 });
