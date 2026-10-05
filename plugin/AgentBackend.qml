@@ -64,15 +64,15 @@ Item {
     return true
   }
   function autoAcceptFrom(peer) {
-    var machine = peers.find(function(item) { return item.ip === peer })
     return approvalMode === "automatic"
-      || approvalMode === "timed" && machine && Number(approvalUntil[machine.key] || 0) > Date.now()
+      || approvalMode === "timed" && Number(approvalUntil[peer] || 0) > Date.now()
   }
   function rememberApproval(peer) {
-    var machine = peers.find(function(item) { return item.ip === peer })
-    if (approvalMode === "timed" && machine) {
+    if (approvalMode === "timed" && peer) {
       var next = Object.assign({}, approvalUntil)
-      next[machine.key] = Date.now() + approvalMinutes * 60000
+      // The file agent already pinned and authenticated this sender before OFFER.
+      // Its peer table may not yet have refreshed in the panel.
+      next[peer] = Date.now() + approvalMinutes * 60000
       approvalUntil = next
       approvalSecondsRemaining = approvalMinutes * 60
     }
