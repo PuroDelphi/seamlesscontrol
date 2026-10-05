@@ -13,7 +13,7 @@
 | Copied files, Omarchy → Windows | A Wayland file reference produced an offer; the user accepted from another Windows virtual desktop and pasted in Explorer. Ctrl+C in GNOME Files, including **Recent**, produced an offer that the user accepted and pasted in Windows. |
 | Incoming prompt and rejection | Omarchy showed the prompt on another active workspace with its panel closed. Rejecting it transferred no file. |
 
-The [copied-file plan](FILE-CLIPBOARD-PLAN.md) retains the checks requiring two Omarchy or two Windows computers and other physical edge cases. The detailed observations follow below.
+The detailed observations follow below. Remaining copied-file checks are recorded at the end of this document.
 
 On 2026-10-05, the incoming-file approval settings were tested on physical Windows with Omarchy sending. **Ask every time** showed one prompt with the file details and no second confirmation. **Accept automatically** received and pasted another file without a dialog. A one-minute timed window asked for the first file, silently accepted the second within the minute, and asked again after expiry. **Accept automatically** also passed on Omarchy with Windows sending. For Omarchy's timed mode, a fresh Windows file was offered and accepted, the panel showed a live three-minute countdown, and a second Windows file arrived without prompting during that window. On expiry, the panel visibly marked **Ask every time** with an expiry message. The updated Windows app likewise showed the countdown and visibly returned to **Ask every time** with its expiry message.
 
@@ -58,3 +58,7 @@ Local loopback and integrated tests cover pairing, Noise XX, discovery, simulate
 For 0.19.7, a local encrypted loopback test keeps two mesh links open, revokes an idle peer, verifies its socket closes while the other link remains usable, then revokes the active peer and verifies that the mesh loop receives the error that triggers capture release. The complete Rust test suite (72 tests) and Clippy passed locally. This does not replace a physical multi-computer mesh test.
 
 The following still need physical verification: other keyboard shortcuts and layouts, wheel and dragging between the two Omarchy computers; copied-file transfers between two Omarchy or two Windows computers, larger files and interrupted transfers; multiple receiver mesh; other screen edges and monitor arrangements; locking, sleep and network loss. Windows still needs Start with Windows at a new sign-in, untested keys and layouts, wheel, drag, manual Send file to Omarchy, lock, and other screen layouts.
+
+### Remaining copied-file checks
+
+The Omarchy/Windows pair has passed the normal workflow, both approval directions, Unicode names, duplicate copies and rejection. When the required computers and test environments are available, check Omarchy ↔ Omarchy and Windows ↔ Windows, other Linux file managers, large or oversized files, cancellation during transfer, changed source files, network interruption and retry, insufficient destination space, clipboard replacement before Paste, and simultaneous text clipboard changes. Record each result here rather than treating an untested scenario as a product failure or a completed check.

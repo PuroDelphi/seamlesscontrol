@@ -13,12 +13,32 @@
 - **Find computers nearby:** LAN discovery shows available receivers. Manual `IP:port` remains available when discovery is blocked.
 - **Pair securely:** compare the six digit code on both computers. Each computer remembers the other's identity; a changed key requires review.
 - **Copy and paste files across computers:** copy one file in Explorer or the Omarchy file manager, approve the visible offer on the receiver, then paste into the destination folder.
-- **Send files deliberately:** the receiver approves each offer; the transferred file is checked before it is published. File reception uses its own port.
-- **Use the interface you expect:** an Omarchy panel and a Windows app that stays in the system tray. Both offer English and Spanish.
+- **Choose how files are approved:** ask every time, accept automatically from paired computers, or approve once for a chosen number of minutes. The temporary option shows a countdown and returns to asking when it expires.
+- **Use the interface you expect:** a focused Omarchy panel and a Windows app that stays in the system tray. Both offer English and Spanish, clear save feedback and visible incoming-file prompts.
 
 Use your Omarchy and Windows computers in one workspace: control crosses in either direction, while trusted pairing, discovery and text clipboard keep the session familiar. SeamlessControl is developed continuously. See the [technical guide](docs/TECHNICAL.md) for architecture, permissions and verification records.
 
 **Verified on real Omarchy and Windows 11 x64 computers:** mouse and keyboard control in both directions, return by edge and Escape, text clipboard in both directions, and approved file copy and Paste in both directions. An incoming file prompt appeared on another Omarchy workspace and another Windows virtual desktop; rejecting an offer transferred no file. The [test record](docs/TEST-RESULTS.md) separates these observations from checks still awaiting more computers.
+
+## Simple screens, clear decisions
+
+**Omarchy** keeps installation and the active session on **Home**. **Computers** puts discovery, pairing and the screen layout together; **Files** handles copy and paste or a deliberate send; **Settings** holds approval and firewall controls. Optional help opens when you need it.
+
+![The streamlined Omarchy Home screen](docs/images/omarchy-overview-en.png)
+
+**Windows** uses **Overview, Computers, Files and Settings**. Paired computers sit beside the draggable layout, and the app remembers the last control mode, address and screen edge. Close the window to keep it available in the tray.
+
+![Windows Settings with incoming-file approval and firewall controls](docs/images/windows-settings-en.png)
+
+For an incoming file from a **paired** computer, choose the level of interruption that suits you:
+
+| Approval mode | What happens |
+|---|---|
+| **Ask every time** | Review the sender, file and size in one visible prompt. |
+| **Accept automatically** | Receive authenticated files without a prompt. |
+| **Ask, then accept for a while** | Approve the first file, then accept that computer's files until the countdown ends. The setting returns to **Ask every time**. |
+
+The received file is verified before it becomes available to **Paste**. The prompt reaches the active Omarchy workspace or Windows virtual desktop even when the main panel is closed. [See the illustrated file guide](docs/USER-GUIDE.md#choose-how-incoming-files-are-approved).
 
 ## Get started on Omarchy
 

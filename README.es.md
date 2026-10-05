@@ -13,12 +13,32 @@
 - **Encuentra equipos cercanos:** el descubrimiento LAN muestra receptores disponibles. Puedes introducir `IP:puerto` si la red bloquea el descubrimiento.
 - **Empareja con seguridad:** compara el código de seis cifras en ambos equipos. Cada uno recuerda la identidad del otro y exige revisar cualquier cambio de clave.
 - **Copia y pega archivos entre equipos:** copia un archivo en el explorador de Windows u Omarchy, aprueba la oferta visible en el receptor y pégalo en la carpeta de destino.
-- **Envía archivos con aprobación:** el receptor autoriza cada oferta y verifica el archivo antes de guardarlo. La recepción utiliza un puerto independiente.
-- **Usa una interfaz familiar:** panel Omarchy y aplicación Windows que permanece en la bandeja. Ambas tienen inglés y español.
+- **Elige cómo se autorizan los archivos:** pregunta siempre, acepta automáticamente desde equipos emparejados o aprueba durante los minutos que elijas. La opción temporal muestra una cuenta regresiva y vuelve a preguntar al vencer.
+- **Usa una interfaz familiar:** un panel Omarchy organizado y una aplicación Windows que permanece en la bandeja. Ambas tienen inglés y español, confirman los ajustes guardados y muestran claramente los archivos entrantes.
 
 Usa tus equipos Omarchy y Windows en un mismo espacio: el control cruza en ambos sentidos y el emparejamiento, el descubrimiento y el portapapeles de texto facilitan cada sesión. Seguiremos mejorando SeamlessControl continuamente. La [guía técnica](docs/TECHNICAL.es.md) explica la arquitectura, los permisos y las verificaciones.
 
 **Comprobado en equipos físicos Omarchy y Windows 11 x64:** control de ratón y teclado en ambos sentidos, regreso por el borde y con Escape, portapapeles de texto en ambos sentidos y copia y pegado de archivos aprobados en ambos sentidos. El aviso de archivo entrante apareció en otro workspace de Omarchy y en otro escritorio virtual de Windows; rechazar una oferta no transfirió ningún archivo. El [registro de pruebas](docs/TEST-RESULTS.es.md) distingue estos resultados de las comprobaciones pendientes con más equipos.
+
+## Pantallas sencillas, decisiones claras
+
+**Omarchy** deja la instalación y la sesión activa en **Inicio**. **Equipos** reúne búsqueda, emparejamiento y mapa; **Archivos** permite copiar y pegar o enviar deliberadamente; **Ajustes** contiene la aprobación y el firewall. La ayuda opcional se abre cuando la necesitas.
+
+![Inicio organizado del panel Omarchy](docs/images/omarchy-overview-es.png)
+
+**Windows** tiene **Inicio, Equipos, Archivos y Ajustes**. Los equipos emparejados están junto al mapa arrastrable, y la app recuerda el último modo de control, dirección y borde. Puedes cerrar la ventana y dejarla disponible en la bandeja.
+
+![Ajustes de Windows con aprobación de archivos entrantes y firewall](docs/images/windows-settings-es.png)
+
+Para un archivo entrante de un equipo **emparejado**, elige cuánto quieres intervenir:
+
+| Modo de aprobación | Qué ocurre |
+|---|---|
+| **Preguntar siempre** | Revisa remitente, archivo y tamaño en un solo aviso visible. |
+| **Aceptar automáticamente** | Recibe archivos autenticados sin mostrar una solicitud. |
+| **Preguntar y aceptar por un tiempo** | Aprueba el primer archivo y recibe los siguientes de ese equipo hasta que termine la cuenta regresiva. Después vuelve a **Preguntar siempre**. |
+
+El archivo se verifica antes de quedar disponible para **Pegar**. El aviso llega al workspace activo de Omarchy o al escritorio virtual de Windows aunque el panel principal esté cerrado. [Consulta la guía ilustrada de archivos](docs/USER-GUIDE.es.md#elegir-cómo-se-aprueban-los-archivos-entrantes).
 
 ## Empezar en Omarchy
 

@@ -4,6 +4,14 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.22.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.0) — 2026-10-05
+
+- Organiza el panel Omarchy y la app Windows de bandeja alrededor de las tareas habituales: recibir o controlar, encontrar y ubicar equipos, copiar archivos y ajustar permisos. La ayuda opcional empieza plegada y los equipos emparejados de Windows aparecen junto al mapa.
+- Permite copiar un archivo entre Omarchy y Windows y pegarlo en el otro equipo. Los avisos de entrada aparecen incluso en otro workspace de Omarchy o escritorio virtual de Windows. El archivo se autentica y verifica antes de Pegar.
+- Añade tres modos de aprobación para archivos copiados y enviados manualmente: **Preguntar siempre**, **Aceptar automáticamente** y **Preguntar y aceptar por un tiempo**. Muestra confirmación al guardar y cuenta regresiva; al vencer, ambas interfaces vuelven visiblemente a **Preguntar siempre**.
+- Restaura en Windows el último modo de control, dirección y borde al iniciar. El arranque con Windows es opcional. Las compilaciones de prueba ofrecen un solo artefacto con los ejecutables y sus SHA; el release etiquetado ofrece un ZIP de Windows y su SHA256 contiguo.
+- Pasaron pruebas físicas de archivos copiados en ambos sentidos entre Omarchy y Windows, incluidos nombres Unicode, duplicados, aprobación, rechazo y pegado. El [registro de pruebas](docs/TEST-RESULTS.es.md) distingue los casos que aún precisan más equipos o fallos simulados.
+
 ## [0.21.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.1) — 2026-10-03
 
 - Empaqueta la app y el agente Windows x64 en un único ZIP con su archivo SHA-256 contiguo. La instalación y la actualización requieren una sola descarga.

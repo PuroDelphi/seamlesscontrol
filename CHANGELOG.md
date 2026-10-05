@@ -4,6 +4,14 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.22.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.0) — 2026-10-05
+
+- Organize the Omarchy panel and Windows tray app around the everyday tasks: receive or control, find and place computers, copy files, and adjust permissions. Keep optional explanations collapsed and put paired Windows computers next to their layout map.
+- Copy a file between Omarchy and Windows and paste it on the other computer. Incoming offers remain visible across Omarchy workspaces and Windows virtual desktops. The file is authenticated and verified before Paste.
+- Add three receiver approval modes for copied and manually sent files: **Ask every time**, **Accept automatically**, and **Ask, then accept for a while**. Show a saved confirmation and countdown; after the window expires, both interfaces return visibly to **Ask every time**.
+- Restore the Windows app's last chosen control mode, address and edge on launch. Start with Windows is optional. Package test builds as one downloadable artifact with both executables and their checksums; the tagged release provides one Windows ZIP and its adjacent SHA256.
+- Physical Omarchy/Windows tests passed in both directions for copied files, including Unicode names, duplicate copies, approval, rejection and Paste. The [test record](docs/TEST-RESULTS.md) lists scenarios that still need additional machines or fault injection.
+
 ## [0.21.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.21.1) — 2026-10-03
 
 - Package the Windows x64 app and agent together in one ZIP with an adjacent SHA-256 file. Installation and update instructions now require a single download.
