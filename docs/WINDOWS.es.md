@@ -17,6 +17,8 @@ Las capturas muestran la interfaz actual con nombres, archivos y direcciones fic
 3. Haz doble clic en `seamlesscontrol.exe`. La primera vez se inicia **Recibir control** en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Las siguientes veces restaura el modo de control que dejaste activo. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
 4. Cierra la ventana para dejar la aplicación en la bandeja. Pulsa su icono para abrirla de nuevo. **Exit SeamlessControl** en el menú de la bandeja termina las sesiones y cierra la aplicación.
 
+Para probar una compilación `alpha` de GitHub Actions, descarga el único artefacto **`seamlesscontrol-windows-x64`**. GitHub entrega un ZIP con `seamlesscontrol.exe`, `seamlesscontrold.exe` y `SHA256SUMS.txt`; este último contiene los SHA de los dos ejecutables. En los releases con tag, el SHA del ZIP completo aparece como asset contiguo.
+
 Para abrirla automáticamente al iniciar tu próxima sesión de Windows, ve a **Ajustes → Iniciar con Windows** y pulsa **Activar**. La app aparece en la bandeja y restaura el último modo de control elegido. Esta opción solo afecta a tu cuenta de Windows y no pide permisos de administrador. Pulsa **Desactivar** en la misma tarjeta para retirarla. Si mueves la carpeta con los dos ejecutables, abre la app desde la nueva ubicación y pulsa **Activar** otra vez para actualizar la ruta guardada.
 
 Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). Los ejecutables se distribuyen actualmente sin firma digital.

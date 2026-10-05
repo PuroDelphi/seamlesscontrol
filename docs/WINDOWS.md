@@ -17,6 +17,8 @@ The screenshots render the app's current interface with fictional names, files a
 3. Double click `seamlesscontrol.exe`. On its first launch, **Receive control** starts on TCP `47832` and advertises this Windows computer to nearby SeamlessControl panels. Later launches restore the control mode you last chose. If Windows asks about network access, choose **Private networks**.
 4. Close the window to leave it running in the tray. Click the tray icon to open it again. Choose **Exit SeamlessControl** from the tray menu to end sessions and exit.
 
+For an `alpha` test build from GitHub Actions, download the single **`seamlesscontrol-windows-x64`** artifact. GitHub gives you one ZIP containing `seamlesscontrol.exe`, `seamlesscontrold.exe` and `SHA256SUMS.txt`; the last file lists the checksums of the two executables. Tagged releases instead provide a checksum for the complete ZIP as an adjacent asset.
+
 To open it automatically at your next Windows sign-in, go to **Settings → Start with Windows** and select **Turn on**. The app starts in the tray and restores your last chosen control mode. This setting belongs only to your Windows account and needs no administrator approval. Select **Turn off** in the same card to remove it. If you move the folder containing the two executables, reopen the app from its new location and select **Turn on** again to update the saved path.
 
 Windows 11 typically includes WebView2; if the app says it is missing, install [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The app and agent are currently distributed as unsigned executables.

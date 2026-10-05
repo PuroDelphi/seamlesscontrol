@@ -51,30 +51,41 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Identity startup failed' }
           & $exe peers
           if ($LASTEXITCODE -ne 0) { throw 'Peer listing startup failed' }
-      - name: Package Windows x64 ZIP and checksum
+      - name: Prepare Windows x64 package
         shell: pwsh
         run: |
           $output = 'agent/target/x86_64-pc-windows-msvc/release'
-          $archive = "$output/seamlesscontrol-windows-x64.zip"
-          Compress-Archive -Path "$output/seamlesscontrol.exe", "$output/seamlesscontrold.exe" -DestinationPath $archive -Force
-          $check = Join-Path $env:RUNNER_TEMP 'seamlesscontrol-package-check'
-          Expand-Archive -Path $archive -DestinationPath $check -Force
+          $package = 'windows-package'
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+          $checksums = @()
           foreach ($name in @('seamlesscontrol.exe', 'seamlesscontrold.exe')) {
+            Copy-Item "$output/$name" "$package/$name"
             $expected = (Get-FileHash -Algorithm SHA256 "$output/$name").Hash
-            $actual = (Get-FileHash -Algorithm SHA256 "$check/$name").Hash
-            if ($expected -ne $actual) { throw "ZIP verification failed: $name" }
+            $actual = (Get-FileHash -Algorithm SHA256 "$package/$name").Hash
+            if ($expected -ne $actual) { throw "Package verification failed: $name" }
+            $checksums += "$($actual.ToLowerInvariant())  $name"
           }
-          $digest = (Get-FileHash -Algorithm SHA256 $archive).Hash.ToLowerInvariant()
-          "$digest  seamlesscontrol-windows-x64.zip" | Set-Content -Encoding ascii -Path "$archive.sha256"
+          $checksums | Set-Content -Encoding ascii -Path "$package/SHA256SUMS.txt"
       - uses: actions/upload-artifact@v7
         with:
-          name: seamlesscontrol-windows-x64.zip
-          path: agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol-windows-x64.zip
-          archive: false
+          name: seamlesscontrol-windows-x64
+          path: windows-package/
           if-no-files-found: error
-      - uses: actions/upload-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
-          name: seamlesscontrol-windows-x64.zip.sha256
-          path: agent/target/x86_64-pc-windows-msvc/release/seamlesscontrol-windows-x64.zip.sha256
-          archive: false
-          if-no-files-found: error
+          name: seamlesscontrol-windows-x64
+          path: windows-package-check
+      - name: Verify downloaded package contents
+        shell: pwsh
+        run: |
+          $directory = 'windows-package-check'
+          $expectedNames = @('seamlesscontrol.exe', 'seamlesscontrold.exe', 'SHA256SUMS.txt')
+          $actualNames = @(Get-ChildItem $directory | ForEach-Object Name | Sort-Object)
+          if (@(Compare-Object ($expectedNames | Sort-Object) $actualNames).Count -ne 0) {
+            throw "Unexpected package contents: $($actualNames -join ', ')"
+          }
+          $checksums = Get-Content "$directory/SHA256SUMS.txt"
+          foreach ($name in @('seamlesscontrol.exe', 'seamlesscontrold.exe')) {
+            $actual = (Get-FileHash -Algorithm SHA256 "$directory/$name").Hash.ToLowerInvariant()
+            if ($checksums -notcontains "$actual  $name") { throw "Checksum mismatch: $name" }
+          }
