@@ -18,6 +18,7 @@ Panel {
   property string revokeCandidate: ""
   property string selectedMachine: ""
   property int keyboardCell: -1
+  property string approvalDraft: ""
   property bool confirmRemoveAgent: false
   property string activeTab: "home"
   readonly property var ownerItem: hostWidget || root
@@ -32,6 +33,12 @@ Panel {
   }).length : 0
 
   function t(spanish) { return Tr.text(spanish, backend ? backend.language : "en") }
+
+  function saveTimedApproval() {
+    if (!backend) return
+    var value = approvalDraft !== "" ? approvalDraft : approvalMinutesInput.text.trim()
+    if (backend.setApprovalSettings("timed", value)) approvalDraft = ""
+  }
 
   function switchTab(tab) {
     if (!["home", "computers", "files", "settings"].includes(tab)) return
@@ -1109,7 +1116,7 @@ Panel {
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
-            onClicked: if (root.backend) root.backend.setApprovalSettings("timed", approvalMinutesInput.text.trim())
+            onClicked: root.saveTimedApproval()
           }
           Controls.TextField {
             id: approvalMinutesInput
@@ -1120,12 +1127,14 @@ Panel {
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
-            onTextEdited: if (root.backend && root.backend.approvalMode === "timed")
-              root.backend.approvalFeedback = "unsaved"
+            onTextEdited: {
+              root.approvalDraft = text.trim()
+              if (root.backend && root.backend.approvalMode === "timed")
+                root.backend.approvalFeedback = "unsaved"
+            }
             onEditingFinished: if (root.backend && root.backend.approvalMode === "timed"
-                && Number(text) !== root.backend.approvalMinutes)
-              root.backend.setApprovalSettings("timed", text.trim())
-            onAccepted: if (root.backend) root.backend.setApprovalSettings("timed", text.trim())
+                && root.approvalDraft !== "") root.saveTimedApproval()
+            onAccepted: root.saveTimedApproval()
           }
           Text {
             text: root.t("min")
@@ -1142,14 +1151,14 @@ Panel {
           foreground: root.ink
           accent: Color.accent
           fontFamily: root.face
-          onClicked: if (root.backend) root.backend.setApprovalSettings("timed", approvalMinutesInput.text.trim())
+          onClicked: root.saveTimedApproval()
         }
 
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.approvalFeedback !== ""
           text: !root.backend ? "" : root.backend.approvalFeedback === "saved"
-            ? root.t("Modo de aprobación guardado.")
+            ? root.t("Modo de aprobación guardado.") + " · " + root.backend.approvalMinutes + " " + root.t("min")
             : root.backend.approvalFeedback === "saving"
               ? root.t("Guardando modo de aprobación…")
               : root.backend.approvalFeedback === "unsaved"
