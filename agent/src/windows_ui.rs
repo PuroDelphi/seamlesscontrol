@@ -20,6 +20,10 @@ use tao::platform::windows::WindowExtWindows;
 use tao::window::{Icon as WindowIcon, Window, WindowBuilder};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem};
 use tray_icon::{Icon as TrayImage, MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
+use windows_sys::Win32::System::Registry::{
+    HKEY_CURRENT_USER, REG_SZ, RRF_RT_REG_SZ, RegDeleteKeyValueW, RegGetValueW, RegSetKeyValueW,
+};
 use windows_sys::Win32::UI::Controls::Dialogs::{
     GetOpenFileNameW, OFN_FILEMUSTEXIST, OFN_PATHMUSTEXIST, OPENFILENAMEW,
 };
@@ -33,6 +37,100 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const HTML: &str = include_str!("windows_ui.html");
 const DEFAULT_FILE_LIMIT_MIB: u64 = 100;
 const MAX_FILE_LIMIT_MIB: u64 = 10240;
+const STARTUP_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+const STARTUP_VALUE: &str = "SeamlessControl";
+
+fn wide(value: &str) -> Vec<u16> {
+    value.encode_utf16().chain(std::iter::once(0)).collect()
+}
+
+fn startup_command(executable: &std::path::Path) -> io::Result<Vec<u16>> {
+    let mut command = vec![u16::from(b'"')];
+    command.extend(executable.as_os_str().encode_wide());
+    command.extend("\" --background".encode_utf16());
+    if command.len() >= 260 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "The app folder path is too long for Windows startup. Move both executables to a shorter folder.",
+        ));
+    }
+    command.push(0);
+    Ok(command)
+}
+
+fn startup_status(executable: &std::path::Path) -> io::Result<&'static str> {
+    let key = wide(STARTUP_KEY);
+    let name = wide(STARTUP_VALUE);
+    let mut bytes = 0u32;
+    let result = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            name.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            &mut bytes,
+        )
+    };
+    if result == ERROR_FILE_NOT_FOUND {
+        return Ok("off");
+    }
+    if result != ERROR_SUCCESS {
+        return Err(io::Error::from_raw_os_error(result as i32));
+    }
+    if bytes % 2 != 0 || bytes == 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Invalid Windows startup entry",
+        ));
+    }
+    let mut value = vec![0u16; (bytes / 2) as usize];
+    let result = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            name.as_ptr(),
+            RRF_RT_REG_SZ,
+            std::ptr::null_mut(),
+            value.as_mut_ptr().cast(),
+            &mut bytes,
+        )
+    };
+    if result != ERROR_SUCCESS {
+        return Err(io::Error::from_raw_os_error(result as i32));
+    }
+    Ok(if value == startup_command(executable)? {
+        "on"
+    } else {
+        "moved"
+    })
+}
+
+fn set_startup(executable: &std::path::Path, enabled: bool) -> io::Result<()> {
+    let key = wide(STARTUP_KEY);
+    let name = wide(STARTUP_VALUE);
+    let result = if enabled {
+        let command = startup_command(executable)?;
+        unsafe {
+            RegSetKeyValueW(
+                HKEY_CURRENT_USER,
+                key.as_ptr(),
+                name.as_ptr(),
+                REG_SZ,
+                command.as_ptr().cast(),
+                (command.len() * std::mem::size_of::<u16>()) as u32,
+            )
+        }
+    } else {
+        unsafe { RegDeleteKeyValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr()) }
+    };
+    if result == ERROR_SUCCESS || (!enabled && result == ERROR_FILE_NOT_FOUND) {
+        Ok(())
+    } else {
+        Err(io::Error::from_raw_os_error(result as i32))
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 enum Slot {
@@ -78,6 +176,8 @@ struct PairCode {
 
 struct Controller {
     cli: PathBuf,
+    executable: PathBuf,
+    startup: &'static str,
     receive_port: u16,
     file_limit_mib: u64,
     file_limit_path: PathBuf,
@@ -109,7 +209,8 @@ struct Controller {
 }
 
 impl Controller {
-    fn new(cli: PathBuf) -> Self {
+    fn new(cli: PathBuf, executable: PathBuf) -> Self {
+        let startup = startup_status(&executable).unwrap_or("error");
         let layout_path = std::env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
             .unwrap_or_default()
@@ -143,6 +244,8 @@ impl Controller {
             .unwrap_or_default();
         Self {
             cli,
+            executable,
+            startup,
             receive_port: 47832,
             file_limit_mib,
             file_limit_path,
@@ -671,6 +774,7 @@ impl Controller {
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
             "fileLimitMiB": self.file_limit_mib,
+            "startup": self.startup,
             "approvalMode": self.approval_mode,
             "approvalMinutes": self.approval_minutes,
             "pairCode": self.pair_code.as_ref().map(|code| &code.digits),
@@ -759,6 +863,16 @@ impl Controller {
                     }
                 }
                 "setFileApproval" => self.set_file_approval(string("mode"), string("minutes"))?,
+                "enableStartup" | "disableStartup" => {
+                    let enabled = action == "enableStartup";
+                    set_startup(&self.executable, enabled)?;
+                    self.startup = startup_status(&self.executable)?;
+                    self.log(if enabled {
+                        "SeamlessControl will start in the tray when you sign in to Windows."
+                    } else {
+                        "Start with Windows turned off."
+                    });
+                }
                 "setLanguage" => {
                     if !matches!(string("language"), "en" | "es") {
                         return Err("choose English or Español".into());
@@ -1032,6 +1146,7 @@ pub fn run() {
 }
 
 fn run_app() -> Result<(), Box<dyn Error>> {
+    let background = std::env::args_os().skip(1).any(|arg| arg == "--background");
     let current = std::env::current_exe()?;
     let cli = current
         .parent()
@@ -1050,6 +1165,7 @@ fn run_app() -> Result<(), Box<dyn Error>> {
         .with_title("SeamlessControl")
         .with_inner_size(LogicalSize::new(1080.0, 760.0))
         .with_min_inner_size(LogicalSize::new(850.0, 640.0))
+        .with_visible(!background)
         .with_window_icon(Some(window_icon))
         .build(&event_loop)?;
     let ipc_proxy = proxy.clone();
@@ -1077,7 +1193,7 @@ fn run_app() -> Result<(), Box<dyn Error>> {
     MenuEvent::set_event_handler(Some(move |event| {
         let _ = menu_proxy.send_event(UiEvent::Menu(event));
     }));
-    let mut controller = Controller::new(cli);
+    let mut controller = Controller::new(cli, current);
     controller.refresh_peers();
     if let Err(error) = controller.start(Slot::Serve, &["serve", "0.0.0.0:47832"], &proxy) {
         controller.log(format!("Could not receive control automatically: {error}"));

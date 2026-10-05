@@ -17,6 +17,8 @@ Las capturas muestran la interfaz actual con nombres, archivos y direcciones fic
 3. Haz doble clic en `seamlesscontrol.exe`. **Recibir control** se inicia automáticamente en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
 4. Cierra la ventana para dejar la aplicación en la bandeja. Pulsa su icono para abrirla de nuevo. **Exit SeamlessControl** en el menú de la bandeja termina las sesiones y cierra la aplicación.
 
+Para abrirla automáticamente al iniciar tu próxima sesión de Windows, ve a **Ajustes → Iniciar con Windows** y pulsa **Activar**. La app aparece en la bandeja e inicia **Recibir control** como cuando la abres manualmente. Esta opción solo afecta a tu cuenta de Windows y no pide permisos de administrador. Pulsa **Desactivar** en la misma tarjeta para retirarla. Si mueves la carpeta con los dos ejecutables, abre la app desde la nueva ubicación y pulsa **Activar** otra vez para actualizar la ruta guardada.
+
 Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). Los ejecutables se distribuyen actualmente sin firma digital.
 
 ## Emparejar una vez
@@ -58,7 +60,7 @@ En **Ajustes → Aprobación de archivos entrantes**, elige **Preguntar siempre*
 
 Usa **Ajustes → Firewall de Windows** si otro equipo no puede acceder a este Windows receptor. **Permitir puerto de control** pide autorización de administrador para TCP entrante en el puerto de control mostrado. **Permitir puerto de archivos** hace lo mismo para el envío manual. **Permitir puerto de archivos copiados 47834** habilita las ofertas de archivos copiados. Si Windows no aparece automáticamente en Omarchy, **Permitir descubrimiento · UDP 5353** permite las consultas mDNS locales. Las reglas quedan limitadas al perfil de red **Privada** y a **LocalSubnet**. Si cambias un puerto TCP, actualiza el campo correspondiente antes de pulsar el botón de firewall. La app informa de que *solicitó* autorización; la consola elevada de Windows informa del resultado. Puedes retirar las reglas `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN` desde Firewall de Windows.
 
-![Pantalla Ajustes de Windows con aprobación de archivos y acciones del firewall para la LAN privada](images/windows-settings-es.png)
+![Pantalla Ajustes de Windows con aprobación de archivos, Iniciar con Windows y acciones del firewall para la LAN privada](images/windows-settings-es.png)
 
 El autodescubrimiento usa mDNS en la LAN privada y no sustituye el emparejamiento. Si el router, el aislamiento Wi-Fi o un filtro multicast ocultan un equipo, escribe su `IP:puerto` privada manualmente. Si el emparejamiento agota el tiempo, comprueba que el receptor esté activo y permita el puerto de control. Los archivos necesitan un puerto distinto permitido en el **receptor** del archivo.
 
@@ -66,6 +68,6 @@ El autodescubrimiento usa mDNS en la LAN privada y no sustituye el emparejamient
 
 Para actualizar, selecciona **Exit SeamlessControl** en la bandeja, descarga `seamlesscontrol-windows-x64.zip` de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extráelo y reemplaza ambos `.exe` en su carpeta y abre la app de nuevo. Los emparejamientos de `%LOCALAPPDATA%\SeamlessControl` se conservan.
 
-Para desinstalar, sal desde la bandeja y borra la carpeta de los ejecutables. `%LOCALAPPDATA%\SeamlessControl` conserva la identidad y los pares por si reinstalas. Borra esa carpeta de datos solo si quieres una identidad nueva; los demás equipos deberán emparejarse otra vez. Retira también las reglas de firewall que hayas autorizado.
+Para desinstalar, pulsa primero **Ajustes → Iniciar con Windows → Desactivar**, sal desde la bandeja y borra la carpeta de los ejecutables. `%LOCALAPPDATA%\SeamlessControl` conserva la identidad y los pares por si reinstalas. Borra esa carpeta de datos solo si quieres una identidad nueva; los demás equipos deberán emparejarse otra vez. Retira también las reglas de firewall que hayas autorizado.
 
 Los comandos manuales, el diseño de seguridad y las verificaciones físicas están en la [guía técnica](TECHNICAL.es.md) y el [registro de pruebas](TEST-RESULTS.es.md).

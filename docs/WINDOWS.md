@@ -17,6 +17,8 @@ The screenshots render the app's current interface with fictional names, files a
 3. Double click `seamlesscontrol.exe`. **Receive control** starts automatically on TCP `47832`. The app advertises this Windows computer to nearby SeamlessControl panels. If Windows asks about network access, choose **Private networks**.
 4. Close the window to leave it running in the tray. Click the tray icon to open it again. Choose **Exit SeamlessControl** from the tray menu to end sessions and exit.
 
+To open it automatically at your next Windows sign-in, go to **Settings → Start with Windows** and select **Turn on**. The app starts in the tray and begins **Receive control** as it does when opened manually. This setting belongs only to your Windows account and needs no administrator approval. Select **Turn off** in the same card to remove it. If you move the folder containing the two executables, reopen the app from its new location and select **Turn on** again to update the saved path.
+
 Windows 11 typically includes WebView2; if the app says it is missing, install [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). The app and agent are currently distributed as unsigned executables.
 
 ## Pair once
@@ -58,7 +60,7 @@ Under **Settings → Incoming file approval**, choose **Ask every time** (defaul
 
 Use **Settings → Windows firewall** when another computer cannot reach this Windows receiver. **Allow control port** requests Windows administrator approval for inbound TCP on the currently displayed control port. **Allow file port** does the same for the manual transfer port. **Allow pasted-file port 47834** enables copied-file offers. If Windows does not appear automatically in Omarchy, **Allow discovery · UDP 5353** permits local mDNS queries. The generated rules are limited to the **Private** network profile and **LocalSubnet** addresses. If you change a TCP port, change it in the relevant field before pressing its firewall button. The app reports that approval was *requested*; the elevated Windows console reports the result. You can remove rules named `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` in Windows Firewall.
 
-![Windows Settings screen with incoming file approval and private LAN firewall actions](images/windows-settings-en.png)
+![Windows Settings screen with file approval, Start with Windows and private LAN firewall actions](images/windows-settings-en.png)
 
 Discovery uses mDNS on the private LAN. It does not replace the pairing code. If routers, Wi-Fi isolation or multicast filtering hide a computer, enter its private `IP:port` manually. If pairing times out, verify that the receiver is active and its control port is permitted. File transfers need the separate file port permitted on the file **receiver**.
 
@@ -66,6 +68,6 @@ Discovery uses mDNS on the private LAN. It does not replace the pairing code. If
 
 To update, choose **Exit SeamlessControl** from the tray, download `seamlesscontrol-windows-x64.zip` from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extract it and replace both `.exe` files in the same folder and open the app again. Existing pairing data under `%LOCALAPPDATA%\SeamlessControl` stays intact.
 
-To remove it, exit from the tray and delete the folder containing the executables. `%LOCALAPPDATA%\SeamlessControl` keeps your local identity and pairings for a later reinstall. Delete that data folder too only if you want a new identity; other computers will then need to pair again. Remove any firewall rules you authorized in Windows Firewall.
+To remove it, first select **Settings → Start with Windows → Turn off**, then exit from the tray and delete the folder containing the executables. `%LOCALAPPDATA%\SeamlessControl` keeps your local identity and pairings for a later reinstall. Delete that data folder too only if you want a new identity; other computers will then need to pair again. Remove any firewall rules you authorized in Windows Firewall.
 
 For manual commands, security design and physical verification, see the [technical guide](TECHNICAL.md) and [test record](TEST-RESULTS.md).

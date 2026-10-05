@@ -36,6 +36,8 @@ Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, c
 
 Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download the single **`seamlesscontrol-windows-x64.zip`** and extract it into a folder you own. It already contains both required executables together. Double click **`seamlesscontrol.exe`**. The adjacent `seamlesscontrol-windows-x64.zip.sha256` lets you verify the download. It starts receiving on port `47832`, advertises this Windows computer on the LAN and stays active in the tray when you close the window. Choose **Español** in the top right if desired.
 
+For hands-free startup, turn on **Settings → Start with Windows** in the app. It will open in the tray when you sign in; you can turn it off from the same screen.
+
 ![The SeamlessControl Windows app](docs/images/windows-panel.png)
 
 ![Copy a file in Windows and offer it to a paired computer](docs/images/windows-files-en.png)

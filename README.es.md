@@ -36,6 +36,8 @@ Abre **SeamlessControl** desde la barra de Omarchy. En **Preparar este equipo**,
 
 Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga el único **`seamlesscontrol-windows-x64.zip`** y extráelo en una carpeta propia. Ya contiene juntos los dos ejecutables necesarios. Haz doble clic en **`seamlesscontrol.exe`**. El archivo contiguo `seamlesscontrol-windows-x64.zip.sha256` permite verificar la descarga. Comienza a recibir en el puerto `47832`, anuncia este Windows en la red local y sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
 
+Para iniciarlo automáticamente, activa **Ajustes → Iniciar con Windows** en la app. Se abrirá en la bandeja cuando inicies sesión; puedes desactivarlo desde la misma pantalla.
+
 ![La aplicación SeamlessControl para Windows](docs/images/windows-panel.png)
 
 ![Copiar un archivo en Windows y ofrecerlo a un equipo emparejado](docs/images/windows-files-es.png)
