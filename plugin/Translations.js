@@ -16,6 +16,8 @@ var english = {
   "Preguntar siempre": "Ask every time",
   "Aceptar automáticamente": "Accept automatically",
   "Aceptar por un tiempo": "Ask, then accept for a while",
+  "Guardar aprobación temporal": "Save temporary approval",
+  "Tiempo sin guardar.": "Unsaved time.",
   "Modo de aprobación guardado.": "File approval mode saved.",
   "Guardando modo de aprobación…": "Saving file approval mode…",
   "No se pudo guardar el modo de aprobación. Revise el tiempo elegido.": "Could not save file approval mode. Check the selected time.",

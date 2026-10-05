@@ -1120,6 +1120,11 @@ Panel {
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
+            onTextEdited: if (root.backend && root.backend.approvalMode === "timed")
+              root.backend.approvalFeedback = "unsaved"
+            onEditingFinished: if (root.backend && root.backend.approvalMode === "timed"
+                && Number(text) !== root.backend.approvalMinutes)
+              root.backend.setApprovalSettings("timed", text.trim())
             onAccepted: if (root.backend) root.backend.setApprovalSettings("timed", text.trim())
           }
           Text {
@@ -1129,6 +1134,17 @@ Panel {
           }
         }
 
+        Button {
+          Layout.fillWidth: true
+          text: root.t("Guardar aprobación temporal")
+          bordered: true
+          focusable: true
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setApprovalSettings("timed", approvalMinutesInput.text.trim())
+        }
+
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.approvalFeedback !== ""
@@ -1136,6 +1152,8 @@ Panel {
             ? root.t("Modo de aprobación guardado.")
             : root.backend.approvalFeedback === "saving"
               ? root.t("Guardando modo de aprobación…")
+              : root.backend.approvalFeedback === "unsaved"
+                ? root.t("Tiempo sin guardar.")
               : root.backend.approvalFeedback === "expired"
                 ? root.t("Terminó el plazo. Se preguntará por cada archivo.")
                 : root.t("No se pudo guardar el modo de aprobación. Revise el tiempo elegido.")

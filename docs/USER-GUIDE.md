@@ -128,7 +128,7 @@ On each receiving computer, open **Settings → Incoming file approval**. The pr
 
 - **Ask every time** (default): approve or decline each offer.
 - **Accept automatically**: files from already paired computers are accepted without an approval prompt. The sender must still pass authentication, size and storage checks.
-- **Ask, then accept for a while**: enter 1–1,440 minutes. Approve the first file from each paired computer; that computer’s later files are accepted until its time expires. When any active window ends, the setting switches to **Ask every time** on both apps, so the next file asks again. A declined file does not start the time window. Restarting the app/plugin also ends temporary approval. Select timed mode again to open a new window.
+- **Ask, then accept for a while**: enter 1–1,440 minutes and select **Save temporary approval**. The panel confirms that the setting was saved. Approve the first file from each paired computer; the countdown then appears below the setting. That computer’s later files are accepted until its time expires. When any active window ends, the setting switches to **Ask every time** on both apps, so the next file asks again. A declined file does not start the time window. Restarting the app/plugin also ends temporary approval. Select timed mode again to open a new window.
 
 In Windows, the incoming copied-file dialog now shows the sender, file size and paste instructions in **one prompt**. After acceptance, transfer and verification progress appears in **Activity**; there is no second confirmation to dismiss. In automatic mode there is no approval prompt. Keep SeamlessControl running on the receiver. These modes do not open firewall ports or start **Wait for a file** automatically.
 

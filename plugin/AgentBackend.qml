@@ -51,6 +51,7 @@ Item {
     approvalFeedback = "saving"
     approvalPendingMode = mode
     approvalPendingMinutes = minutes
+    approvalLoadedOnce = true
     try {
       approvalFile.setText(mode + "\t" + String(minutes) + "\n")
       approvalFeedback = approvalExpiryPending ? "expired" : "saved"
