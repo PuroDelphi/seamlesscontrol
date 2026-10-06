@@ -315,6 +315,7 @@ struct Controller {
     discovered: Vec<DiscoveredServer>,
     pair_code: Option<PairCode>,
     pair_status: &'static str,
+    pair_paused_control: bool,
     file_offer: Option<String>,
     clipboard_offer: Option<String>,
     clipboard_notification_open: bool,
@@ -407,6 +408,7 @@ impl Controller {
             discovered: Vec::new(),
             pair_code: None,
             pair_status: "",
+            pair_paused_control: false,
             file_offer: None,
             clipboard_offer: None,
             clipboard_notification_open: false,
@@ -575,6 +577,12 @@ impl Controller {
                     self.pair_status = "paired";
                 } else if matches!(self.pair_status, "connecting" | "code") {
                     self.pair_status = "error";
+                }
+                if self.pair_paused_control {
+                    self.pair_paused_control = false;
+                    if let Err(error) = self.start_desired_control(proxy) {
+                        self.log(format!("Could not restore control after pairing: {error}"));
+                    }
                 }
             }
             self.log(format!(
@@ -1072,7 +1080,23 @@ impl Controller {
                 }
                 "pair" => {
                     let address = parse_address(string("address"))?;
-                    self.start(Slot::Pair, &["pair", &address.to_string()], proxy)?;
+                    if !self.pair_paused_control {
+                        self.stop(Slot::Serve);
+                        self.stop(Slot::Connect);
+                        self.retry_control_after = None;
+                        self.pair_paused_control = true;
+                    }
+                    if let Err(error) =
+                        self.start(Slot::Pair, &["pair", &address.to_string()], proxy)
+                    {
+                        self.pair_paused_control = false;
+                        if let Err(restart) = self.start_desired_control(proxy) {
+                            self.log(format!(
+                                "Could not restore control after pairing: {restart}"
+                            ));
+                        }
+                        return Err(error.into());
+                    }
                     self.pair_status = "connecting";
                 }
                 "approvePair" => {

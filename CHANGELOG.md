@@ -4,12 +4,14 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
-## Unreleased (`alpha`)
+## [0.23.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.0) — 2026-10-06
 
 - Add pairing revocation to the Windows Computers screen with a confirmation and active-session cleanup.
 - Make an explicit Pair request display a fresh six-digit code on both computers, including after revocation. Regular control connections remain blocked until both users approve the new code. Show receiver and firewall guidance beside the Pair actions in both interfaces.
 - Return from Omarchy to Windows by crossing the entry edge even when the Omarchy receiver has no saved position for Windows. Verified with a physical Windows-to-Omarchy round trip.
 - Arrange pairing and placement as four numbered steps in both apps: pair by address, nearby computers, paired computers, and screen layout. Keep paired computers immediately above the layout and explain how to place them.
+- Let an Omarchy receiver stop normally from Home or directly beside the Pair step, even after a shell restart. The emergency input cut remains a pause, and the panel now explains the difference.
+- On Windows, outgoing Pair temporarily ends this app's current control session and restores the previous mode when pairing finishes. The receiver on the other computer must still be available. This prevents an already running local agent from blocking pairing.
 
 ## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
 

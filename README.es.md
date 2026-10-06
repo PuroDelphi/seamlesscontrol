@@ -22,13 +22,13 @@ Usa tus equipos Omarchy y Windows en un mismo espacio: el control cruza en ambos
 
 ## Pantallas sencillas, decisiones claras
 
-**Omarchy** deja la instalación y la sesión activa en **Inicio**. **Equipos** reúne búsqueda, emparejamiento y mapa; **Archivos** permite copiar y pegar o enviar deliberadamente; **Ajustes** contiene la aprobación y el firewall. La ayuda opcional se abre cuando la necesitas.
+**Omarchy** deja la instalación y la sesión activa en **Inicio**. **Equipos** guía el emparejamiento en cuatro pasos: dirección, receptores cercanos, equipos emparejados y mapa. Si este equipo ya recibe control, **Detener recepción para emparejar** aparece junto al paso 1; el corte de emergencia solo pausa el receptor. **Archivos** permite copiar y pegar o enviar deliberadamente; **Ajustes** contiene la aprobación y el firewall. La ayuda opcional se abre cuando la necesitas.
 
 ![Inicio organizado del panel Omarchy](docs/images/omarchy-overview-es.png)
 
-**Windows** tiene **Inicio, Equipos, Archivos y Ajustes**. Los equipos emparejados están junto al mapa arrastrable, y la app recuerda el último modo de control, dirección y borde. Puedes cerrar la ventana y dejarla disponible en la bandeja.
+**Windows** tiene **Inicio, Equipos, Archivos y Ajustes**. Equipos sigue los mismos cuatro pasos y sitúa los emparejados justo encima del mapa arrastrable. Al iniciar un emparejamiento, la app detiene brevemente su propia sesión de control y restaura el modo anterior al terminar. También recuerda el último modo de control, dirección y borde. Puedes cerrar la ventana y dejarla disponible en la bandeja.
 
-![Ajustes de Windows con aprobación de archivos entrantes y firewall](docs/images/windows-settings-es.png)
+![Pasos de emparejamiento y mapa de pantallas en Windows](docs/images/windows-devices-es.png)
 
 Para un archivo entrante de un equipo **emparejado**, elige cuánto quieres intervenir:
 
@@ -69,8 +69,8 @@ Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, ins
 ## Conectar tus pantallas
 
 1. En el equipo que quieres controlar, pulsa **Recibir control** y espera a **Disponible**. La app Windows lo inicia la primera vez y lo restaura si lo dejaste activo.
-2. En el equipo con el ratón físico, abre **Equipos**, elige el receptor descubierto y pulsa **Emparejar**. Compara el código de seis cifras y aprueba en **ambos** equipos. Si no aparece, escribe manualmente su `IP:puerto` de la red privada.
-3. En **Equipos → Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, los equipos emparejados aparecen justo encima del mapa: arrastra uno siguiendo la flecha, pulsa un lado o usa las flechas del teclado. Su posición rellena el borde al preparar **Conectar**.
+2. En el equipo con el ratón físico, abre **Equipos**. Usa **1 Emparejar por dirección** si conoces la `IP:puerto` privada del receptor o **2 Equipos cercanos** y pulsa **Emparejar**. Compara el código de seis cifras y aprueba en **ambos** equipos. El par aparecerá en **3 Equipos emparejados**. En Omarchy, si este equipo ya recibe control y quieres iniciar el emparejamiento desde aquí, pulsa **Detener recepción para emparejar** junto al paso 1; después podrás volver a activar Recibir control.
+3. En **4 Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, los equipos emparejados aparecen justo encima del mapa: arrastra uno siguiendo la flecha, pulsa un lado o usa las flechas del teclado. Su posición rellena el borde al preparar **Conectar**.
 4. Pulsa **Conectar** en el equipo con el ratón físico. Cuando indique **Listo**, cruza el **borde exterior** elegido. Regresa por el borde del receptor o pulsa **Escape** en el teclado físico.
 
 **Emparejar** guarda la confianza una vez; **Conectar** inicia cada sesión. Mover una ficha del mapa solo define el lado de cruce. Para enviar archivos, abre **Archivos** en el receptor, autoriza si hace falta su puerto LAN independiente `47833`, pulsa **Esperar un archivo** y después elige y envía el archivo desde el origen. El receptor aprueba la oferta. Para copiar normalmente, permite TCP `47834` en el receptor, copia un archivo en el explorador Windows u Omarchy, aprueba el aviso de entrada y pégalo en la carpeta de destino. No hace falta una sesión de control activa.

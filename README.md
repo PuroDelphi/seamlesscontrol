@@ -22,13 +22,13 @@ Use your Omarchy and Windows computers in one workspace: control crosses in eith
 
 ## Simple screens, clear decisions
 
-**Omarchy** keeps installation and the active session on **Home**. **Computers** puts discovery, pairing and the screen layout together; **Files** handles copy and paste or a deliberate send; **Settings** holds approval and firewall controls. Optional help opens when you need it.
+**Omarchy** keeps installation and the active session on **Home**. **Computers** guides pairing in four steps: address, nearby receivers, paired computers, then layout. If this computer is already receiving, **Stop receiving to pair** sits beside step 1; the emergency input cut only pauses the receiver. **Files** handles copy and paste or a deliberate send; **Settings** holds approval and firewall controls. Optional help opens when you need it.
 
 ![The streamlined Omarchy Home screen](docs/images/omarchy-overview-en.png)
 
-**Windows** uses **Overview, Computers, Files and Settings**. Paired computers sit beside the draggable layout, and the app remembers the last control mode, address and screen edge. Close the window to keep it available in the tray.
+**Windows** uses **Overview, Computers, Files and Settings**. Its Computers page follows the same four steps, with paired computers immediately above the draggable layout. When Windows starts an outgoing pairing, the app briefly stops its local control session and restores your previous mode afterward. It also remembers the last control mode, address and screen edge. Close the window to keep it available in the tray.
 
-![Windows Settings with incoming-file approval and firewall controls](docs/images/windows-settings-en.png)
+![Windows pairing steps and screen layout](docs/images/windows-devices-en.png)
 
 For an incoming file from a **paired** computer, choose the level of interruption that suits you:
 
@@ -69,8 +69,8 @@ Windows 11 normally has the required WebView2 runtime. If the app reports it mis
 ## Connect your screens
 
 1. On the computer you want to control, select **Receive control** and wait for **Available**. The Windows app starts this on first launch and restores it if you left it active.
-2. On the computer with the physical mouse, open **Computers**, select the discovered receiver and choose **Pair**. Compare the six digit code on **both** computers and approve on both. If discovery cannot find it, enter its private LAN `IP:port` manually.
-3. In **Computers → Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, paired computers appear directly above the map: drag one along the arrow, click a side, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
+2. On the computer with the physical mouse, open **Computers**. Use **1 Pair by address** when you know the receiver's private LAN `IP:port`, or **2 Nearby computers** and select **Pair**. Compare the six digit code on **both** computers and approve on both. The pair then appears under **3 Paired computers**. On Omarchy, if this computer is already receiving and you want to start pairing from here, select **Stop receiving to pair** beside step 1; you can start Receive control again afterward.
+3. In **4 Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, paired computers appear directly above the map: drag one along the arrow, click a side, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
 4. Select **Connect** on the computer with the physical mouse. When it says **Ready**, cross the chosen **outer edge**. Cross back from the receiver or press **Escape** on the physical keyboard to return.
 
 **Pair** records trust once; **Connect** starts a control session. Moving a tile in the layout sets the crossing direction and does not start the session. For file delivery, open **Files** on the receiver, allow its separate LAN port `47833` if needed, select **Wait for a file**, then choose and send a file from the source. The receiver approves the offer. For everyday copying, allow TCP `47834` on the receiving computer, copy one file in Explorer or the Omarchy file manager, approve the prominent incoming prompt, and paste it into the destination folder. This copied-file flow works without an active control session.
