@@ -32,6 +32,8 @@ Windows 11 typically includes WebView2; if the app says it is missing, install [
 
 If an IP was reused by a different computer and the app reports **PeerKey changed**, check which machine owns that address. The old identity is deliberately protected. [Technical details](TECHNICAL.md) explain how peer keys are stored.
 
+To remove a pairing on Windows, open **Computers → Paired computers**, select **Revoke** beside that computer, read the warning, and confirm **Yes, revoke**. This blocks its saved identity, removes its map position and closes an active control session. Do this only when you no longer trust that identity: pairing the same computer again requires changing its identity first. The equivalent manual command in PowerShell, from the app folder, is `.\seamlesscontrold.exe revoke 192.168.1.25`.
+
 ## Omarchy controls Windows
 
 On Omarchy, put Windows on the correct side of **Computer layout**. Select **Connect** for the paired Windows computer and wait for **Ready**. Cross the **outer edge** of your Omarchy display in that direction. The Windows mouse and keyboard now respond to Omarchy input. To return, cross the entry edge in Windows or press **Escape** on the physical Omarchy keyboard. Stop the session from the Omarchy panel when finished.

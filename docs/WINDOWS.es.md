@@ -32,6 +32,8 @@ Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebVi
 
 Si otra máquina reutilizó una IP y aparece **PeerKey changed**, comprueba quién posee esa dirección. La identidad anterior queda protegida. La [guía técnica](TECHNICAL.es.md) explica dónde se guardan las claves.
 
+Para quitar un emparejamiento en Windows, abre **Equipos → Equipos emparejados**, pulsa **Revocar** junto a ese equipo, lee el aviso y confirma **Sí, revocar**. Esto bloquea la identidad guardada, retira su posición del mapa y cierra una sesión de control activa. Hazlo solo si ya no confías en esa identidad: para volver a emparejar el mismo equipo tendrás que cambiar primero su identidad. El comando manual equivalente en PowerShell, desde la carpeta de la app, es `.\seamlesscontrold.exe revoke 192.168.1.25`.
+
 ## Omarchy controla Windows
 
 En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **Conectar** en el Windows emparejado y espera a **Listo**. Cruza el **borde exterior** de Omarchy hacia ese lado. El ratón y teclado de Windows responden a Omarchy. Para volver, cruza el borde de entrada en Windows o pulsa **Escape** en el teclado físico de Omarchy. Termina la sesión desde el panel Omarchy al acabar.

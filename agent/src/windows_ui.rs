@@ -1144,12 +1144,54 @@ impl Controller {
                 }
                 "revoke" => {
                     let ip = string("ip").parse::<IpAddr>()?;
+                    let fingerprint = string("fingerprint");
+                    if self.peers.get(&ip).is_none_or(|saved| saved != fingerprint) {
+                        return Err(
+                            "the selected pairing changed; refresh the computer list".into()
+                        );
+                    }
                     let output = self.command(&["revoke", &ip.to_string()]).output()?;
                     if !output.status.success() {
                         return Err(String::from_utf8_lossy(&output.stderr).to_string().into());
                     }
+                    self.approval_until.remove(fingerprint);
+                    let outgoing_to_revoked = self.session.mode == ControlMode::Connect
+                        && self
+                            .session
+                            .address
+                            .is_some_and(|address| address.ip() == ip);
+                    let restart_receiver = self.processes.contains_key(&Slot::Serve);
+                    if outgoing_to_revoked {
+                        let mut next = self.session.clone();
+                        next.mode = ControlMode::Receive;
+                        self.stop(Slot::Connect);
+                        if let Err(error) = self.remember_session(next) {
+                            self.session.mode = ControlMode::Receive;
+                            self.log(format!(
+                                "Trust revoked, but the control mode could not be saved: {error}"
+                            ));
+                        }
+                    }
+                    let mut layout = self.layout.clone();
+                    layout.remove(fingerprint);
+                    if let Err(error) =
+                        std::fs::write(&self.layout_path, serde_json::to_vec_pretty(&layout)?)
+                    {
+                        self.log(format!(
+                            "Trust revoked, but the screen layout could not be saved: {error}"
+                        ));
+                    } else {
+                        self.layout = layout;
+                    }
                     self.refresh_peers();
                     self.log(format!("Trust revoked for {ip}"));
+                    if (outgoing_to_revoked || restart_receiver)
+                        && let Err(error) = self.start_desired_control(proxy)
+                    {
+                        self.log(format!(
+                            "Trust revoked, but control could not restart: {error}"
+                        ));
+                    }
                 }
                 "setLayout" => {
                     self.set_layout(string("fingerprint"), Some(string("edge")))?;
