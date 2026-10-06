@@ -2,6 +2,9 @@
 set -euo pipefail
 
 repo_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# mise chooses the Rust toolchain from the current directory. Keep Cargo and
+# rustc on the same toolchain even when the UI launches us from elsewhere.
+cd "$repo_dir"
 cargo_bin=${CARGO:-cargo}
 install_dir=${XDG_BIN_HOME:-"$HOME/.local/bin"}
 state_dir=${XDG_STATE_HOME:-"$HOME/.local/state"}/seamlesscontrol
