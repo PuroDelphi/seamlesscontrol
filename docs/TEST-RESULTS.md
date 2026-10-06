@@ -15,6 +15,8 @@
 
 The detailed observations follow below. Remaining copied-file checks are recorded at the end of this document.
 
+On 2026-10-06, after both computers revoked and explicitly reapproved their pairing, Windows 11 x64 connected to the Omarchy receiver. The receiver's saved topology contained only its local screen. Before the fix, the user could move the pointer into Omarchy but could return only with Escape or the receiver's Return control action. The receiver now uses the entry edge supplied by the direct session. In a physical retest, the user moved into Omarchy and returned to Windows by crossing that edge without either fallback action.
+
 On 2026-10-05, the incoming-file approval settings were tested on physical Windows with Omarchy sending. **Ask every time** showed one prompt with the file details and no second confirmation. **Accept automatically** received and pasted another file without a dialog. A one-minute timed window asked for the first file, silently accepted the second within the minute, and asked again after expiry. **Accept automatically** also passed on Omarchy with Windows sending. For Omarchy's timed mode, a fresh Windows file was offered and accepted, the panel showed a live three-minute countdown, and a second Windows file arrived without prompting during that window. On expiry, the panel visibly marked **Ask every time** with an expiry message. The updated Windows app likewise showed the countdown and visibly returned to **Ask every time** with its expiry message.
 
 On the same Omarchy/Windows pair, files with accented and CJK characters in their names were received, opened and pasted correctly in both directions. A second version with the same name was accepted and pasted while retaining the first copy on both destinations.

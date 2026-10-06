@@ -1188,6 +1188,7 @@ mod linux {
         clipboard_remote_id: [u8; 32],
         lock_ipc: HyprIpc,
         acknowledge_release: std::sync::mpsc::SyncSender<u64>,
+        entry_return_edge: Arc<Mutex<Option<LogicalEdge>>>,
     }
 
     impl Injector for OmarchyInjector {
@@ -1203,6 +1204,9 @@ mod linux {
                 edge_entry_point(&regions, entry.edge, entry.fraction).ok_or_else(|| {
                     io::Error::new(io::ErrorKind::InvalidData, "no destination entry edge")
                 })?;
+            if let Ok(mut return_edge) = self.entry_return_edge.lock() {
+                *return_edge = Some(entry.edge);
+            }
             let current = self.lock_ipc.cursor_position()?;
             self.input
                 .motion(
@@ -1242,6 +1246,11 @@ mod linux {
 
         fn active_epoch_changed(&mut self, epoch: Option<u64>) {
             self.control.set_active_epoch(epoch);
+            if epoch.is_none()
+                && let Ok(mut return_edge) = self.entry_return_edge.lock()
+            {
+                *return_edge = None;
+            }
         }
 
         fn control_released(&mut self, epoch: u64) -> io::Result<()> {
@@ -1563,7 +1572,11 @@ mod linux {
         if hypr.session_lock_state()? != SessionLockState::Unlocked {
             return Err("session is locked or lock state is undetermined".into());
         }
-        let edge_hypr = (!edge_targets.is_empty()).then(|| hypr.clone());
+        // Direct sources provide the destination entry edge in BEGIN. It
+        // defines the return edge even without a saved receiver topology.
+        let entry_return_edge = Arc::new(Mutex::new(None));
+        let watcher_entry_edge = Arc::clone(&entry_return_edge);
+        let edge_hypr = Some(hypr.clone());
         let motion_generation = Arc::new(AtomicU64::new(0));
         let input = VirtualInput::connect()?;
         let (mut reader, mut writer) = channel.into_tcp_halves()?;
@@ -1593,6 +1606,7 @@ mod linux {
             clipboard_remote_id: peer.public_key,
             lock_ipc: hypr.clone(),
             acknowledge_release: release_tx,
+            entry_return_edge,
         };
         let watcher_running = Arc::new(AtomicBool::new(true));
         let watcher_flag = Arc::clone(&watcher_running);
@@ -1604,6 +1618,7 @@ mod linux {
             let mut observed_motion = 0_u64;
             let mut remote_motion_seen = false;
             let mut detectors: Vec<(LogicalEdge, IpAddr, EdgeReturnDetector)> = Vec::new();
+            let mut session_targets = edge_targets.clone();
             let mut monitor_regions: Option<Vec<Rect>> = None;
             let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
@@ -1628,6 +1643,16 @@ mod linux {
                     sent_epoch = None;
                     observed_motion = motion_generation.load(Ordering::Relaxed);
                     remote_motion_seen = false;
+                    session_targets = if !mesh_source {
+                        watcher_entry_edge
+                            .lock()
+                            .ok()
+                            .and_then(|edge| *edge)
+                            .map(|edge| vec![(edge, peer_ip)])
+                            .unwrap_or_else(|| edge_targets.clone())
+                    } else {
+                        edge_targets.clone()
+                    };
                     last_geometry_refresh = Instant::now();
                     monitor_regions = if active_epoch.is_some() {
                         edge_hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
@@ -1637,7 +1662,7 @@ mod linux {
                     detectors = monitor_regions
                         .as_ref()
                         .map(|regions| {
-                            edge_targets
+                            session_targets
                                 .iter()
                                 .map(|(edge, target)| {
                                     (*edge, *target, EdgeReturnDetector::new(regions, *edge))
@@ -1654,7 +1679,7 @@ mod linux {
                         edge_hypr.as_ref().and_then(|ipc| ipc.monitor_rects().ok())
                         && monitor_regions.as_ref() != Some(&regions)
                     {
-                        detectors = edge_targets
+                        detectors = session_targets
                             .iter()
                             .map(|(edge, target)| {
                                 (*edge, *target, EdgeReturnDetector::new(&regions, *edge))
