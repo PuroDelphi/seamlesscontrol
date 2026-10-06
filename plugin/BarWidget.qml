@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 import "Translations.js" as Tr
@@ -57,6 +59,14 @@ BarWidget {
   }
 
   AgentBackend { id: backend }
+
+  // The source computer is still in use while its physical input is
+  // controlling a peer. Keep Omarchy's inhibitor-aware idle monitor awake
+  // until control returns, without changing the user's stay-awake setting.
+  IdleInhibitor {
+    window: root.QsWindow.window
+    enabled: window !== null && backend.role === "connect" && backend.phase === "controlling"
+  }
 
   Loader {
     id: panelLoader

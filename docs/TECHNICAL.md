@@ -70,6 +70,9 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh
 The source captures input through the desktop portal and EIS. The receiver injects it through Hyprland virtual input. Its virtual keyboard uses the compositor's XKB keymap to update Wayland modifier state with each key event, so combinations such as Super+V can reach Hyprland as shortcuts. Network sessions use Noise XX with pinned peer keys. The receiver permits one input owner at a time and releases held keys/buttons on disconnect. Lock state is checked through Hyprland IPC; unknown or locked state blocks injection. After Escape or a remote return, a 96 pixel rearm distance keeps the edge from capturing immediately again.
 
 When the source locks during remote control, it disables portal capture before sending network feedback. It then waits for the source to unlock before creating another capture session. The edge remains disarmed until the pointer moves away from it. This behavior also applies to mesh capture.
+When monitor zones temporarily disappear during locking or display power down, the agent defers barrier installation until valid monitor geometry returns instead of exiting on a zero-size portal region.
+
+While the source is actively controlling another computer, the Omarchy bar widget attaches a Wayland idle inhibitor to its bar surface. This keeps Omarchy's inhibitor-aware automatic idle lock from interrupting remote work; the user can still lock manually. The inhibitor drops when control returns or the widget is unloaded.
 
 For a temporary keyboard diagnostic, start both agent processes with `SEAMLESSCONTROL_INPUT_TRACE=1`. The source reports EIS event types and whether capture is active; the Omarchy receiver reports injected key events and the number of keys still held. It does not log key codes or typed text and is off by default. Disable it after the test.
 

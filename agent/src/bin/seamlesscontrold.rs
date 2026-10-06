@@ -626,6 +626,8 @@ mod linux {
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
         pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut capture_enabled = !locked;
+        let mut barriers_dirty = false;
+        let mut barrier_retry_at = Instant::now();
         let mut current_activation = None;
         let mut release_position = None;
         let mut portal_active = false;
@@ -651,8 +653,13 @@ mod linux {
                             return Err("mesh handoff acknowledgement timed out".into());
                         }
                         if locked {
-                            // Disabling capture must precede network feedback and cursor
-                            // placement: both may fail while the source is locking.
+                            // Release without stale monitor coordinates, but do not let a
+                            // stalled portal delay disabling physical input indefinitely.
+                            if portal_active {
+                                let options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                let _ = tokio::time::timeout(Duration::from_millis(500), portal.release(&session, options)).await;
+                                portal_active = false;
+                            }
                             if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
                             if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                                 if let Ok(link) = mesh_link(&mut links, peer) {
@@ -675,10 +682,28 @@ mod linux {
                             }
                             if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
                             control.set_phase(if locked { "locked" } else { "paused" });
-                        } else if !capture_enabled {
+                        }
+                        if !locked && barriers_dirty && Instant::now() >= barrier_retry_at
+                            && lock_ipc.monitor_rects().is_ok()
+                        {
+                            match install_mesh_barriers(&portal, &session, &topology).await {
+                                Ok((next_set, next_barriers)) => {
+                                    zone_set = next_set;
+                                    barriers = next_barriers;
+                                    barriers_dirty = false;
+                                }
+                                Err(error) => {
+                                    eprintln!("SeamlessControl: waiting for mesh monitor edges: {error}");
+                                    barrier_retry_at = Instant::now() + Duration::from_secs(1);
+                                }
+                            }
+                        }
+                        if !control.paused() && !locked && !capture_enabled && !barriers_dirty {
                             portal.enable(&session, Default::default()).await?;
                             capture_enabled = true;
                             control.set_phase("ready");
+                        } else if !locked && barriers_dirty {
+                            control.set_phase("rearming");
                         }
                     }
                     _ = heartbeat.tick() => {
@@ -846,20 +871,17 @@ mod linux {
                         reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         let signal = signal.ok_or("capture zones stream closed")?;
                         if signal.zone_set().is_some_and(|id| id != zone_set) { continue; }
-                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
-                            mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec())?;
-                        }
-                        if portal_active {
-                            let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
-                            if let Some(position) = release_position { options = options.set_cursor_position(position); }
-                            let _ = portal.release(&session, options).await;
-                            portal_active = false;
-                        }
-                        coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear(); current_activation = None;
                         if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
-                        (zone_set, barriers) = install_mesh_barriers(&portal, &session, &topology).await?;
-                        if !control.paused() && !locked { portal.enable(&session, Default::default()).await?; capture_enabled = true; }
-                        control.set_peer(""); control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "ready" });
+                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
+                            if let Ok(link) = mesh_link(&mut links, peer) {
+                                let _ = link.send(Kind::Control, epoch, b"END".to_vec());
+                            }
+                        }
+                        portal_active = false;
+                        coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear(); current_activation = None;
+                        barriers_dirty = true;
+                        barrier_retry_at = Instant::now();
+                        control.set_peer(""); control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "rearming" });
                     }
                     event = events.next() => {
                         reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
@@ -997,6 +1019,8 @@ mod linux {
         let mut pause_tick = tokio::time::interval(Duration::from_millis(100));
         pause_tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         let mut capture_enabled = !locked;
+        let mut barriers_dirty = false;
+        let mut barrier_retry_at = Instant::now();
         let mut epoch = 0;
         let mut sequence = 0;
         let mut current_activation = None;
@@ -1018,9 +1042,12 @@ mod linux {
                         if control.revoked_active() { break; }
                         locked = local_lock.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
                         if locked && capture_enabled {
-                            // Disable first: the portal guarantees this ends active capture.
-                            // Releasing with a cursor position can fail while outputs are
-                            // disappearing during the screen lock transition.
+                            // Release without stale monitor coordinates, then disable even
+                            // if the portal does not answer the release request promptly.
+                            if active {
+                                let options = ReleaseOptions::default().set_activation_id(current_activation.take());
+                                let _ = tokio::time::timeout(Duration::from_millis(500), portal.release(&session, options)).await;
+                            }
                             portal.disable(&session, Default::default()).await?;
                             capture_enabled = false;
                             if active {
@@ -1041,7 +1068,22 @@ mod linux {
                             portal.disable(&session, Default::default()).await?;
                             capture_enabled = false;
                             control.set_phase(if locked { "locked" } else { "paused" });
-                        } else if !control.paused() && !locked && !capture_enabled {
+                        }
+                        if !locked && barriers_dirty && Instant::now() >= barrier_retry_at
+                            && local_lock.monitor_rects().is_ok()
+                        {
+                            match install_barriers(&portal, &session, edge).await {
+                                Ok(zone_set) => {
+                                    current_zone_set = zone_set;
+                                    barriers_dirty = false;
+                                }
+                                Err(error) => {
+                                    eprintln!("SeamlessControl: waiting for monitor edges: {error}");
+                                    barrier_retry_at = Instant::now() + Duration::from_secs(1);
+                                }
+                            }
+                        }
+                        if !control.paused() && !locked && !capture_enabled && !barriers_dirty {
                             if rearm_after_return && !ready_to_rearm(&local_lock, edge.logical()) {
                                 control.set_phase("rearming");
                             } else {
@@ -1054,6 +1096,8 @@ mod linux {
                             control.set_phase("locked");
                         } else if control.paused() {
                             control.set_phase("paused");
+                        } else if barriers_dirty {
+                            control.set_phase("rearming");
                         }
                     }
                     _ = heartbeat.tick() => {
@@ -1130,26 +1174,19 @@ mod linux {
                     signal = zones_changed.next() => {
                         let signal = signal.ok_or("capture zones stream closed")?;
                         if signal.zone_set().is_some_and(|id| id != current_zone_set) { continue; }
-                        if active {
-                            send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
-                            let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
-                            if let Some(position) = release_position { options = options.set_cursor_position(position); }
-                            let _ = portal.release(&session, options).await;
-                            active = false;
-                        }
                         if capture_enabled {
                             portal.disable(&session, Default::default()).await?;
                             capture_enabled = false;
                         }
-                        current_zone_set = install_barriers(&portal, &session, edge).await?;
-                        if !control.paused() && !locked && (!rearm_after_return || ready_to_rearm(&local_lock, edge.logical())) {
-                            rearm_after_return = false;
-                            portal.enable(&session, Default::default()).await?;
-                            capture_enabled = true;
-                            control.set_phase("ready");
-                        } else {
-                            control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "rearming" });
+                        if active {
+                            let _ = send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec());
+                            active = false;
+                            current_activation = None;
+                            rearm_after_return = true;
                         }
+                        barriers_dirty = true;
+                        barrier_retry_at = Instant::now();
+                        control.set_phase(if locked { "locked" } else if control.paused() { "paused" } else { "rearming" });
                     }
                     event = events.next() => {
                         let event = event.ok_or("EIS event stream closed")??;
