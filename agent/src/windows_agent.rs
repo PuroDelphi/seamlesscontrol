@@ -6,10 +6,10 @@ use crate::clipboard_file;
 use crate::file_session;
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::run_receiver_with_first;
-use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter};
+use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter, negotiate_pairing};
 use crate::storage::{
     is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
-    relocate_peer_key, remember_peer_key, revoke_peer_key,
+    reapprove_peer_key, relocate_peer_key, remember_peer_key, revoke_peer_key,
 };
 use crate::topology::Edge;
 use crate::windows_capture::{CaptureEvent, CaptureHandle};
@@ -135,13 +135,16 @@ fn pin_after_handshake(
     ip: IpAddr,
     peer: &PeerInfo,
     previous_ip: Option<IpAddr>,
+    reapproved_revoked: bool,
 ) -> Result<(), Box<dyn Error>> {
     let peers = config.join("peers");
-    if is_revoked(&peers, &peer.public_key)? {
+    if is_revoked(&peers, &peer.public_key)? && !reapproved_revoked {
         return Err("this peer identity was revoked".into());
     }
     if let Some(old) = previous_ip {
         relocate_peer_key(&peers, old, ip, &peer.public_key)?;
+    } else if reapproved_revoked {
+        reapprove_peer_key(&peers, ip, &peer.public_key)?;
     } else {
         remember_peer_key(&peers, ip, &peer.public_key)?;
     }
@@ -149,12 +152,13 @@ fn pin_after_handshake(
 }
 
 fn secure_connection(
-    stream: TcpStream,
+    mut stream: TcpStream,
     role: Role,
     identity: &Identity,
     config: &Path,
     ip: IpAddr,
     prompt: &Mutex<()>,
+    pair_request: bool,
 ) -> Result<SecureChannel<TcpStream>, Box<dyn Error>> {
     let peers = config.join("peers");
     let pinned = load_peer_key(&peers, ip)?;
@@ -164,23 +168,35 @@ fn secure_connection(
         Vec::new()
     };
     let mut previous_ip = None;
+    let mut reapproved_revoked = false;
     stream.set_nodelay(true)?;
     stream.set_read_timeout(Some(PAIRING_TIMEOUT))?;
     stream.set_write_timeout(Some(PAIRING_TIMEOUT))?;
-    let (mut channel, peer) =
-        SecureChannel::connect(stream, role, identity, pinned.as_ref(), |candidate| {
+    let explicit_pair = negotiate_pairing(&mut stream, role, pair_request)?;
+    let (mut channel, peer) = SecureChannel::connect(
+        stream,
+        role,
+        identity,
+        if explicit_pair { None } else { pinned.as_ref() },
+        |candidate| {
             if is_revoked(&peers, &candidate.public_key).unwrap_or(true) {
-                return false;
+                if !explicit_pair {
+                    return false;
+                }
+                eprintln!("A previously revoked identity is requesting a new pairing.");
+                reapproved_revoked = confirm_pair(candidate);
+                return reapproved_revoked;
             }
             if let Some((old, _)) = known.iter().find(|(_, key)| *key == candidate.public_key) {
                 previous_ip = Some(*old);
-                return true;
+                return !explicit_pair || confirm_pair(candidate);
             }
             let Ok(_prompt_guard) = prompt.lock() else {
                 return false;
             };
             confirm_pair(candidate)
-        })?;
+        },
+    )?;
     channel
         .stream_mut()
         .set_read_timeout(Some(Duration::from_secs(120)))?;
@@ -188,7 +204,7 @@ fn secure_connection(
         .stream_mut()
         .set_write_timeout(Some(Duration::from_secs(120)))?;
     hello(&mut channel, role)?;
-    pin_after_handshake(config, ip, &peer, previous_ip)?;
+    pin_after_handshake(config, ip, &peer, previous_ip, reapproved_revoked)?;
     Ok(channel)
 }
 
@@ -220,7 +236,8 @@ fn serve_connection(
     if !local_address(ip) {
         return Err("remote control is restricted to LAN peers".into());
     }
-    let mut channel = secure_connection(stream, Role::Responder, identity, config, ip, prompt)?;
+    let mut channel =
+        secure_connection(stream, Role::Responder, identity, config, ip, prompt, false)?;
     let first = Frame::read_from(&mut channel)?;
     if first.kind == Kind::Control
         && first.epoch == 0
@@ -355,6 +372,7 @@ fn pair(address: SocketAddr, identity: &Identity, config: &Path) -> Result<(), B
         config,
         address.ip(),
         &prompt,
+        true,
     )?;
     Frame {
         kind: Kind::Control,

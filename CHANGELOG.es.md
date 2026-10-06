@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## Próximamente (`alpha`)
+
+- Se añade **Revocar** a la lista de equipos emparejados de Windows, con confirmación y cierre de una sesión activa.
+- Una petición explícita de **Emparejar** muestra un código nuevo de seis cifras en ambos equipos, incluso tras revocar. Las conexiones de control ordinarias siguen bloqueadas hasta que los dos usuarios aprueban el código. Ambas interfaces muestran junto al botón indicaciones sobre el receptor y el firewall.
+
 ## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
 
 - Rechaza nombres de archivo relativos a una unidad Windows, como `C:payload.txt`, nombres de flujos alternativos con `:` y cualquier nombre que no sea un único componente de ruta antes de formar el destino. Una oferta autenticada ya no puede sacar la publicación de la carpeta elegida por el receptor.

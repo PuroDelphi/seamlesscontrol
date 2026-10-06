@@ -906,6 +906,28 @@ Panel {
           }
         }
 
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairingRunning
+          text: root.t("Esperando respuesta del receptor. Debe tener Recibir control activo; luego compare y apruebe el código en ambos equipos.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.pairingRunning && root.backend.error !== ""
+          text: root.backend ? root.backend.error : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
         }
 
         ColumnLayout {
@@ -956,7 +978,7 @@ Panel {
           spacing: Style.space(8)
           Text {
             Layout.fillWidth: true
-            text: root.t("¿Revocar ") + root.revokeCandidate + root.t("? Esa clave no podrá volver a conectarse.")
+            text: root.t("¿Revocar ") + root.revokeCandidate + root.t("? Se bloqueará su clave y se cerrará la sesión. Para emparejar de nuevo, compare y apruebe otro código en ambos equipos.")
             textFormat: Text.PlainText
             wrapMode: Text.WordWrap
             color: Color.urgent

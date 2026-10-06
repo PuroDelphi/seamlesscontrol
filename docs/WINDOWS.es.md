@@ -30,9 +30,9 @@ Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebVi
 3. Compara el **código de seis cifras** en ambos equipos y apruébalo en ambos. En Windows, escribe esas cifras en la aplicación y pulsa **Coinciden · aprobar**. La huella de identidad larga es otro valor; no eliges ni modificas el código.
 4. Ahora el equipo figura como emparejado. El descubrimiento solo proporciona la dirección; la identidad y el código siguen autorizando la confianza.
 
-Si otra máquina reutilizó una IP y aparece **PeerKey changed**, comprueba quién posee esa dirección. La identidad anterior queda protegida. La [guía técnica](TECHNICAL.es.md) explica dónde se guardan las claves.
+Si **Emparejar** no muestra un código, comprueba primero que **Recibir control** esté activo en el equipo al que intentas acceder y que su firewall permita el puerto TCP de control elegido (normalmente `47832`). La pestaña **Equipos** de Windows muestra ahora los errores de conexión y emparejamiento junto al botón. Tras revocar un emparejamiento, actualiza ambos agentes antes de repetirlo: las conexiones normales siguen bloqueadas, pero **Emparejar** muestra un código nuevo y coincidente en ambos equipos. Apruébalo en los dos para recuperar la confianza.
 
-Para quitar un emparejamiento en Windows, abre **Equipos → Equipos emparejados**, pulsa **Revocar** junto a ese equipo, lee el aviso y confirma **Sí, revocar**. Esto bloquea la identidad guardada, retira su posición del mapa y cierra una sesión de control activa. Hazlo solo si ya no confías en esa identidad: para volver a emparejar el mismo equipo tendrás que cambiar primero su identidad. El comando manual equivalente en PowerShell, desde la carpeta de la app, es `.\seamlesscontrold.exe revoke 192.168.1.25`.
+Para quitar un emparejamiento en Windows, abre **Equipos → Equipos emparejados**, pulsa **Revocar** junto a ese equipo, lee el aviso y confirma **Sí, revocar**. Esto bloquea la identidad guardada, retira su posición del mapa y cierra una sesión de control activa. Hazlo solo si ya no confías en esa identidad: para volver a emparejarlo tendrás que aprobar un código nuevo y coincidente en ambos equipos. El comando manual equivalente en PowerShell, desde la carpeta de la app, es `.\seamlesscontrold.exe revoke 192.168.1.25`.
 
 ## Omarchy controla Windows
 

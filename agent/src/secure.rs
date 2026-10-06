@@ -16,6 +16,42 @@ const PATTERN: &str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 const RECORD_PLAINTEXT: usize = 16 * 1024;
 const RECORD_CIPHERTEXT: usize = RECORD_PLAINTEXT + 16;
 const MAX_HANDSHAKE: usize = 4096;
+const EXPLICIT_PAIR_PREFACE: &[u8; 8] = b"\xffSCPAIR1";
+
+/// Mark an intentional Pair request before Noise starts. The marker grants no
+/// trust: it only forces a fresh SAS decision on both ends, including for a
+/// previously pinned or revoked key. Regular control connections omit it.
+pub fn negotiate_pairing(stream: &mut TcpStream, role: Role, explicit: bool) -> io::Result<bool> {
+    match role {
+        Role::Initiator => {
+            if explicit {
+                stream.write_all(EXPLICIT_PAIR_PREFACE)?;
+            }
+            Ok(explicit)
+        }
+        Role::Responder => {
+            let mut first = [0; 1];
+            if stream.peek(&mut first)? == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "empty pairing request",
+                ));
+            }
+            if first[0] != EXPLICIT_PAIR_PREFACE[0] {
+                return Ok(false);
+            }
+            let mut preface = [0; EXPLICIT_PAIR_PREFACE.len()];
+            stream.read_exact(&mut preface)?;
+            if &preface != EXPLICIT_PAIR_PREFACE {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid pairing request",
+                ));
+            }
+            Ok(true)
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Role {

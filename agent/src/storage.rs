@@ -187,6 +187,31 @@ pub fn revoke_peer_key(peers_dir: &Path, address: IpAddr) -> io::Result<[u8; 32]
     Ok(key)
 }
 
+/// Restore a revoked identity only after a fresh, mutually approved pairing
+/// code exchange. Ordinary connections must continue using `remember_peer_key`.
+pub fn reapprove_peer_key(dir: &Path, address: IpAddr, key: &[u8; 32]) -> io::Result<()> {
+    if let Some(existing) = load_peer_key(dir, address)?
+        && existing != *key
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "peer key changed; revoke the old pairing explicitly",
+        ));
+    }
+    if !is_revoked(dir, key)? {
+        return remember_peer_key(dir, address, key);
+    }
+    // A key may have been pinned under an older DHCP address before revocation.
+    // Removing its marker must not silently restore those old address pins.
+    for (old, known) in list_peer_keys(dir)? {
+        if known == *key && old != address {
+            fs::remove_file(peer_path(dir, old))?;
+        }
+    }
+    fs::remove_file(revoked_path(dir, key)?)?;
+    remember_peer_key(dir, address, key)
+}
+
 pub fn load_peer_key(dir: &Path, address: IpAddr) -> io::Result<Option<[u8; 32]>> {
     let path = peer_path(dir, address);
     match fs::symlink_metadata(&path) {
@@ -550,7 +575,7 @@ mod tests {
     }
 
     #[test]
-    fn revoked_identity_cannot_be_pinned_again() {
+    fn revoked_identity_requires_explicit_reapproval() {
         let unique = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -561,8 +586,10 @@ mod tests {
         ));
         let peers = root.join("peers");
         let address: IpAddr = "127.0.0.1".parse().unwrap();
+        let old_address: IpAddr = "127.0.0.2".parse().unwrap();
         let key = [9; 32];
         remember_peer_key(&peers, address, &key).unwrap();
+        remember_peer_key(&peers, old_address, &key).unwrap();
         assert_eq!(revoke_peer_key(&peers, address).unwrap(), key);
         assert!(is_revoked(&peers, &key).unwrap());
         assert_eq!(load_peer_key(&peers, address).unwrap(), None);
@@ -570,6 +597,10 @@ mod tests {
             remember_peer_key(&peers, address, &key).unwrap_err().kind(),
             io::ErrorKind::PermissionDenied
         );
+        reapprove_peer_key(&peers, address, &key).unwrap();
+        assert!(!is_revoked(&peers, &key).unwrap());
+        assert_eq!(load_peer_key(&peers, address).unwrap(), Some(key));
+        assert_eq!(load_peer_key(&peers, old_address).unwrap(), None);
         fs::remove_dir_all(root).unwrap();
     }
 

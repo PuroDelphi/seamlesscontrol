@@ -314,6 +314,7 @@ struct Controller {
     peers: BTreeMap<IpAddr, String>,
     discovered: Vec<DiscoveredServer>,
     pair_code: Option<PairCode>,
+    pair_status: &'static str,
     file_offer: Option<String>,
     clipboard_offer: Option<String>,
     clipboard_notification_open: bool,
@@ -405,6 +406,7 @@ impl Controller {
             peers: BTreeMap::new(),
             discovered: Vec::new(),
             pair_code: None,
+            pair_status: "",
             file_offer: None,
             clipboard_offer: None,
             clipboard_notification_open: false,
@@ -568,6 +570,13 @@ impl Controller {
         }
         for (slot, success) in finished {
             self.processes.remove(&slot);
+            if slot == Slot::Pair {
+                if success {
+                    self.pair_status = "paired";
+                } else if matches!(self.pair_status, "connecting" | "code") {
+                    self.pair_status = "error";
+                }
+            }
             self.log(format!(
                 "{} {}",
                 slot.name(),
@@ -672,10 +681,27 @@ impl Controller {
         let line = line.trim();
         if let Some(code) = line.strip_prefix("PAIRING CODE: ") {
             if code.len() == 6 && code.bytes().all(|byte| byte.is_ascii_digit()) {
+                self.pair_status = "code";
                 self.pair_code = Some(PairCode {
                     slot,
                     digits: code.to_owned(),
                 });
+            }
+        }
+        if slot == Slot::Pair {
+            let lower = line.to_ascii_lowercase();
+            if lower.contains("connection refused")
+                || lower.contains("timed out")
+                || lower.contains("unreachable")
+            {
+                self.pair_status = "unavailable";
+            } else if lower.contains("pairingrejected")
+                || lower.contains("peerrejected")
+                || lower.contains("pairing confirmation rejected")
+            {
+                self.pair_status = "rejected";
+            } else if line.starts_with("Paired with ") {
+                self.pair_status = "paired";
             }
         }
         if slot == Slot::ReceiveFile && line.starts_with("OFFER\t") {
@@ -722,6 +748,7 @@ impl Controller {
             }
         }
         if line.starts_with("Paired with ") {
+            self.pair_status = "paired";
             if self
                 .pair_code
                 .as_ref()
@@ -962,6 +989,7 @@ impl Controller {
             "lastAddress": self.session.address.map(|address| address.to_string()).unwrap_or_default(),
             "lastEdge": self.session.edge,
             "pairing": self.processes.contains_key(&Slot::Pair),
+            "pairStatus": self.pair_status,
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
             "fileLimitMiB": self.file_limit_mib,
@@ -1045,6 +1073,7 @@ impl Controller {
                 "pair" => {
                     let address = parse_address(string("address"))?;
                     self.start(Slot::Pair, &["pair", &address.to_string()], proxy)?;
+                    self.pair_status = "connecting";
                 }
                 "approvePair" => {
                     let Some(code) = self.pair_code.as_ref() else {
@@ -1555,7 +1584,11 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                 }
             }
             Event::UserEvent(UiEvent::Line(slot, line)) => {
+                let pairing_was_waiting = controller.pair_code.is_some();
                 controller.line(slot, line);
+                if !pairing_was_waiting && controller.pair_code.is_some() {
+                    window.set_visible(true);
+                }
                 if controller.clipboard_offer.is_some() && !controller.clipboard_notification_open {
                     controller.clipboard_notification_open = true;
                     show_copied_file_prompt(

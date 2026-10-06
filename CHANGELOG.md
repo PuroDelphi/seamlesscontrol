@@ -4,6 +4,11 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## Unreleased (`alpha`)
+
+- Add pairing revocation to the Windows Computers screen with a confirmation and active-session cleanup.
+- Make an explicit Pair request display a fresh six-digit code on both computers, including after revocation. Regular control connections remain blocked until both users approve the new code. Show receiver and firewall guidance beside the Pair actions in both interfaces.
+
 ## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
 
 - Reject drive-relative Windows file names such as `C:payload.txt`, alternate-stream names containing `:`, and any name that is not a single path component before forming a receive destination. An authenticated file offer can no longer redirect publication outside the folder chosen by the receiver.

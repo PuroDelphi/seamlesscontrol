@@ -28,12 +28,14 @@ mod linux {
         AGENT_PROTOCOL, EntryPosition, Frame, FrameError, Kind, ReturnRequest, SwitchRequest,
     };
     use seamlesscontrol_core::receiver::{Injector, run_receiver_with_first_until};
-    use seamlesscontrol_core::secure::{Identity, Role, SecureChannel, SecureError, SecureWriter};
+    use seamlesscontrol_core::secure::{
+        Identity, Role, SecureChannel, SecureError, SecureWriter, negotiate_pairing,
+    };
     use seamlesscontrol_core::state::InputEvent;
     use seamlesscontrol_core::storage::{
         is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
-        load_topology, relocate_peer_key, remember_peer_key, revoke_peer_key, rotate_identity,
-        save_topology,
+        load_topology, reapprove_peer_key, relocate_peer_key, remember_peer_key, revoke_peer_key,
+        rotate_identity, save_topology,
     };
     use seamlesscontrol_core::topology::{
         Edge as LogicalEdge, EdgeReturnDetector, Machine, Rect, Slot, clear_of_external_edge,
@@ -1370,7 +1372,7 @@ mod linux {
     }
 
     fn serve_connection(
-        stream: TcpStream,
+        mut stream: TcpStream,
         peer_ip: IpAddr,
         identity: &Identity,
         config: &std::path::Path,
@@ -1392,22 +1394,33 @@ mod linux {
             Vec::new()
         };
         let mut previous_ip = None;
+        let mut reapproved_revoked = false;
         stream.set_nodelay(true)?;
         stream.set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
         stream.set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
-        let (mut channel, peer) =
-            SecureChannel::connect(stream, Role::Responder, identity, pinned.as_ref(), |peer| {
+        let explicit_pair = negotiate_pairing(&mut stream, Role::Responder, false)?;
+        let (mut channel, peer) = SecureChannel::connect(
+            stream,
+            Role::Responder,
+            identity,
+            if explicit_pair { None } else { pinned.as_ref() },
+            |peer| {
                 if is_revoked(&peers, &peer.public_key).unwrap_or(true) {
-                    return false;
+                    if !explicit_pair {
+                        return false;
+                    }
+                    reapproved_revoked = control.confirm_pair(peer);
+                    return reapproved_revoked;
                 }
                 if let Some((old, _)) = known.iter().find(|(_, key)| *key == peer.public_key) {
                     previous_ip = Some(*old);
-                    true
+                    !explicit_pair || control.confirm_pair(peer)
                 } else {
                     control.confirm_pair(peer)
                 }
-            })?;
-        if is_revoked(&peers, &peer.public_key)? {
+            },
+        )?;
+        if is_revoked(&peers, &peer.public_key)? && !reapproved_revoked {
             return Err("peer identity has been revoked".into());
         }
         channel
@@ -1429,6 +1442,8 @@ mod linux {
         .write_to(&mut channel)?;
         if let Some(old) = previous_ip {
             relocate_peer_key(&peers, old, peer_ip, &peer.public_key)?;
+        } else if reapproved_revoked {
+            reapprove_peer_key(&peers, peer_ip, &peer.public_key)?;
         } else {
             remember_peer_key(&peers, peer_ip, &peer.public_key)?;
         }
@@ -1792,7 +1807,8 @@ mod linux {
             Vec::new()
         };
         let mut previous_ip = None;
-        let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))
+        let mut reapproved_revoked = false;
+        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         stream
             .set_nodelay(true)
@@ -1803,23 +1819,37 @@ mod linux {
         stream
             .set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
-        let (mut channel, peer) =
-            SecureChannel::connect(stream, Role::Initiator, identity, pinned.as_ref(), |peer| {
+        let explicit_pair = matches!(mode, ConnectionMode::Pair);
+        negotiate_pairing(&mut stream, Role::Initiator, explicit_pair)
+            .map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        let (mut channel, peer) = SecureChannel::connect(
+            stream,
+            Role::Initiator,
+            identity,
+            if explicit_pair { None } else { pinned.as_ref() },
+            |peer| {
                 if is_revoked(&peers, &peer.public_key).unwrap_or(true) {
-                    return false;
+                    if !explicit_pair {
+                        return false;
+                    }
+                    reapproved_revoked = control.confirm_pair(peer);
+                    return reapproved_revoked;
                 }
                 if let Some((old, _)) = known.iter().find(|(_, key)| *key == peer.public_key) {
                     previous_ip = Some(*old);
-                    true
+                    !explicit_pair || control.confirm_pair(peer)
                 } else {
                     control.confirm_pair(peer)
                 }
-            })
-            .map_err(|error| match error {
-                SecureError::Io(_) => AttemptError::Retry(Box::new(error)),
-                _ => AttemptError::Stop(Box::new(error)),
-            })?;
-        if is_revoked(&peers, &peer.public_key).map_err(|e| AttemptError::Stop(Box::new(e)))? {
+            },
+        )
+        .map_err(|error| match error {
+            SecureError::Io(_) => AttemptError::Retry(Box::new(error)),
+            _ => AttemptError::Stop(Box::new(error)),
+        })?;
+        if is_revoked(&peers, &peer.public_key).map_err(|e| AttemptError::Stop(Box::new(e)))?
+            && !reapproved_revoked
+        {
             return Err(AttemptError::Stop("peer identity has been revoked".into()));
         }
         channel
@@ -1845,6 +1875,9 @@ mod linux {
         }
         if let Some(old) = previous_ip {
             relocate_peer_key(&peers, old, address.ip(), &peer.public_key)
+                .map_err(|e| AttemptError::Stop(Box::new(e)))?;
+        } else if reapproved_revoked {
+            reapprove_peer_key(&peers, address.ip(), &peer.public_key)
                 .map_err(|e| AttemptError::Stop(Box::new(e)))?;
         } else {
             remember_peer_key(&peers, address.ip(), &peer.public_key)

@@ -75,11 +75,6 @@ topology=$(XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology)
 [[ "$topology" == *$'SLOT\t127.0.0.1\t0\t0'* ]]
 XDG_CONFIG_HOME="$scratch/client/config" "$agent" topology set local 0 0 >/dev/null
 
-XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
-  "$agent" pair "$address" >"$scratch/reconnect.log" 2>&1
-reconnect_message=$(<"$scratch/reconnect.log")
-[[ "$reconnect_message" == *'emparejado sin iniciar la captura'* ]]
-
 # An unauthenticated socket may be slow; it must not block another paired
 # peer's encrypted diagnostic session.
 bash -c 'exec 9<>/dev/tcp/127.0.0.1/$1; sleep 5' _ "$port" &
@@ -104,15 +99,47 @@ XDG_CONFIG_HOME="$scratch/server/config" XDG_RUNTIME_DIR="$scratch/server/run" \
 compgen -G "$scratch/server/config/seamlesscontrol/revoked/*" >/dev/null
 [[ -z "$(XDG_CONFIG_HOME="$scratch/server/config" "$agent" peers)" ]]
 if XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
-  "$agent" pair "$address" >"$scratch/revoked.log" 2>&1; then
-  printf 'Un par revocado pudo reconectar\n' >&2
+  "$agent" latency "$address" >"$scratch/revoked.log" 2>&1; then
+  printf 'Un par revocado pudo conectarse sin nueva aprobación\n' >&2
   exit 1
 fi
-revoked_message=$(<"$scratch/revoked.log")
-[[ "$revoked_message" == *'PeerRejected'* ]]
+
+pair_again() {
+  XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+    "$agent" pair "$address" >"$scratch/reapproved.log" 2>&1 &
+  client_pid=$!
+  server_status=
+  client_status=
+  for _ in {1..100}; do
+    server_status=$(XDG_RUNTIME_DIR="$scratch/server/run" "$agent" status 2>/dev/null || true)
+    client_status=$(XDG_RUNTIME_DIR="$scratch/client/run" "$agent" status 2>/dev/null || true)
+    if [[ "$server_status" == *$'\tpairing\t'* && "$client_status" == *$'\tpairing\t'* ]]; then break; fi
+    sleep 0.05
+  done
+  [[ "$server_status" == *$'\tpairing\t'* && "$client_status" == *$'\tpairing\t'* ]]
+  server_code=$(printf '%s\n' "$server_status" | cut -f6)
+  client_code=$(printf '%s\n' "$client_status" | cut -f6)
+  [[ "$server_code" =~ ^[0-9]{6}$ && "$server_code" == "$client_code" ]]
+  XDG_RUNTIME_DIR="$scratch/server/run" "$agent" approve "$server_code" >/dev/null
+  XDG_RUNTIME_DIR="$scratch/client/run" "$agent" approve "$client_code" >/dev/null
+  wait "$client_pid"
+  client_pid=
+  [[ -f "$scratch/server/config/seamlesscontrol/peers/127.0.0.1" ]]
+  [[ -f "$scratch/client/config/seamlesscontrol/peers/127.0.0.1" ]]
+}
+
+pair_again
+[[ -z "$(find "$scratch/server/config/seamlesscontrol/revoked" -type f -print -quit)" ]]
+XDG_CONFIG_HOME="$scratch/server/config" XDG_RUNTIME_DIR="$scratch/server/run" \
+  "$agent" revoke 127.0.0.1 >/dev/null
+XDG_CONFIG_HOME="$scratch/client/config" XDG_RUNTIME_DIR="$scratch/client/run" \
+  "$agent" revoke 127.0.0.1 >/dev/null
+pair_again
+[[ -z "$(find "$scratch/server/config/seamlesscontrol/revoked" -type f -print -quit)" ]]
+[[ -z "$(find "$scratch/client/config/seamlesscontrol/revoked" -type f -print -quit)" ]]
 
 kill -INT "$server_pid"
 wait "$server_pid"
 server_pid=
 [[ ! -e "$scratch/server/run/seamlesscontrol/control.sock" ]]
-printf 'Emparejamiento, revocación y limpieza del servicio: correcto\n'
+printf 'Emparejamiento, revocación, nueva aprobación y limpieza del servicio: correcto\n'

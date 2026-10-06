@@ -30,7 +30,7 @@ Estas capturas corresponden al panel actual de Omarchy. El nombre del equipo, la
 
 ![Pestaña Equipos: emparejamiento manual y revocación de confianza](images/omarchy-peers-es.png)
 
-- **Equipos emparejados** muestra las claves de confianza guardadas. **Revocar** retira la confianza después de una confirmación; para conectar otra vez habrá que emparejar. Si cambia la IP de un equipo conocido, el panel comprueba la identidad guardada. El aviso **Clave cambió** exige comprobar el equipo y emparejarlo otra vez.
+- **Equipos emparejados** muestra las claves de confianza guardadas. **Revocar** retira la confianza después de una confirmación; la conexión normal sigue bloqueada hasta que **Emparejar** muestre un código nuevo e igual en ambos equipos actualizados y lo apruebes en cada uno. Si cambia la IP de un equipo conocido, el panel comprueba la identidad guardada. El aviso **Clave cambió** exige comprobar el equipo y emparejarlo otra vez.
 - Durante el emparejamiento aparecen el código y **Coincide · aprobar aquí / No coincide · rechazar**. Compara ambos monitores antes de aprobar. Si el receptor está ubicado pero no aparece en el descubrimiento, **Ajustes → Conectar por IP** inicia la sesión.
 
 ### Archivos: copiar y pegar, o enviar a una carpeta

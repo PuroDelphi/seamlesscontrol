@@ -679,7 +679,11 @@ Item {
     }
     onExited: function(code) {
       root.pairingRunning = false
-      if (code !== 0) root.error = /PeerKeyChanged|peer key changed/i.test(root.pairError)
+      if (code !== 0) root.error = /Connection refused|Connection timed out|timed out|No route to host|Network is unreachable/i.test(root.pairError)
+        ? root.t("No se pudo llegar al receptor. Active Recibir control allí y permita su puerto TCP de control (normalmente 47832) en el firewall.")
+        : /PairingRejected|PeerRejected|pairing confirmation rejected/i.test(root.pairError)
+          ? root.t("El otro equipo rechazó el emparejamiento. Si había revocado esa clave, actualice ambos agentes y pulse Emparejar otra vez; compare y apruebe el código en ambos.")
+        : /PeerKeyChanged|peer key changed/i.test(root.pairError)
         ? root.t("Esta IP ya está emparejada con otra identidad. Compruebe si otro sistema usa la misma IP; no revoque la identidad anterior si quiere volver a usarla.")
         : root.pairError !== ""
           ? root.t("No se pudo emparejar: ") + root.pairError

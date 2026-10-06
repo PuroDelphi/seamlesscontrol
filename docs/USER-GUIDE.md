@@ -30,7 +30,7 @@ These screenshots come from the current Omarchy panel. The computer name, addres
 
 ![Computers tab: pairing by address and revoking a trusted computer](images/omarchy-peers-en.png)
 
-- **Paired computers** lists saved trust keys. **Revoke** removes a computer's trust after confirmation; connecting it again requires a new pairing. If a known computer gets a new IP, the panel checks its saved identity rather than trusting an address alone. A **Key changed** warning requires checking the computer and pairing it again.
+- **Paired computers** lists saved trust keys. **Revoke** removes a computer's trust after confirmation; a normal connection stays blocked until a fresh **Pair** request displays a matching six digit code on both updated computers and you approve it on each. If a known computer gets a new IP, the panel checks its saved identity rather than trusting an address alone. A **Key changed** warning requires checking the computer and pairing it again.
 - A pending pairing shows the code and **Codes match · approve here / Do not match · reject**. Compare with the other screen before approving. If a receiver is placed but not discovered, **Settings → Connect by IP** can start its session.
 
 ### Files: copy and paste, or send directly to a folder
