@@ -277,21 +277,23 @@ Panel {
             font.family: root.face
             font.pixelSize: Style.font.caption
           }
-          Button {
+          StateButton {
             text: "English"
             bordered: true
             focusable: true
-            enabled: root.backend && root.backend.language !== "en"
+            enabled: !!root.backend
+            selected: root.backend && root.backend.language === "en"
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.setLanguage("en")
           }
-          Button {
+          StateButton {
             text: "Español"
             bordered: true
             focusable: true
-            enabled: root.backend && root.backend.language !== "es"
+            enabled: !!root.backend
+            selected: root.backend && root.backend.language === "es"
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
@@ -304,7 +306,7 @@ Panel {
           columns: 2
           columnSpacing: Style.space(8)
           rowSpacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: (root.activeTab === "home" ? "● " : "") + root.t("Inicio")
             bordered: true
@@ -314,7 +316,7 @@ Panel {
             fontFamily: root.face
             onClicked: root.switchTab("home")
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: (root.activeTab === "computers" ? "● " : "") + root.t("Equipos")
             bordered: true
@@ -324,7 +326,7 @@ Panel {
             fontFamily: root.face
             onClicked: root.switchTab("computers")
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: (root.activeTab === "files" ? "● " : "") + root.t("Archivos")
             bordered: true
@@ -334,7 +336,7 @@ Panel {
             fontFamily: root.face
             onClicked: root.switchTab("files")
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: (root.activeTab === "settings" ? "● " : "") + root.t("Ajustes")
             bordered: true
@@ -369,7 +371,7 @@ Panel {
           RowLayout {
             Layout.fillWidth: true
             spacing: Style.space(8)
-            Button {
+            StateButton {
               Layout.fillWidth: true
               text: root.t("Aceptar archivo")
               bordered: true
@@ -379,7 +381,7 @@ Panel {
               fontFamily: root.face
               onClicked: if (root.backend) root.backend.decideClipboardFile(true)
             }
-            Button {
+            StateButton {
               Layout.fillWidth: true
               text: root.t("Rechazar")
               bordered: true
@@ -422,7 +424,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             visible: root.activeTab === "home"
             text: root.backend && root.backend.installed
@@ -436,7 +438,7 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.runSetup("install")
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             visible: root.activeTab === "settings"
             text: root.t("Retirar agente")
@@ -449,18 +451,6 @@ Panel {
             fontFamily: root.face
             onClicked: root.confirmRemoveAgent = true
           }
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.activeTab === "home" && root.backend && root.backend.installed
-            && (root.backend.available || root.backend.managedAgentRunning)
-          text: root.t("Hay una sesión activa. Termínela desde Inicio antes de actualizar el agente.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
         }
 
         Text {
@@ -478,7 +468,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.activeTab === "settings" && root.confirmRemoveAgent
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Confirmar retirada")
             bordered: true
@@ -491,7 +481,7 @@ Panel {
               if (root.backend) root.backend.runSetup("remove")
             }
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Cancelar")
             bordered: true
@@ -514,7 +504,7 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.activeTab === "home" && root.backend && root.backend.installed
           text: root.t("Preparar recepción de archivos copiados · TCP 47834 →")
@@ -566,7 +556,7 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve"
           text: root.backend && root.backend.receiverStopRequested
@@ -597,7 +587,7 @@ Panel {
               radius: 8
             }
           }
-          Button {
+          StateButton {
             text: root.backend && root.backend.pairingRunning ? root.t("Conectando…") : root.t("Emparejar")
             bordered: true
             focusable: true
@@ -657,7 +647,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.pairSas !== ""
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Coincide · aprobar aquí")
             bordered: true
@@ -667,7 +657,7 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.decidePair(true)
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("No coincide · rechazar")
             bordered: true
@@ -711,7 +701,7 @@ Panel {
             font.family: root.face
             font.pixelSize: Style.font.caption
           }
-          Button {
+          StateButton {
             text: root.t("Buscar")
             bordered: true
             focusable: true
@@ -740,7 +730,7 @@ Panel {
               font.family: root.face
               font.pixelSize: Style.font.caption
             }
-            Button {
+            StateButton {
               Layout.preferredWidth: Style.space(108)
               text: root.changedServerKey(discoveredRow.server) ? root.t("Clave cambió")
                 : root.knownServer(discoveredRow.server)
@@ -808,7 +798,7 @@ Panel {
               font.family: root.face
               font.pixelSize: Style.font.caption
             }
-            Button {
+            StateButton {
               text: root.t("Revocar")
               bordered: true
               focusable: true
@@ -833,7 +823,7 @@ Panel {
             font.family: root.face
             font.pixelSize: Style.font.caption
           }
-          Button {
+          StateButton {
             text: root.t("Confirmar")
             bordered: true
             focusable: true
@@ -845,7 +835,7 @@ Panel {
               root.revokeCandidate = ""
             }
           }
-          Button {
+          StateButton {
             text: root.t("Cancelar")
             bordered: true
             focusable: true
@@ -991,7 +981,7 @@ Panel {
 
         Repeater {
           model: root.unassignedPeers.length
-          delegate: Button {
+          delegate: StateButton {
             required property int index
             Layout.fillWidth: true
             text: root.t("Ubicar ") + root.unassignedPeers[index].ip
@@ -1052,7 +1042,7 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.captureWaitSeconds >= 15
             && root.backend.managedAgentRunning
@@ -1138,7 +1128,7 @@ Panel {
               else if (/^[0-9]{1,5}$/.test(value)) firewallPortField.text = value
             }
           }
-          Button {
+          StateButton {
             text: root.t("Recibir control")
             bordered: true
             focusable: true
@@ -1178,7 +1168,7 @@ Panel {
           fontFamily: root.face
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: (root.backend && root.backend.approvalMode === "always" ? "● " : "○ ") + root.t("Preguntar siempre")
           bordered: true
@@ -1188,7 +1178,7 @@ Panel {
           fontFamily: root.face
           onClicked: if (root.backend) root.backend.setApprovalSettings("always", String(root.backend.approvalMinutes))
         }
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: (root.backend && root.backend.approvalMode === "automatic" ? "● " : "○ ") + root.t("Aceptar automáticamente")
           bordered: true
@@ -1201,7 +1191,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: (root.backend && root.backend.approvalMode === "timed" ? "● " : "○ ") + root.t("Aceptar por un tiempo")
             bordered: true
@@ -1236,7 +1226,7 @@ Panel {
           }
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: root.t("Guardar aprobación temporal")
           bordered: true
@@ -1326,7 +1316,7 @@ Panel {
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
             onTextChanged: if (root.backend) root.backend.cancelFirewall()
           }
-          Button {
+          StateButton {
             text: root.backend && root.backend.firewallBusy ? root.t("Comprobando…") : root.t("Preparar regla LAN")
             bordered: true
             focusable: true
@@ -1355,7 +1345,7 @@ Panel {
           visible: root.backend && root.backend.firewallPreview !== ""
             && root.backend.firewallPort === firewallPortField.text.trim()
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Autorizar esta regla")
             bordered: true
@@ -1366,7 +1356,7 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.allowFirewall()
           }
-          Button {
+          StateButton {
             text: root.t("Cancelar")
             bordered: true
             focusable: true
@@ -1413,7 +1403,7 @@ Panel {
           fontFamily: root.face
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: root.t("Preparar regla LAN para pegar archivos · 47834")
           bordered: true
@@ -1436,7 +1426,7 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.firewallPreview !== "" && root.backend.firewallPort === "47834"
           text: root.t("Autorizar esta regla")
@@ -1480,7 +1470,7 @@ Panel {
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
-          Button {
+          StateButton {
             text: root.t("Conectar por IP")
             bordered: true
             focusable: true
@@ -1514,7 +1504,7 @@ Panel {
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
-          Button {
+          StateButton {
             text: root.t("Conectar varios equipos")
             bordered: true
             focusable: true
@@ -1545,7 +1535,7 @@ Panel {
           visible: root.activeTab === "home"
           spacing: Style.space(12)
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.managedAgentRunning && root.backend.role !== "serve"
           text: root.t("Terminar sesión iniciada desde el panel")
@@ -1557,7 +1547,7 @@ Panel {
           onClicked: if (root.backend) root.backend.stopManagedAgent()
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve"
           text: root.backend && root.backend.receiverStopRequested
@@ -1579,7 +1569,7 @@ Panel {
           fontFamily: root.face
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "connect"
           text: root.backend && root.backend.paused ? root.t("Reanudar captura") : root.t("Pausar captura")
@@ -1591,7 +1581,7 @@ Panel {
           onClicked: if (root.backend) root.backend.togglePause()
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve" && root.backend.phase === "controlling"
           text: root.t("Devolver control al origen")
@@ -1603,7 +1593,7 @@ Panel {
           onClicked: if (root.backend) root.backend.requestReturn()
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve"
             && !root.backend.paused && (root.backend.phase === "controlling" || root.backend.phase === "connected")
@@ -1616,7 +1606,7 @@ Panel {
           onClicked: if (root.backend) root.backend.stopRemoteInput()
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available && root.backend.role === "serve" && root.backend.paused
           text: root.t("Reanudar recepción")
@@ -1678,7 +1668,7 @@ Panel {
 
         Repeater {
           model: root.backend && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
-          delegate: Button {
+          delegate: StateButton {
             required property int index
             Layout.fillWidth: true
             text: root.t("Ofrecer archivo copiado a ") + root.backend.peers[index].ip
@@ -1711,7 +1701,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.clipboardOffer !== null
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Aceptar archivo")
             bordered: true
@@ -1721,7 +1711,7 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.decideClipboardFile(true)
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Rechazar")
             bordered: true
@@ -1774,7 +1764,7 @@ Panel {
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
             onAccepted: if (root.backend) root.backend.setFileLimitMiB(text.trim())
           }
-          Button {
+          StateButton {
             text: root.t("Guardar límite")
             bordered: true
             focusable: true
@@ -1818,7 +1808,7 @@ Panel {
             Component.onCompleted: text = Core.StandardPaths.writableLocation(Core.StandardPaths.DownloadLocation)
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
-          Button {
+          StateButton {
             text: root.t("Elegir")
             bordered: true
             focusable: true
@@ -1830,7 +1820,7 @@ Panel {
           }
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: root.backend && root.backend.receivingFile ? root.t("Dejar de esperar archivo") : root.t("Esperar un archivo")
           bordered: true
@@ -1870,7 +1860,7 @@ Panel {
           fontFamily: root.face
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: root.t("Preparar regla LAN para archivos")
           bordered: true
@@ -1900,7 +1890,7 @@ Panel {
           visible: root.backend && root.backend.firewallPreview !== ""
             && root.backend.firewallPort === root.fileReceivePort()
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Autorizar esta regla")
             bordered: true
@@ -1911,7 +1901,7 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.allowFirewall()
           }
-          Button {
+          StateButton {
             text: root.t("Cancelar")
             bordered: true
             focusable: true
@@ -1953,7 +1943,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.fileOffer !== null
           spacing: Style.space(8)
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Aceptar archivo")
             bordered: true
@@ -1963,7 +1953,7 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.decideFile(true)
           }
-          Button {
+          StateButton {
             Layout.fillWidth: true
             text: root.t("Rechazar")
             bordered: true
@@ -1994,7 +1984,7 @@ Panel {
 
         Repeater {
           model: root.backend ? root.backend.peers.length : 0
-          delegate: Button {
+          delegate: StateButton {
             required property int index
             Layout.fillWidth: true
             text: root.t("Enviar a ") + root.backend.peers[index].ip
@@ -2018,7 +2008,7 @@ Panel {
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
           }
-          Button {
+          StateButton {
             text: root.t("Elegir")
             bordered: true
             focusable: true
@@ -2030,7 +2020,7 @@ Panel {
           }
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           text: root.backend && root.backend.sendingFile ? root.t("Enviando…") : root.t("Enviar archivo")
           bordered: true
@@ -2068,7 +2058,7 @@ Panel {
 
         }
 
-        Button {
+        StateButton {
           Layout.fillWidth: true
           visible: root.activeTab === "settings"
           text: root.t("Abrir guía completa")

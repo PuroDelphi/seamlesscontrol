@@ -15,7 +15,7 @@ ColumnLayout {
 
   spacing: Style.space(6)
 
-  Button {
+  StateButton {
     Layout.fillWidth: true
     text: (root.expanded ? "▾ " : "▸ ") + root.title
     bordered: true
