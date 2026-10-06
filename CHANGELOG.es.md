@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
+
+- Rechaza nombres de archivo relativos a una unidad Windows, como `C:payload.txt`, nombres de flujos alternativos con `:` y cualquier nombre que no sea un único componente de ruta antes de formar el destino. Una oferta autenticada ya no puede sacar la publicación de la carpeta elegida por el receptor.
+- Añade una prueba de regresión en Windows x64 para la ruta señalada. Se conservan los nombres Unicode normales y el flujo de transferencia verificada.
+
 ## [0.22.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.0) — 2026-10-05
 
 - Organiza el panel Omarchy y la app Windows de bandeja alrededor de las tareas habituales: recibir o controlar, encontrar y ubicar equipos, copiar archivos y ajustar permisos. La ayuda opcional empieza plegada y los equipos emparejados de Windows aparecen junto al mapa.

@@ -4,7 +4,7 @@
 use sha2::{Digest, Sha256};
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, Write};
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const DEFAULT_MAX_FILE_BYTES: u64 = 100 * 1024 * 1024;
@@ -269,8 +269,15 @@ fn validate_name(name: &str) -> io::Result<()> {
         || name == ".."
         || name
             .chars()
-            .any(|ch| ch == '/' || ch == '\\' || ch.is_control())
+            .any(|ch| ch == '/' || ch == '\\' || ch == ':' || ch.is_control())
     {
+        return Err(invalid("invalid file name"));
+    }
+    // A received name must be one component on the destination platform.
+    // In particular, Windows treats `C:foo` as a drive-relative path: joining
+    // it to the approved directory would discard that directory.
+    let mut components = Path::new(name).components();
+    if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
         return Err(invalid("invalid file name"));
     }
     Ok(())
@@ -354,7 +361,16 @@ mod tests {
 
     #[test]
     fn untrusted_offer_and_chunks_are_bounded() {
-        for name in ["../escape", "a/b", "a\\b", "", ".", "bad\nname"] {
+        for name in [
+            "../escape",
+            "a/b",
+            "a\\b",
+            "C:payload.txt",
+            "file:stream",
+            "",
+            ".",
+            "bad\nname",
+        ] {
             assert!(
                 FileOffer {
                     name: name.to_owned(),
@@ -365,6 +381,7 @@ mod tests {
                 .is_err()
             );
         }
+        assert!(validate_name("Café 漢字.txt").is_ok());
         let offer = FileOffer {
             name: "ok".to_owned(),
             size: 2,
@@ -380,6 +397,22 @@ mod tests {
         let mut receiver = FileReceiver::accept(offer, &dir, 2).unwrap();
         assert!(receiver.write_chunk(b"three").is_err());
         drop(receiver);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn drive_relative_offer_cannot_escape_receive_directory() {
+        let dir = scratch("drive-relative");
+        #[cfg(windows)]
+        assert!(!dir.join("C:payload.txt").starts_with(&dir));
+        let offer = FileOffer {
+            name: "C:payload.txt".to_owned(),
+            size: 0,
+            sha256: Sha256::digest(b"").into(),
+        };
+        assert!(FileMessage::decode(&FileMessage::Offer(offer.clone()).encode()).is_err());
+        assert!(FileReceiver::accept(offer, &dir, DEFAULT_MAX_FILE_BYTES).is_err());
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
         fs::remove_dir_all(dir).unwrap();
     }
 

@@ -4,6 +4,11 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
+
+- Reject drive-relative Windows file names such as `C:payload.txt`, alternate-stream names containing `:`, and any name that is not a single path component before forming a receive destination. An authenticated file offer can no longer redirect publication outside the folder chosen by the receiver.
+- Add a Windows x64 regression test for the reported path case. Normal Unicode file names and the existing verified transfer flow remain supported.
+
 ## [0.22.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.0) — 2026-10-05
 
 - Organize the Omarchy panel and Windows tray app around the everyday tasks: receive or control, find and place computers, copy files, and adjust permissions. Keep optional explanations collapsed and put paired Windows computers next to their layout map.
