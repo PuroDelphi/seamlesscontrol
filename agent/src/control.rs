@@ -28,6 +28,7 @@ pub struct ControlStatus {
     decision: Option<bool>,
     receiver_active: bool,
     disconnect_requested: bool,
+    shutdown_requested: bool,
 }
 
 #[derive(Clone)]
@@ -93,6 +94,14 @@ impl ControlHandle {
 
     pub fn paused(&self) -> bool {
         self.0.0.lock().expect("control state lock").paused
+    }
+
+    pub fn shutdown_requested(&self) -> bool {
+        self.0
+            .0
+            .lock()
+            .expect("control state lock")
+            .shutdown_requested
     }
 
     pub fn revoked_active(&self) -> bool {
@@ -238,6 +247,7 @@ impl ControlServer {
                 decision: None,
                 receiver_active: false,
                 disconnect_requested: false,
+                shutdown_requested: false,
             }),
             Condvar::new(),
         )));
@@ -281,6 +291,15 @@ impl ControlServer {
                                     }
                                     status.phase = "paused".to_owned();
                                     status.return_requested = None;
+                                    "OK\n".to_owned()
+                                }
+                                "stop" if status.role == "serve" => {
+                                    status.shutdown_requested = true;
+                                    status.disconnect_requested = true;
+                                    if status.phase == "pairing" {
+                                        status.decision = Some(false);
+                                        wake.notify_all();
+                                    }
                                     "OK\n".to_owned()
                                 }
                                 "resume" if status.role == "serve" && !status.receiver_active => {
@@ -405,6 +424,23 @@ mod tests {
         assert!(!server.handle().paused());
         drop(server);
         assert!(!path.exists());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn receiver_stops_normally_even_when_paused() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-receiver-stop-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let path = dir.join("control.sock");
+        let server = ControlServer::start_at(path.clone(), "serve", &dir).unwrap();
+        assert_eq!(request_at(&path, "emergency-stop").unwrap(), "OK\n");
+        assert!(server.handle().paused());
+        assert_eq!(request_at(&path, "stop").unwrap(), "OK\n");
+        assert!(server.handle().shutdown_requested());
+        drop(server);
         fs::remove_dir_all(dir).unwrap();
     }
 

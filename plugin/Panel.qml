@@ -544,12 +544,28 @@ Panel {
         Text {
           Layout.fillWidth: true
           visible: root.backend && root.backend.available
-          text: root.t("Este equipo está recibiendo o controlando. Para iniciar un emparejamiento desde aquí, termine primero esa sesión. Puede aprobar aquí un código iniciado desde el otro equipo.")
+          text: root.backend && root.backend.role === "serve"
+            ? root.t("Este equipo está recibiendo control. Para emparejar desde aquí, pulse Detener recepción y después Emparejar. El otro equipo también puede iniciar el emparejamiento mientras este receptor escucha.")
+            : root.t("Este equipo está controlando otro. Termine esa sesión desde Inicio para iniciar un emparejamiento aquí.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
           font.family: root.face
           font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "serve"
+          text: root.backend && root.backend.receiverStopRequested
+            ? root.t("Deteniendo recepción…") : root.t("Detener recepción para emparejar")
+          bordered: true
+          focusable: true
+          enabled: root.backend && !root.backend.actionRunning && !root.backend.receiverStopRequested
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.stopReceiver()
         }
 
         RowLayout {
@@ -1519,7 +1535,7 @@ Panel {
 
         Button {
           Layout.fillWidth: true
-          visible: root.backend && root.backend.managedAgentRunning
+          visible: root.backend && root.backend.managedAgentRunning && root.backend.role !== "serve"
           text: root.t("Terminar sesión iniciada desde el panel")
           bordered: true
           focusable: true
@@ -1527,6 +1543,20 @@ Panel {
           accent: Color.accent
           fontFamily: root.face
           onClicked: if (root.backend) root.backend.stopManagedAgent()
+        }
+
+        Button {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available && root.backend.role === "serve"
+          text: root.backend && root.backend.receiverStopRequested
+            ? root.t("Deteniendo recepción…") : root.t("Detener recepción")
+          bordered: true
+          focusable: true
+          enabled: root.backend && !root.backend.actionRunning && !root.backend.receiverStopRequested
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.stopReceiver()
         }
 
         HelpDisclosure {

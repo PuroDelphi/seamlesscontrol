@@ -19,13 +19,14 @@ Estas capturas de Omarchy ilustran los controles con nombres de equipos, direcci
 - **English / Español** cambia el idioma del panel. **Instalar agente** aparece después de añadir el plugin; **Actualizar agente** aparece cuando ya está instalado. El botón abre una terminal para instalar o actualizar el agente y los paquetes necesarios. Detén una sesión activa antes de actualizar.
 - **Preparar recepción de archivos copiados · TCP 47834** abre la sección correspondiente del firewall en Ajustes. Se necesita en el equipo que recibirá archivos copiados en el explorador de otro equipo.
 - **Automático · 47832 (u otro puerto)** es la dirección de **Recibir control**. Deja Automático para una red local normal; si eliges otro puerto, usa ese mismo en el receptor y en su regla de firewall. **Recibir control** pone este equipo a escuchar y lo anuncia para el descubrimiento.
-- La línea de estado indica si el agente está disponible, listo, controlando, en pausa o reconectando. Según la sesión aparecen **Pausar/Reanudar captura**, **Devolver control al origen**, **Cortar entrada remota · emergencia / Reanudar recepción**, **Reiniciar captura de este equipo** y **Terminar sesión iniciada desde el panel**. Sus usos se explican [más abajo](#para-qué-sirve-cada-función).
+- La línea de estado indica si el agente está disponible, listo, controlando, en pausa o reconectando. Según la sesión aparecen **Detener recepción**, **Pausar/Reanudar captura**, **Devolver control al origen**, **Cortar entrada remota · emergencia / Reanudar recepción**, **Reiniciar captura de este equipo** y **Terminar sesión iniciada desde el panel**. Sus usos se explican [más abajo](#para-qué-sirve-cada-función).
 
 ### Equipos: descubrir, emparejar, ubicar y conectar
 
 ![Pestaña Equipos: mapa de dos por dos y equipo descubierto](images/omarchy-map-es.png)
 
 - **1 · Emparejar por dirección** inicia el emparejamiento si conoces la `IP:puerto` del receptor. Déjalo en **Recibir control** y compara el código de seis cifras en ambos equipos; apruébalo en las dos interfaces.
+- Si este equipo ya recibe control, **Detener recepción para emparejar** aparece junto al paso 1. Púlsalo para cerrar el receptor normalmente y luego inicia aquí el emparejamiento. También puedes iniciarlo desde el otro equipo mientras este receptor permanece disponible. **Cortar entrada remota · emergencia** solo pausa el receptor; no lo libera para iniciar el emparejamiento.
 - **2 · Equipos cercanos** muestra receptores anunciados en la LAN. **Buscar** actualiza la lista. Pulsa **Emparejar** en un equipo nuevo si no conoces su IP. Los pasos 1 y 2 son alternativas en la misma pestaña.
 
 ![Pestaña Equipos: emparejamiento manual y revocación de confianza](images/omarchy-peers-es.png)

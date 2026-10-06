@@ -19,13 +19,14 @@ These Omarchy screenshots illustrate the controls with fictional computer names,
 - **English / Español** changes the panel language. **Install agent** appears after adding the plugin; **Update agent** appears once installed. The button opens a terminal to install or update the agent and required packages. Stop an active session before updating.
 - **Set up copied-file receiving · TCP 47834** opens the matching firewall section in Settings. It is needed on a computer that will receive files copied in another computer's file manager.
 - **Automatic · 47832 (or port…)** is the address for **Receive control**. Leave it on Automatic for the normal LAN setup; choose another port only when both the listener and its firewall rule use that port. **Receive control** starts this computer as a receiver and makes it discoverable.
-- The status line reports whether the agent is available, ready, controlling, paused or reconnecting. The session controls appear here when relevant: **Pause/Resume capture**, **Return control to source**, **Cut remote input · emergency / Resume receiving**, **Restart capture on this computer**, and **Stop session started here**. Their actions are explained [below](#what-the-other-controls-do).
+- The status line reports whether the agent is available, ready, controlling, paused or reconnecting. The session controls appear here when relevant: **Stop receiving**, **Pause/Resume capture**, **Return control to source**, **Cut remote input · emergency / Resume receiving**, **Restart capture on this computer**, and **Stop session started here**. Their actions are explained [below](#what-the-other-controls-do).
 
 ### Computers: discover, pair, place and connect
 
 ![Computers tab: two-by-two layout and discovered computer](images/omarchy-map-en.png)
 
 - **1 · Pair by address** starts pairing when you know the receiver's `IP:port`. Start **Receive control** there, compare the six digit code on both computers, and approve it in both interfaces.
+- If this computer is already receiving control, **Stop receiving to pair** appears beside step 1. Select it to end the receiver normally, then start pairing here. The other computer can instead initiate pairing while this receiver remains available. **Cut remote input · emergency** only pauses the receiver; it does not free this computer to start pairing.
 - **2 · Nearby computers** shows receivers advertising on the LAN. **Scan** refreshes the list. Select **Pair** on a new computer when you do not know its IP. Steps 1 and 2 are alternatives on the same tab.
 
 ![Computers tab: pairing by address and revoking a trusted computer](images/omarchy-peers-en.png)

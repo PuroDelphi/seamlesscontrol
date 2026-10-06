@@ -2423,7 +2423,7 @@ mod linux {
         if args.len() == 2
             && matches!(
                 args[1].as_str(),
-                "status" | "pause" | "resume" | "reject" | "return" | "emergency-stop"
+                "status" | "pause" | "resume" | "reject" | "return" | "emergency-stop" | "stop"
             )
             || args.len() == 3 && args[1] == "approve"
         {
@@ -2528,7 +2528,7 @@ mod linux {
             || args.len() == 4 && args[1] == "connect")
         {
             eprintln!(
-                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold emergency-stop  # en el receptor; corta y pausa\n     seamlesscontrold resume          # reanuda el receptor\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold choose-file en|es\n     seamlesscontrold choose-folder en|es\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
+                "Uso: seamlesscontrold serve <IP-LAN:PUERTO>\n     seamlesscontrold serve-auto <PUERTO>\n     seamlesscontrold discover\n     seamlesscontrold pair <IP-LAN:PUERTO>\n     seamlesscontrold connect <IP-LAN:PUERTO> [left|right|top|bottom]\n     seamlesscontrold mesh <PUERTO>\n     seamlesscontrold stop            # detiene el receptor normalmente\n     seamlesscontrold emergency-stop  # en el receptor; corta y pausa\n     seamlesscontrold resume          # reanuda el receptor\n     seamlesscontrold latency <IP-LAN:PUERTO>\n     seamlesscontrold choose-file en|es\n     seamlesscontrold choose-folder en|es\n     seamlesscontrold receive-file <IP-LAN:PUERTO> <directorio>\n     seamlesscontrold receive-file-auto <PUERTO> <directorio>\n     seamlesscontrold send-file <IP-LAN:PUERTO> <archivo>\n     seamlesscontrold local-address <PUERTO>\n     seamlesscontrold rotate-key"
             );
             return Err("invalid arguments".into());
         }
@@ -2603,8 +2603,16 @@ mod linux {
         }
         let _local_control = ControlServer::start("serve", &config)?;
         let control = _local_control.handle();
-        let stop = async {
-            let _ = tokio::signal::ctrl_c().await;
+        let stop_control = control.clone();
+        let stop = async move {
+            loop {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => break,
+                    _ = tokio::time::sleep(Duration::from_millis(100)) => {
+                        if stop_control.shutdown_requested() { break; }
+                    }
+                }
+            }
         };
         if args[1] == "serve-auto" {
             let port = address.port();

@@ -97,6 +97,8 @@ Item {
   })[phase] || phase
   property string peer: ""
   property bool paused: false
+  readonly property bool actionRunning: actionProcess.running
+  property bool receiverStopRequested: false
   property string pairSas: ""
   property string pairKey: ""
   property string error: ""
@@ -441,6 +443,14 @@ Item {
     actionProcess.running = true
   }
 
+  function stopReceiver() {
+    if (actionProcess.running || role !== "serve") return
+    actionName = root.t("detener la recepción")
+    receiverStopRequested = true
+    actionProcess.command = ["seamlesscontrold", "stop"]
+    actionProcess.running = true
+  }
+
   function resumeReceiver() {
     if (actionProcess.running || role !== "serve" || !paused) return
     actionName = root.t("reanudar la recepción")
@@ -560,6 +570,7 @@ Item {
     onExited: function(code) {
       if (code !== 0) {
         root.available = false
+        root.receiverStopRequested = false
         root.role = ""
         root.phase = ""
         root.peer = ""
@@ -573,6 +584,8 @@ Item {
   Process {
     id: actionProcess
     onExited: function(code) {
+      if (code !== 0 && root.receiverStopRequested)
+        root.receiverStopRequested = false
       root.error = code !== 0 ? root.t("No se pudo ") + root.actionName : ""
       root.refresh()
       root.refreshPeers()
