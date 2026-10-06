@@ -1419,7 +1419,12 @@ mod linux {
                     control.confirm_pair(peer)
                 }
             },
-        )?;
+        )
+        .map_err(|error| {
+            std::io::Error::other(format!(
+                "secure handshake (explicit pairing: {explicit_pair}): {error}"
+            ))
+        })?;
         if is_revoked(&peers, &peer.public_key)? && !reapproved_revoked {
             return Err("peer identity has been revoked".into());
         }

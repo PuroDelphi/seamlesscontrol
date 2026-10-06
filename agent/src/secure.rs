@@ -86,6 +86,7 @@ pub enum SecureError {
     Noise(snow::Error),
     InvalidKey,
     InvalidRecord,
+    InvalidRecordLength { phase: &'static str, length: usize },
     PeerKeyChanged,
     PairingRejected,
     PeerRejected,
@@ -98,6 +99,9 @@ impl fmt::Display for SecureError {
             Self::Noise(e) => write!(f, "Noise protocol error: {e}"),
             Self::InvalidKey => write!(f, "invalid peer key"),
             Self::InvalidRecord => write!(f, "invalid encrypted record"),
+            Self::InvalidRecordLength { phase, length } => {
+                write!(f, "invalid {phase} record length: {length}")
+            }
             Self::PeerKeyChanged => write!(f, "paired peer changed its identity key"),
             Self::PairingRejected => write!(f, "local pairing confirmation rejected"),
             Self::PeerRejected => write!(f, "remote pairing confirmation rejected"),
@@ -205,7 +209,10 @@ fn read_record(
     stream.read_exact(&mut length[1..])?;
     let length = usize::from(u16::from_be_bytes(length));
     if !(16..=RECORD_CIPHERTEXT).contains(&length) {
-        return Err(SecureError::InvalidRecord);
+        return Err(SecureError::InvalidRecordLength {
+            phase: "encrypted",
+            length,
+        });
     }
     let next = nonce.checked_add(1).ok_or(SecureError::InvalidRecord)?;
     let mut ciphertext = vec![0; length];
@@ -446,7 +453,10 @@ fn receive_handshake(
     stream.read_exact(&mut size)?;
     let size = usize::from(u16::from_be_bytes(size));
     if size == 0 || size > MAX_HANDSHAKE {
-        return Err(SecureError::InvalidRecord);
+        return Err(SecureError::InvalidRecordLength {
+            phase: "handshake",
+            length: size,
+        });
     }
     let mut message = vec![0; size];
     stream.read_exact(&mut message)?;
