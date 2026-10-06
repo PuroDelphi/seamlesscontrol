@@ -82,10 +82,10 @@ Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, ins
 **Omarchy:** termina las sesiones y actualiza el plugin en cada equipo Omarchy:
 
 ```bash
-omarchy plugin update seamlesscontrol.control
+omarchy plugin update seamlesscontrol.control --yes
 ```
 
-Ejecuta `omarchy restart shell`, abre de nuevo SeamlessControl y pulsa **Actualizar agente** en **Preparar este equipo**. Se conservan las claves y el mapa.
+`--yes` aplica la actualización sin abrir la vista larga de cambios ni pedir confirmación. Ejecuta `omarchy restart shell`, abre de nuevo SeamlessControl y pulsa **Actualizar agente** en **Preparar este equipo**. Se conservan las claves y el mapa.
 
 **Windows:** sal de SeamlessControl desde el menú de la bandeja, descarga `seamlesscontrol-windows-x64.zip` de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extráelo y reemplaza ambos ejecutables en su carpeta y abre `seamlesscontrol.exe` otra vez. Se conservan las claves en `%LOCALAPPDATA%\SeamlessControl`.
 

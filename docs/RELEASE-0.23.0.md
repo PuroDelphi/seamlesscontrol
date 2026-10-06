@@ -10,7 +10,7 @@ The Omarchy/Windows round trip and return across the entry edge were physically 
 
 ## Install or update
 
-**Omarchy:** install with `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable`, then choose **Install agent** in the panel. To update, stop active sessions, run `omarchy plugin update seamlesscontrol.control`, run `omarchy restart shell`, and choose **Update agent** in the panel. Update both Omarchy computers before pairing again after revocation. Existing identities and placements remain saved.
+**Omarchy:** install with `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable`, then choose **Install agent** in the panel. To update, stop active sessions, run `omarchy plugin update seamlesscontrol.control --yes`, run `omarchy restart shell`, and choose **Update agent** in the panel. Update both Omarchy computers before pairing again after revocation. Existing identities and placements remain saved.
 
 **Windows x64:** exit the app from its tray menu. Under **Assets**, download the single `seamlesscontrol-windows-x64.zip` and its adjacent `.sha256`. Extract it and replace **both** `seamlesscontrol.exe` and `seamlesscontrold.exe` in the same folder, then reopen the app. Pairings and preferences remain saved. The release also includes a tagged source archive and its adjacent SHA256.
 
@@ -30,7 +30,7 @@ La ida y vuelta entre Omarchy y Windows, incluido el regreso por el borde de ent
 
 ## Instalar o actualizar
 
-**Omarchy:** instala con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` y pulsa **Instalar agente** en el panel. Para actualizar, termina las sesiones activas, ejecuta `omarchy plugin update seamlesscontrol.control`, luego `omarchy restart shell` y pulsa **Actualizar agente**. Actualiza ambos Omarchy antes de volver a emparejarlos tras una revocación. Se conservan identidades y posiciones.
+**Omarchy:** instala con `omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable` y pulsa **Instalar agente** en el panel. Para actualizar, termina las sesiones activas, ejecuta `omarchy plugin update seamlesscontrol.control --yes`, luego `omarchy restart shell` y pulsa **Actualizar agente**. Actualiza ambos Omarchy antes de volver a emparejarlos tras una revocación. Se conservan identidades y posiciones.
 
 **Windows x64:** sal de la app desde la bandeja. En **Assets**, descarga el único `seamlesscontrol-windows-x64.zip` y su `.sha256` contiguo. Extráelo y reemplaza **ambos** ejecutables, `seamlesscontrol.exe` y `seamlesscontrold.exe`, en la misma carpeta; vuelve a abrir la app. Se conservan emparejamientos y preferencias. El release incluye además el código fuente del tag y su SHA256 contiguo.
 

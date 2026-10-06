@@ -82,10 +82,10 @@ Windows 11 normally has the required WebView2 runtime. If the app reports it mis
 **Omarchy:** stop active sessions, then update the widget on each Omarchy computer:
 
 ```bash
-omarchy plugin update seamlesscontrol.control
+omarchy plugin update seamlesscontrol.control --yes
 ```
 
-Run `omarchy restart shell`, reopen SeamlessControl and choose **Update agent** under **Set up this computer**. Your pairing keys and layout are kept.
+`--yes` applies the update without opening the long change preview or asking for confirmation. Run `omarchy restart shell`, reopen SeamlessControl and choose **Update agent** under **Set up this computer**. Your pairing keys and layout are kept.
 
 **Windows:** exit SeamlessControl from its tray menu, download `seamlesscontrol-windows-x64.zip` from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extract it and replace both executables in their folder and reopen `seamlesscontrol.exe`. Pairing keys in `%LOCALAPPDATA%\SeamlessControl` are kept.
 
