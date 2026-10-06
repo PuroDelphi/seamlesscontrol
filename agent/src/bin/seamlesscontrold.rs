@@ -650,7 +650,20 @@ mod linux {
                         if pending_since.is_some_and(|since| since.elapsed() > Duration::from_secs(2)) {
                             return Err("mesh handoff acknowledgement timed out".into());
                         }
-                        if control.paused() || locked {
+                        if locked {
+                            // Disabling capture must precede network feedback and cursor
+                            // placement: both may fail while the source is locking.
+                            if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
+                            if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
+                                if let Ok(link) = mesh_link(&mut links, peer) {
+                                    let _ = link.send(Kind::Control, epoch, b"END".to_vec());
+                                }
+                                coordinator.reset_local();
+                                keys.clear(); buttons.clear(); pending_since = None; pending_entry = None;
+                                portal_active = false; current_activation = None;
+                            }
+                            control.set_phase("locked");
+                        } else if control.paused() {
                             if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                                 let _ = mesh_link(&mut links, peer)?.send(Kind::Control, epoch, b"END".to_vec());
                                 coordinator.reset_local();
@@ -1004,7 +1017,20 @@ mod linux {
                     _ = pause_tick.tick() => {
                         if control.revoked_active() { break; }
                         locked = local_lock.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
-                        if (control.paused() || locked) && capture_enabled {
+                        if locked && capture_enabled {
+                            // Disable first: the portal guarantees this ends active capture.
+                            // Releasing with a cursor position can fail while outputs are
+                            // disappearing during the screen lock transition.
+                            portal.disable(&session, Default::default()).await?;
+                            capture_enabled = false;
+                            if active {
+                                let _ = send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec());
+                                active = false;
+                                current_activation = None;
+                                rearm_after_return = true;
+                            }
+                            control.set_phase("locked");
+                        } else if control.paused() && capture_enabled {
                             if active {
                                 send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec())?;
                                 let mut options = ReleaseOptions::default().set_activation_id(current_activation.take());
@@ -1965,6 +1991,16 @@ mod linux {
                 {
                     return Err(AttemptError::Stop("invalid capture claim reply".into()));
                 }
+                let ipc = HyprIpc::from_env().ok_or_else(|| {
+                    AttemptError::Stop("Hyprland IPC is required to guard local capture".into())
+                })?;
+                if ipc
+                    .session_lock_state()
+                    .unwrap_or(SessionLockState::Undetermined)
+                    != SessionLockState::Unlocked
+                {
+                    return Err(AttemptError::Retry("local session locked".into()));
+                }
                 println!("Conexión autenticada con {address}.");
                 let topology_path = config.join("topology");
                 capture_loop(
@@ -2527,6 +2563,19 @@ mod linux {
             let control = local_control.handle();
             let mut delay = Duration::from_secs(1);
             loop {
+                let ipc =
+                    HyprIpc::from_env().ok_or("Hyprland IPC is required to guard mesh capture")?;
+                if ipc
+                    .session_lock_state()
+                    .unwrap_or(SessionLockState::Undetermined)
+                    != SessionLockState::Unlocked
+                {
+                    control.set_phase("locked");
+                    tokio::select! {
+                        _ = tokio::signal::ctrl_c() => return Ok(()),
+                        _ = tokio::time::sleep(Duration::from_millis(250)) => continue,
+                    }
+                }
                 match mesh_loop(port, &identity, &config, control.clone()).await? {
                     MeshSession::Stopped => return Ok(()),
                     MeshSession::Retry(error, uptime) => {
@@ -2597,6 +2646,24 @@ mod linux {
                     mode = ConnectionMode::CaptureMapped(Edge::from_logical(
                         topology.edge_to(address.ip())?,
                     ));
+                }
+                if matches!(
+                    mode,
+                    ConnectionMode::Capture(_) | ConnectionMode::CaptureMapped(_)
+                ) {
+                    let ipc = HyprIpc::from_env()
+                        .ok_or("Hyprland IPC is required to guard local capture")?;
+                    if ipc
+                        .session_lock_state()
+                        .unwrap_or(SessionLockState::Undetermined)
+                        != SessionLockState::Unlocked
+                    {
+                        control.set_phase("locked");
+                        tokio::select! {
+                            _ = tokio::signal::ctrl_c() => return Ok(()),
+                            _ = tokio::time::sleep(Duration::from_millis(250)) => continue,
+                        }
+                    }
                 }
                 match connect_once(address, mode, &identity, &config, &control).await {
                     Ok(()) => return Ok(()),
