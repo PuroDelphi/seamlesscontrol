@@ -10,7 +10,7 @@ Después de actualizar el plugin, reinicia el shell de Omarchy como indica el [R
 
 ## Recorrido por el panel de Omarchy
 
-Estas capturas corresponden al panel actual de Omarchy. El nombre del equipo, la dirección, la clave y la carpeta personal que aparecen son ejemplos. Las filas de **Ayuda** se despliegan con un clic o enfocándolas y pulsando Enter; empiezan plegadas.
+Estas capturas de Omarchy ilustran los controles con nombres de equipos, direcciones, claves y carpetas ficticias. La pestaña **Equipos** actual los presenta en el orden numerado 1–4 descrito abajo. Las filas de **Ayuda** se despliegan con un clic o enfocándolas y pulsando Enter; empiezan plegadas.
 
 ### Inicio: preparar este equipo y recibir control
 
@@ -25,12 +25,13 @@ Estas capturas corresponden al panel actual de Omarchy. El nombre del equipo, la
 
 ![Pestaña Equipos: mapa de dos por dos y equipo descubierto](images/omarchy-map-es.png)
 
-- **Mapa de equipos** muestra **Este equipo** y las casillas a su lado. Arrastra un equipo emparejado a la casilla que corresponda a su posición física, o selecciona su ficha y la casilla de destino. **Ayuda · Mapa y teclado** explica Tab, Enter, las flechas y Escape. La ubicación guarda la dirección de cruce; no inicia la sesión.
-- **Equipos en la red** muestra receptores anunciados en la LAN. **Buscar** actualiza la lista. **Emparejar** aparece para uno nuevo: compara el código de seis cifras en ambos equipos y apruébalo en cada uno. **Conectar** aparece para un equipo de confianza e inicia el control. Si el descubrimiento falla, escribe `IP:puerto` en **Alternativa manual** y pulsa **Emparejar** para un equipo nuevo.
+- **1 · Emparejar por dirección** inicia el emparejamiento si conoces la `IP:puerto` del receptor. Déjalo en **Recibir control** y compara el código de seis cifras en ambos equipos; apruébalo en las dos interfaces.
+- **2 · Equipos cercanos** muestra receptores anunciados en la LAN. **Buscar** actualiza la lista. Pulsa **Emparejar** en un equipo nuevo si no conoces su IP. Los pasos 1 y 2 son alternativas en la misma pestaña.
 
 ![Pestaña Equipos: emparejamiento manual y revocación de confianza](images/omarchy-peers-es.png)
 
-- **Equipos emparejados** muestra las claves de confianza guardadas. **Revocar** retira la confianza después de una confirmación; la conexión normal sigue bloqueada hasta que **Emparejar** muestre un código nuevo e igual en ambos equipos actualizados y lo apruebes en cada uno. Si cambia la IP de un equipo conocido, el panel comprueba la identidad guardada. El aviso **Clave cambió** exige comprobar el equipo y emparejarlo otra vez.
+- **3 · Equipos emparejados** muestra las claves de confianza guardadas. **Revocar** retira la confianza después de una confirmación; la conexión normal sigue bloqueada hasta que **Emparejar** muestre un código nuevo e igual en ambos equipos actualizados y lo apruebes en cada uno. Si cambia la IP de un equipo conocido, el panel comprueba la identidad guardada. El aviso **Clave cambió** exige comprobar el equipo y emparejarlo otra vez.
+- **4 · Mapa de equipos** queda justo debajo de los emparejados. Selecciona un equipo y colócalo junto a **Este equipo** según su posición física; también puedes arrastrar su ficha. **Ayuda · Posición y teclado** explica Tab, Enter, las flechas y Escape. El mapa determina por qué borde sale el puntero de este origen; el receptor aprende el borde de regreso en una sesión directa. Ubicarlo no inicia la conexión.
 - Durante el emparejamiento aparecen el código y **Coincide · aprobar aquí / No coincide · rechazar**. Compara ambos monitores antes de aprobar. Si el receptor está ubicado pero no aparece en el descubrimiento, **Ajustes → Conectar por IP** inicia la sesión.
 
 ### Archivos: copiar y pegar, o enviar a una carpeta

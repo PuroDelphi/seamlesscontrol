@@ -9,6 +9,7 @@ Este archivo resume los cambios publicados. Consulta los [resultados de pruebas]
 - Se añade **Revocar** a la lista de equipos emparejados de Windows, con confirmación y cierre de una sesión activa.
 - Una petición explícita de **Emparejar** muestra un código nuevo de seis cifras en ambos equipos, incluso tras revocar. Las conexiones de control ordinarias siguen bloqueadas hasta que los dos usuarios aprueban el código. Ambas interfaces muestran junto al botón indicaciones sobre el receptor y el firewall.
 - El puntero regresa de Omarchy a Windows al cruzar el borde de entrada aunque el receptor Omarchy no tenga una posición guardada para Windows. Verificado en una prueba física de ida y vuelta.
+- Las dos interfaces ordenan el emparejamiento y la ubicación en cuatro pasos numerados: emparejar por dirección, equipos cercanos, equipos emparejados y mapa. Los equipos emparejados quedan justo encima del mapa, con instrucciones para ubicarlos.
 
 ## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
 

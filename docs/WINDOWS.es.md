@@ -6,7 +6,7 @@ La aplicación Windows usa las mismas identidades de confianza y el mismo protoc
 
 ![Vista principal de Windows con la última dirección y borde de pantalla restaurados](images/windows-home-es.png)
 
-![Mapa de pantallas de Windows con un equipo de ejemplo a la derecha](images/windows-layout.png)
+![Pantalla Equipos de Windows: emparejar por dirección, equipos cercanos, emparejados y mapa](images/windows-devices-es.png)
 
 Las capturas muestran la interfaz actual con nombres, archivos y direcciones ficticios.
 
@@ -26,7 +26,7 @@ Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebVi
 ## Emparejar una vez
 
 1. Conecta ambos equipos a la misma LAN privada. En el **receptor**, deja activo **Recibir control**. Windows lo inicia la primera vez y lo restaura después solo si lo dejaste activo; en Omarchy debes pulsar **Recibir control**.
-2. En el equipo con el ratón físico, abre **Equipos**. Selecciona el receptor cercano y pulsa **Emparejar**. Si no aparece, escribe su `IP:47832` privada en **Dirección manual**.
+2. En el equipo con el ratón físico, abre **Equipos**. La página sigue cuatro pasos: **1 Emparejar por dirección** si conoces la `IP:puerto` del receptor, **2 Equipos cercanos** para elegir uno descubierto y pulsar **Emparejar**, **3 Equipos emparejados** para ver los pares aprobados y **4 Mapa de pantallas** para ubicarlos antes de controlar. Los pasos 1 y 2 son dos formas de iniciar el emparejamiento; no exigen cambiar de pestaña.
 3. Compara el **código de seis cifras** en ambos equipos y apruébalo en ambos. En Windows, escribe esas cifras en la aplicación y pulsa **Coinciden · aprobar**. La huella de identidad larga es otro valor; no eliges ni modificas el código.
 4. Ahora el equipo figura como emparejado. El descubrimiento solo proporciona la dirección; la identidad y el código siguen autorizando la confianza.
 
@@ -40,7 +40,7 @@ En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **
 
 ## Windows controla Omarchy
 
-En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos**. Los equipos emparejados aparecen primero, justo encima del **Mapa de pantallas**; una flecha indica cómo llevarlos al mapa. Arrastra la fila de Omarchy a su posición alrededor de **Este Windows**, pulsa su posición tras seleccionar la fila o enfócala y usa una flecha del teclado. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. El receptor Omarchy aprende el borde de regreso de esta sesión directa; no necesitas colocar Windows en el mapa de Omarchy para esta dirección. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
+En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos**. Tras emparejar desde el paso 1 o 2, el equipo aparece en **3 Equipos emparejados**, justo encima de **4 Mapa de pantallas**; una flecha indica cómo llevarlo al mapa. Arrastra la fila de Omarchy a su posición alrededor de **Este Windows**, pulsa su posición tras seleccionar la fila o enfócala y usa una flecha del teclado. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. El receptor Omarchy aprende el borde de regreso de esta sesión directa; no necesitas colocar Windows en el mapa de Omarchy para esta dirección. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
 
 Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app pausa su receptor para que el teclado físico tenga un solo dueño. La app recuerda la última `IP:puerto` y el borde de pantalla; aparecen de nuevo en **Inicio → Controlar otro equipo** al abrirla. Si dejaste **Conectar** activo, la app vuelve a conectarse al equipo emparejado al iniciarse y sigue reintentando si no está disponible. **Detener** termina esa conexión y pasa a **Recibir control**. Detén también **Recibir control** si quieres que la app vuelva a abrirse sin una sesión de control. El regreso con Escape o por el borde deja la conexión lista para otro cruce.
 

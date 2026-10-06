@@ -6,7 +6,7 @@ The Windows app uses the same trusted identities and control protocol as the Oma
 
 ![Windows overview with the last computer address and screen edge restored](images/windows-home-en.png)
 
-![Windows screen layout with an example paired computer on the right](images/windows-layout.png)
+![Windows Computers screen: pairing by address, nearby receivers, paired computers and the screen layout](images/windows-devices-en.png)
 
 The screenshots render the app's current interface with fictional names, files and addresses.
 
@@ -26,7 +26,7 @@ Windows 11 typically includes WebView2; if the app says it is missing, install [
 ## Pair once
 
 1. Make sure both computers are on the same private LAN. On the **receiver**, leave **Receive control** active. Windows starts it on first launch and restores it on later launches only if it was left active; on Omarchy, select **Receive control** in the panel.
-2. On the computer with your physical mouse, open **Computers**. Select the nearby receiver and choose **Pair**. If it does not appear, enter its private LAN `IP:47832` under **Manual address**.
+2. On the computer with your physical mouse, open **Computers**. The page follows four steps: **1 Pair by address** if you know the receiver's `IP:port`, **2 Nearby computers** to select a discovered receiver and choose **Pair**, **3 Paired computers** to see approved peers, and **4 Screen layout** to place the peer for control. Steps 1 and 2 are alternative ways to start pairing; neither requires switching tabs.
 3. Compare the **six digit pairing code** shown on both computers. Approve it on both. In Windows, enter the six digits shown in the app and choose **Codes match · approve**. The longer identity fingerprint is different; it is not a code you choose or edit.
 4. The computer now appears as paired. Discovery only supplies an address; the identity check and code still authorize trust.
 
@@ -40,7 +40,7 @@ On Omarchy, put Windows on the correct side of **Computer layout**. Select **Con
 
 ## Windows controls Omarchy
 
-On Omarchy, select **Receive control** and wait for **Available**. In the Windows app, open **Computers**. Paired computers appear first, directly above **Screen layout**; the arrow points from that list to the map. Drag the Omarchy row to its place around **This Windows**, click its position after selecting the row, or focus the row and press an arrow key. Select **Connect** on its row: **Overview** opens with its address and saved edge. Select **Connect** there. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. The Omarchy receiver learns the return edge from this direct session; you do not need to place Windows in Omarchy's map for this direction. Select **Stop** to end the session. The map remains available while this Windows computer is receiving control.
+On Omarchy, select **Receive control** and wait for **Available**. In the Windows app, open **Computers**. After pairing through step 1 or 2, the computer appears in **3 Paired computers**, directly above **4 Screen layout**; the arrow points from that list to the map. Drag the Omarchy row to its place around **This Windows**, click its position after selecting the row, or focus the row and press an arrow key. Select **Connect** on its row: **Overview** opens with its address and saved edge. Select **Connect** there. When the activity log says **Ready to control**, cross that outer edge. Return by crossing the entry edge on Omarchy or pressing **Escape** on the physical Windows keyboard. The Omarchy receiver learns the return edge from this direct session; you do not need to place Windows in Omarchy's map for this direction. Select **Stop** to end the session. The map remains available while this Windows computer is receiving control.
 
 A Windows app can receive or initiate control. Starting **Connect** pauses this app's receiver so the physical Windows keyboard has one clear owner. The app remembers the last `IP:port` and screen edge; they appear again in **Overview → Control another computer** when it reopens. If **Connect** was left active, the app reconnects to that paired computer on launch and keeps retrying if it is unavailable. **Stop** ends that outgoing session and switches to **Receive control**. Stop **Receive control** too if you want the app to reopen without a control session. Returning with Escape or across the screen edge keeps the connection ready for another crossing.
 

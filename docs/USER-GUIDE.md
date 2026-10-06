@@ -10,7 +10,7 @@ After updating the plugin, restart the Omarchy shell as described in the [README
 
 ## A tour of the Omarchy panel
 
-These screenshots come from the current Omarchy panel. The computer name, address, key and home directory shown in them are examples. The small **Help** rows expand when clicked or focused and activated with Enter; they are collapsed by default.
+These Omarchy screenshots illustrate the controls with fictional computer names, addresses, keys and home folders. The current **Computers** tab presents them in the numbered 1–4 order described below. The small **Help** rows expand when clicked or focused and activated with Enter; they are collapsed by default.
 
 ### Home: prepare this computer and start receiving
 
@@ -25,12 +25,13 @@ These screenshots come from the current Omarchy panel. The computer name, addres
 
 ![Computers tab: two-by-two layout and discovered computer](images/omarchy-map-en.png)
 
-- **Computer layout** shows **This computer** and the cells beside it. Drag a paired computer into the cell matching its physical screen, or select its tile and destination cell. The **Help · Layout and keyboard** row explains the Tab, Enter, arrow key and Escape controls. Placement saves the crossing direction; it does not start a session.
-- **Computers on the network** shows receivers advertising on the LAN. **Scan** refreshes the list. **Pair** appears for a new computer; compare the six-digit code on both computers and approve on each. **Connect** appears for a trusted computer and starts control. If discovery is unavailable, enter `IP:port` in **Manual option** and choose **Pair** for a new computer.
+- **1 · Pair by address** starts pairing when you know the receiver's `IP:port`. Start **Receive control** there, compare the six digit code on both computers, and approve it in both interfaces.
+- **2 · Nearby computers** shows receivers advertising on the LAN. **Scan** refreshes the list. Select **Pair** on a new computer when you do not know its IP. Steps 1 and 2 are alternatives on the same tab.
 
 ![Computers tab: pairing by address and revoking a trusted computer](images/omarchy-peers-en.png)
 
-- **Paired computers** lists saved trust keys. **Revoke** removes a computer's trust after confirmation; a normal connection stays blocked until a fresh **Pair** request displays a matching six digit code on both updated computers and you approve it on each. If a known computer gets a new IP, the panel checks its saved identity rather than trusting an address alone. A **Key changed** warning requires checking the computer and pairing it again.
+- **3 · Paired computers** lists saved trust keys. **Revoke** removes a computer's trust after confirmation; a normal connection stays blocked until a fresh **Pair** request displays a matching six digit code on both updated computers and you approve it on each. If a known computer gets a new IP, the panel checks its saved identity rather than trusting an address alone. A **Key changed** warning requires checking the computer and pairing it again.
+- **4 · Computer layout** sits directly below the paired list. Select a computer and place it beside **This computer** to match its physical position; you can also drag its tile. **Help · Layout and keyboard** explains Tab, Enter, arrow keys and Escape. The layout determines which edge this source crosses; a receiver learns the return edge in a direct session. Placement does not start a connection.
 - A pending pairing shows the code and **Codes match · approve here / Do not match · reject**. Compare with the other screen before approving. If a receiver is placed but not discovered, **Settings → Connect by IP** can start its session.
 
 ### Files: copy and paste, or send directly to a folder

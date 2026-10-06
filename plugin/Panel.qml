@@ -526,6 +526,86 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
+          text: root.t("1 · EMPAREJAR POR DIRECCIÓN")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.t("Si conoce la IP:puerto del destino, active Recibir control allí y pulse Emparejar. Si no conoce la dirección, use Equipos cercanos en el paso 2. Compare y apruebe el código en ambos equipos.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.available
+          text: root.t("Este equipo está recibiendo o controlando. Para iniciar un emparejamiento desde aquí, termine primero esa sesión. Puede aprobar aquí un código iniciado desde el otro equipo.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Controls.TextField {
+            id: pairAddress
+            Layout.fillWidth: true
+            enabled: root.backend && !root.backend.available
+            placeholderText: root.t("Dirección del receptor · IP:puerto")
+            color: root.ink
+            font.family: root.face
+            background: Rectangle {
+              color: "transparent"
+              border.color: Color.accent
+              border.width: 1
+              radius: 8
+            }
+          }
+          Button {
+            text: root.backend && root.backend.pairingRunning ? root.t("Conectando…") : root.t("Emparejar")
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.installed && !root.backend.available
+              && !root.backend.pairingRunning && pairAddress.text !== ""
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.pair(pairAddress.text.trim())
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.pairingRunning
+          text: root.t("Esperando respuesta del receptor. Debe tener Recibir control activo; luego compare y apruebe el código en ambos equipos.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && !root.backend.pairingRunning && root.backend.error !== ""
+          text: root.backend ? root.backend.error : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
           visible: root.backend && root.backend.pairSas !== ""
           text: root.t("CONFIRMAR EMPAREJAMIENTO · ESTE EQUIPO")
           foreground: root.ink
@@ -536,7 +616,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.pairSas !== ""
           text: root.backend ? root.t("Código de este equipo: ") + root.backend.pairSas
-            + root.t("\nCompárelo con el que aparece en el otro equipo. Se genera automáticamente. Si el otro equipo usa Windows, escríbalo en su terminal y confirme aquí.")
+            + root.t("\nCompárelo con el que aparece en el otro equipo y apruébelo en ambas interfaces.")
             : ""
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
@@ -573,14 +653,195 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: root.t("HASTA CUATRO EQUIPOS · UNA ENTRADA")
+          text: root.t("2 · EQUIPOS CERCANOS")
           foreground: root.ink
           fontFamily: root.face
         }
 
+        HelpDisclosure {
+          Layout.fillWidth: true
+          title: root.t("Ayuda · Emparejar y conectar")
+          description: root.t("Emparejar autoriza un equipo una sola vez. Conectar inicia cada sesión de control.")
+          foreground: root.ink
+          fontFamily: root.face
+          detailColor: Color.accent
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          spacing: Style.space(8)
+          Text {
+            Layout.fillWidth: true
+            text: root.backend && root.backend.discoveryError !== ""
+              ? root.backend.discoveryError
+              : root.backend && root.backend.discovered.length > 0
+                ? root.t("Compare el código al emparejar. Una IP nueva se verifica con la clave guardada.")
+                : root.t("Sin receptores descubiertos. En el otro equipo, inicie Recibir control. Si no aparece, use Emparejar por dirección en el paso 1.")
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            color: root.muted
+            font.family: root.face
+            font.pixelSize: Style.font.caption
+          }
+          Button {
+            text: root.t("Buscar")
+            bordered: true
+            focusable: true
+            enabled: root.backend && root.backend.installed
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: if (root.backend) root.backend.refreshDiscovery()
+          }
+        }
+
+        Repeater {
+          model: root.backend ? root.backend.discovered.length : 0
+          delegate: RowLayout {
+            id: discoveredRow
+            required property int index
+            readonly property var server: root.backend.discovered[discoveredRow.index]
+            Layout.fillWidth: true
+            spacing: Style.space(8)
+            Text {
+              Layout.fillWidth: true
+              text: discoveredRow.server.name
+              textFormat: Text.PlainText
+              elide: Text.ElideRight
+              color: root.ink
+              font.family: root.face
+              font.pixelSize: Style.font.caption
+            }
+            Button {
+              Layout.preferredWidth: Style.space(108)
+              text: root.changedServerKey(discoveredRow.server) ? root.t("Clave cambió")
+                : root.knownServer(discoveredRow.server)
+                  ? root.adjacentServer(discoveredRow.server) ? root.t("Conectar") : root.t("Ubicar")
+                  : root.previousServerIp(discoveredRow.server) !== "" ? "Actualizar IP" : root.t("Emparejar")
+              bordered: true
+              focusable: true
+              enabled: root.backend && root.backend.installed && !root.backend.available
+                && !root.backend.pairingRunning && !root.backend.managedAgentRunning
+                && !root.changedServerKey(discoveredRow.server)
+              foreground: root.ink
+              accent: Color.accent
+              fontFamily: root.face
+              onClicked: {
+                if (!root.backend) return
+                if (root.knownServer(discoveredRow.server)) {
+                  if (root.adjacentServer(discoveredRow.server))
+                    root.backend.startSender(discoveredRow.server.address)
+                  else root.selectedMachine = discoveredRow.server.ip
+                } else root.backend.pair(discoveredRow.server.address)
+              }
+            }
+          }
+        }
+
+        }
+
+        ColumnLayout {
+          Layout.fillWidth: true
+          visible: root.activeTab === "computers"
+          spacing: Style.space(12)
+
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: root.t("MAPA DE EQUIPOS · 2 × 2")
+          text: root.t("3 · EQUIPOS EMPAREJADOS")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.peers.length === 0
+          text: root.t("Aquí aparecerán los equipos después de aprobar el mismo código en ambos lados.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Repeater {
+          model: root.backend ? root.backend.peers.length : 0
+          delegate: RowLayout {
+            id: peerRow
+            required property int index
+            Layout.fillWidth: true
+            spacing: Style.space(8)
+            readonly property var peer: root.backend.peers[peerRow.index]
+            Text {
+              Layout.fillWidth: true
+              text: peerRow.peer.ip + " · " + peerRow.peer.key.slice(0, 12) + "…"
+              textFormat: Text.PlainText
+              color: root.ink
+              elide: Text.ElideRight
+              font.family: root.face
+              font.pixelSize: Style.font.caption
+            }
+            Button {
+              text: root.t("Revocar")
+              bordered: true
+              focusable: true
+              foreground: root.ink
+              accent: Color.accent
+              fontFamily: root.face
+              onClicked: root.revokeCandidate = peerRow.peer.ip
+            }
+          }
+        }
+
+        RowLayout {
+          Layout.fillWidth: true
+          visible: root.revokeCandidate !== ""
+          spacing: Style.space(8)
+          Text {
+            Layout.fillWidth: true
+            text: root.t("¿Revocar ") + root.revokeCandidate + root.t("? Se bloqueará su clave y se cerrará la sesión. Para emparejar de nuevo, compare y apruebe otro código en ambos equipos.")
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            color: Color.urgent
+            font.family: root.face
+            font.pixelSize: Style.font.caption
+          }
+          Button {
+            text: root.t("Confirmar")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: {
+              if (root.backend) root.backend.revoke(root.revokeCandidate)
+              root.revokeCandidate = ""
+            }
+          }
+          Button {
+            text: root.t("Cancelar")
+            bordered: true
+            focusable: true
+            foreground: root.ink
+            accent: Color.accent
+            fontFamily: root.face
+            onClicked: root.revokeCandidate = ""
+          }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.peers.length > 0
+          text: root.t("↓ Seleccione un equipo emparejado arriba y colóquelo junto a ESTE EQUIPO en el mapa.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: root.t("4 · MAPA DE EQUIPOS · 2 × 2")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -588,7 +849,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Posición y teclado")
-          description: root.t("Ubique el otro equipo junto a ESTE EQUIPO. Entre dos Omarchy, configure el mapa en ambos; el receptor Windows deduce el borde de regreso del cruce.")
+          description: root.t("Ubique el otro equipo junto a ESTE EQUIPO en el origen. En una sesión directa, el receptor deduce el borde de regreso del cruce.")
             + "\n\n" + root.t("El mapa guarda la dirección del cruce. Para iniciar la sesión, pulse Conectar en el origen.")
             + "\n\n" + root.t("Teclado: Tab llega al mapa y recorre sus casillas, Enter elige una ficha, las flechas llevan a la casilla de destino y Enter la coloca. Escape cancela la selección.")
           foreground: root.ink
@@ -692,7 +953,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.unassignedPeers.length > 0
           text: root.t("SIN POSICIÓN · ") + root.unassignedPeers.map(function(peer) { return peer.ip }).join(" · ")
-            + root.t("\nUbique este equipo en la cuadrícula antes de probar el regreso por el borde.")
+            + root.t("\nPara iniciar el control desde este Omarchy, ubique el destino en el mapa.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: Color.accent
@@ -714,93 +975,6 @@ Panel {
             onClicked: {
               root.selectedMachine = root.unassignedPeers[index].ip
               root.focusCell(0)
-            }
-          }
-        }
-
-        PanelSectionHeader {
-          Layout.fillWidth: true
-          text: root.t("EQUIPOS EN LA RED")
-          foreground: root.ink
-          fontFamily: root.face
-        }
-
-        HelpDisclosure {
-          Layout.fillWidth: true
-          title: root.t("Ayuda · Emparejar y conectar")
-          description: root.t("Emparejar autoriza un equipo una sola vez. Conectar inicia cada sesión de control.")
-          foreground: root.ink
-          fontFamily: root.face
-          detailColor: Color.accent
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Style.space(8)
-          Text {
-            Layout.fillWidth: true
-            text: root.backend && root.backend.discoveryError !== ""
-              ? root.backend.discoveryError
-              : root.backend && root.backend.discovered.length > 0
-                ? root.t("Compare el código al emparejar. Una IP nueva se verifica con la clave guardada.")
-                : root.t("Sin receptores descubiertos. En el otro equipo, inicie Recibir control. Si la búsqueda no lo muestra, use Alternativa manual · IP:puerto.")
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-            color: root.muted
-            font.family: root.face
-            font.pixelSize: Style.font.caption
-          }
-          Button {
-            text: root.t("Buscar")
-            bordered: true
-            focusable: true
-            enabled: root.backend && root.backend.installed
-            foreground: root.ink
-            accent: Color.accent
-            fontFamily: root.face
-            onClicked: if (root.backend) root.backend.refreshDiscovery()
-          }
-        }
-
-        Repeater {
-          model: root.backend ? root.backend.discovered.length : 0
-          delegate: RowLayout {
-            id: discoveredRow
-            required property int index
-            readonly property var server: root.backend.discovered[discoveredRow.index]
-            Layout.fillWidth: true
-            spacing: Style.space(8)
-            Text {
-              Layout.fillWidth: true
-              text: discoveredRow.server.name
-              textFormat: Text.PlainText
-              elide: Text.ElideRight
-              color: root.ink
-              font.family: root.face
-              font.pixelSize: Style.font.caption
-            }
-            Button {
-              Layout.preferredWidth: Style.space(108)
-              text: root.changedServerKey(discoveredRow.server) ? root.t("Clave cambió")
-                : root.knownServer(discoveredRow.server)
-                  ? root.adjacentServer(discoveredRow.server) ? root.t("Conectar") : root.t("Ubicar")
-                  : root.previousServerIp(discoveredRow.server) !== "" ? "Actualizar IP" : root.t("Emparejar")
-              bordered: true
-              focusable: true
-              enabled: root.backend && root.backend.installed && !root.backend.available
-                && !root.backend.pairingRunning && !root.backend.managedAgentRunning
-                && !root.changedServerKey(discoveredRow.server)
-              foreground: root.ink
-              accent: Color.accent
-              fontFamily: root.face
-              onClicked: {
-                if (!root.backend) return
-                if (root.knownServer(discoveredRow.server)) {
-                  if (root.adjacentServer(discoveredRow.server))
-                    root.backend.startSender(discoveredRow.server.address)
-                  else root.selectedMachine = discoveredRow.server.ip
-                } else root.backend.pair(discoveredRow.server.address)
-              }
             }
           }
         }
@@ -875,137 +1049,6 @@ Panel {
           color: root.backend && root.backend.repairError !== "" ? Color.urgent : Color.accent
           font.family: root.face
           font.pixelSize: Style.font.caption
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          visible: root.backend && !root.backend.available
-          spacing: Style.space(8)
-          Controls.TextField {
-            id: pairAddress
-            Layout.fillWidth: true
-            placeholderText: root.t("Alternativa manual · IP:puerto")
-            color: root.ink
-            font.family: root.face
-            background: Rectangle {
-              color: "transparent"
-              border.color: Color.accent
-              border.width: 1
-              radius: 8
-            }
-          }
-          Button {
-            text: root.backend && root.backend.pairingRunning ? root.t("Conectando…") : root.t("Emparejar")
-            bordered: true
-            focusable: true
-            enabled: root.backend && root.backend.installed && !root.backend.pairingRunning && pairAddress.text !== ""
-            foreground: root.ink
-            accent: Color.accent
-            fontFamily: root.face
-            onClicked: if (root.backend) root.backend.pair(pairAddress.text.trim())
-          }
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.pairingRunning
-          text: root.t("Esperando respuesta del receptor. Debe tener Recibir control activo; luego compare y apruebe el código en ambos equipos.")
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && !root.backend.pairingRunning && root.backend.error !== ""
-          text: root.backend ? root.backend.error : ""
-          textFormat: Text.PlainText
-          wrapMode: Text.WordWrap
-          color: Color.urgent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
-        }
-
-        }
-
-        ColumnLayout {
-          Layout.fillWidth: true
-          visible: root.activeTab === "computers"
-          spacing: Style.space(12)
-
-        PanelSectionHeader {
-          Layout.fillWidth: true
-          visible: root.backend && root.backend.peers.length > 0
-          text: root.t("EQUIPOS EMPAREJADOS")
-          foreground: root.ink
-          fontFamily: root.face
-        }
-
-        Repeater {
-          model: root.backend ? root.backend.peers.length : 0
-          delegate: RowLayout {
-            id: peerRow
-            required property int index
-            Layout.fillWidth: true
-            spacing: Style.space(8)
-            readonly property var peer: root.backend.peers[peerRow.index]
-            Text {
-              Layout.fillWidth: true
-              text: peerRow.peer.ip + " · " + peerRow.peer.key.slice(0, 12) + "…"
-              textFormat: Text.PlainText
-              color: root.ink
-              elide: Text.ElideRight
-              font.family: root.face
-              font.pixelSize: Style.font.caption
-            }
-            Button {
-              text: root.t("Revocar")
-              bordered: true
-              focusable: true
-              foreground: root.ink
-              accent: Color.accent
-              fontFamily: root.face
-              onClicked: root.revokeCandidate = peerRow.peer.ip
-            }
-          }
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          visible: root.revokeCandidate !== ""
-          spacing: Style.space(8)
-          Text {
-            Layout.fillWidth: true
-            text: root.t("¿Revocar ") + root.revokeCandidate + root.t("? Se bloqueará su clave y se cerrará la sesión. Para emparejar de nuevo, compare y apruebe otro código en ambos equipos.")
-            textFormat: Text.PlainText
-            wrapMode: Text.WordWrap
-            color: Color.urgent
-            font.family: root.face
-            font.pixelSize: Style.font.caption
-          }
-          Button {
-            text: root.t("Confirmar")
-            bordered: true
-            focusable: true
-            foreground: root.ink
-            accent: Color.accent
-            fontFamily: root.face
-            onClicked: {
-              if (root.backend) root.backend.revoke(root.revokeCandidate)
-              root.revokeCandidate = ""
-            }
-          }
-          Button {
-            text: root.t("Cancelar")
-            bordered: true
-            focusable: true
-            foreground: root.ink
-            accent: Color.accent
-            fontFamily: root.face
-            onClicked: root.revokeCandidate = ""
-          }
         }
 
         }

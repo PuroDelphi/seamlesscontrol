@@ -4,6 +4,7 @@
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
@@ -26,7 +27,10 @@ window.seamlessReceive({
   clipboardReady: true, copiedFile: 'example-notes.txt',
   clipboardOffer: '', clipboardProgress: null,
   peers: [{ip:'192.0.2.20', fingerprint:'0123456789abcdef0123456789abcdef'}],
-  discovered: [], layout: {}, logs: [], fileLimitMiB: 100,
+  discovered: [{name:'Nearby Omarchy', address:'192.0.2.42:47832',
+    fingerprint:'fedcba9876543210fedcba9876543210', trust:'new'}],
+  layout: {'0123456789abcdef0123456789abcdef':'right'},
+  logs: [], fileLimitMiB: 100,
   approvalMode: 'timed', approvalMinutes: 15, approvalFeedback: 'saved',
   approvalSecondsRemaining: 735,
   startup: 'on',
@@ -46,7 +50,8 @@ tab('__VIEW__');
         [
             chromium, "--headless", "--no-sandbox", "--disable-gpu",
             "--hide-scrollbars", f"--user-data-dir={directory / 'profile'}",
-            "--window-size=1440,1200", f"--screenshot={output}", page.as_uri(),
+            "--window-size=1440,1450" if view == "devices" else "--window-size=1440,1200",
+            f"--screenshot={output}", page.as_uri(),
         ],
         check=True,
     )
@@ -56,10 +61,13 @@ def main() -> None:
     chromium = shutil.which("chromium") or shutil.which("google-chrome")
     if not chromium:
         raise SystemExit("Chromium is required to render the documentation screenshots")
+    views = tuple(sys.argv[1:]) or ("home", "devices", "files", "settings")
+    if any(view not in {"home", "devices", "files", "settings"} for view in views):
+        raise SystemExit("Views: home, devices, files, settings")
     with tempfile.TemporaryDirectory(prefix="seamlesscontrol-doc-") as temp:
         directory = Path(temp)
         for language in ("en", "es"):
-            for view in ("home", "files", "settings"):
+            for view in views:
                 render(chromium, language, view, directory)
 
 

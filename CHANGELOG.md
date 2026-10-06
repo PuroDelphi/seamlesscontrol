@@ -9,6 +9,7 @@ This file summarizes published changes. Consult the [test results](docs/TEST-RES
 - Add pairing revocation to the Windows Computers screen with a confirmation and active-session cleanup.
 - Make an explicit Pair request display a fresh six-digit code on both computers, including after revocation. Regular control connections remain blocked until both users approve the new code. Show receiver and firewall guidance beside the Pair actions in both interfaces.
 - Return from Omarchy to Windows by crossing the entry edge even when the Omarchy receiver has no saved position for Windows. Verified with a physical Windows-to-Omarchy round trip.
+- Arrange pairing and placement as four numbered steps in both apps: pair by address, nearby computers, paired computers, and screen layout. Keep paired computers immediately above the layout and explain how to place them.
 
 ## [0.22.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.22.1) — 2026-10-05
 
