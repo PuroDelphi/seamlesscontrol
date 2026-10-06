@@ -214,6 +214,10 @@ impl VirtualInput {
         self.flush()
     }
 
+    pub fn held_key_count(&self) -> usize {
+        self.held_keys.len()
+    }
+
     pub fn apply(&mut self, event: &InputEvent, time_ms: u32) -> Result<(), Box<dyn Error>> {
         match event {
             InputEvent::KeyDown(key) => self.key(*key, true, time_ms),

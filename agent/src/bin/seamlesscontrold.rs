@@ -990,6 +990,7 @@ mod linux {
         let mut active = false;
         let mut release_position = None;
         let mut rearm_after_return = false;
+        let trace_input = std::env::var_os("SEAMLESSCONTROL_INPUT_TRACE").is_some();
         let result: Result<(), Box<dyn Error>> = async {
             loop {
                 tokio::select! {
@@ -1126,6 +1127,24 @@ mod linux {
                     }
                     event = events.next() => {
                         let event = event.ok_or("EIS event stream closed")??;
+                        if trace_input {
+                            let event_kind = match &event {
+                                EiEvent::KeyboardKey(_) => Some("key"),
+                                EiEvent::TextKeysym(_) => Some("text keysym"),
+                                EiEvent::TextUtf8(_) => Some("text UTF-8"),
+                                EiEvent::KeyboardModifiers(_) => Some("keyboard modifiers"),
+                                EiEvent::DevicePaused(_) => Some("device paused"),
+                                EiEvent::DeviceResumed(_) => Some("device resumed"),
+                                EiEvent::DeviceRemoved(_) => Some("device removed"),
+                                EiEvent::DeviceAdded(_) => Some("device added"),
+                                EiEvent::DeviceStopEmulating(_) => Some("device stopped emulating"),
+                                EiEvent::DeviceStartEmulating(_) => Some("device started emulating"),
+                                _ => None,
+                            };
+                            if let Some(kind) = event_kind {
+                                eprintln!("SeamlessControl input trace: source {kind}, active={active}");
+                            }
+                        }
                         if let EiEvent::SeatAdded(seat) = &event {
                             seat.seat.bind_capabilities(DeviceCapability::Pointer | DeviceCapability::Keyboard | DeviceCapability::Scroll | DeviceCapability::Button);
                             context.flush()?;
@@ -1189,6 +1208,7 @@ mod linux {
         lock_ipc: HyprIpc,
         acknowledge_release: std::sync::mpsc::SyncSender<u64>,
         entry_return_edge: Arc<Mutex<Option<LogicalEdge>>>,
+        trace_input: bool,
     }
 
     impl Injector for OmarchyInjector {
@@ -1230,6 +1250,12 @@ mod linux {
             self.input
                 .apply(event, time_ms)
                 .map_err(|error| io::Error::other(error.to_string()))?;
+            if self.trace_input && matches!(event, InputEvent::KeyDown(_) | InputEvent::KeyUp(_)) {
+                eprintln!(
+                    "SeamlessControl input trace: receiver injected key, held={}",
+                    self.input.held_key_count()
+                );
+            }
             if matches!(event, InputEvent::Motion { .. }) {
                 self.motion_generation.fetch_add(1, Ordering::Relaxed);
             }
@@ -1607,6 +1633,7 @@ mod linux {
             lock_ipc: hypr.clone(),
             acknowledge_release: release_tx,
             entry_return_edge,
+            trace_input: std::env::var_os("SEAMLESSCONTROL_INPUT_TRACE").is_some(),
         };
         let watcher_running = Arc::new(AtomicBool::new(true));
         let watcher_flag = Arc::clone(&watcher_running);
