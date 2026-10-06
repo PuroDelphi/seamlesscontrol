@@ -453,6 +453,18 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          visible: root.activeTab === "home" && root.backend && root.backend.installed
+            && (root.backend.available || root.backend.managedAgentRunning)
+          text: root.t("Hay una sesión activa. Termínela desde Inicio antes de actualizar el agente.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.activeTab === "settings" && root.confirmRemoveAgent
           text: root.t("Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.")
           textFormat: Text.PlainText

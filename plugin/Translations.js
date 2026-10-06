@@ -69,6 +69,7 @@ var english = {
   "El agente ya está instalado. Detenga las sesiones activas antes de actualizarlo. Se abrirá una terminal para mostrar el progreso.": "The agent is already installed. Stop active sessions before updating it. A terminal opens to show progress.",
   "Instalar agente": "Install agent",
   "Actualizar agente": "Update agent",
+  "Hay una sesión activa. Termínela desde Inicio antes de actualizar el agente.": "A session is active. Stop it from Home before updating the agent.",
   "Retirar agente": "Remove agent",
   "Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.": "This removes the agent and only packages installed by SeamlessControl. Keys and paired computers stay. You can then remove the widget with omarchy plugin remove seamlesscontrol.control.",
   "Confirmar retirada": "Confirm removal",
