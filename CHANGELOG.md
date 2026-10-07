@@ -4,6 +4,12 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.23.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.2) — 2026-10-07
+
+- Bound the Windows control receiver to eight concurrent connections. Excess TCP connections close before creating a worker thread, preventing unauthenticated peers from growing thread and socket use without limit.
+- Limit the initial Windows Noise handshake to a ten-second I/O timeout. Restore the longer pairing timeout only after the cryptographic handshake, so a person still has time to compare and approve the six-digit code.
+- Add a Windows test for the connection cap and automatic slot release. This corrects the marketplace review finding for 0.23.1; the Omarchy panel and user workflows are unchanged.
+
 ## [0.23.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.1) — 2026-10-07
 
 - Dim unavailable Omarchy controls so their disabled state is visible without changing the theme. Explain why **Update agent** is unavailable during an active session.

@@ -21,13 +21,15 @@ use std::io::{self, BufRead, Write};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{RecvTimeoutError, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const PAIRING_TIMEOUT: Duration = Duration::from_secs(330);
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
+const MAX_RECEIVER_CONNECTIONS: usize = 8;
 const DEFAULT_CONTROL_BIND: &str = "0.0.0.0:47832";
 const DEFAULT_FILE_BIND: &str = "0.0.0.0:47833";
 
@@ -170,14 +172,28 @@ fn secure_connection(
     let mut previous_ip = None;
     let mut reapproved_revoked = false;
     stream.set_nodelay(true)?;
-    stream.set_read_timeout(Some(PAIRING_TIMEOUT))?;
-    stream.set_write_timeout(Some(PAIRING_TIMEOUT))?;
+    let preauth_timeout = if role == Role::Responder {
+        HANDSHAKE_TIMEOUT
+    } else {
+        PAIRING_TIMEOUT
+    };
+    stream.set_read_timeout(Some(preauth_timeout))?;
+    stream.set_write_timeout(Some(preauth_timeout))?;
     let explicit_pair = negotiate_pairing(&mut stream, role, pair_request)?;
-    let (mut channel, peer) = SecureChannel::connect(
+    let (mut channel, peer) = SecureChannel::connect_with_handshake_hook(
         stream,
         role,
         identity,
         if explicit_pair { None } else { pinned.as_ref() },
+        |stream| {
+            if role == Role::Responder {
+                // Only a peer that completed Noise may hold this socket while
+                // a human compares the six-digit pairing code.
+                stream.set_read_timeout(Some(PAIRING_TIMEOUT))?;
+                stream.set_write_timeout(Some(PAIRING_TIMEOUT))?;
+            }
+            Ok(())
+        },
         |candidate| {
             if is_revoked(&peers, &candidate.public_key).unwrap_or(true) {
                 if !explicit_pair {
@@ -209,6 +225,25 @@ fn secure_connection(
 }
 
 struct ReceiverLease(Arc<AtomicBool>);
+
+struct ConnectionSlot(Arc<AtomicUsize>);
+
+impl ConnectionSlot {
+    fn acquire(active: &Arc<AtomicUsize>) -> Option<Self> {
+        active
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |count| {
+                (count < MAX_RECEIVER_CONNECTIONS).then_some(count + 1)
+            })
+            .ok()
+            .map(|_| Self(Arc::clone(active)))
+    }
+}
+
+impl Drop for ConnectionSlot {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::AcqRel);
+    }
+}
 
 impl ReceiverLease {
     fn claim(occupied: &Arc<AtomicBool>) -> Option<Self> {
@@ -338,6 +373,7 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
         }
     };
     let occupied = Arc::new(AtomicBool::new(false));
+    let active_connections = Arc::new(AtomicUsize::new(0));
     let prompt = Arc::new(Mutex::new(()));
     println!(
         "SeamlessControl Windows receiver listening on {}",
@@ -347,17 +383,28 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
     for connection in listener.incoming() {
         let stream = connection?;
         let address = stream.peer_addr()?;
+        if !local_address(address.ip()) {
+            continue;
+        }
+        let Some(slot) = ConnectionSlot::acquire(&active_connections) else {
+            // Close immediately: stalled or unauthenticated peers must never
+            // create an unbounded number of Windows threads or open sockets.
+            continue;
+        };
         let identity = identity.clone();
         let config = config.clone();
         let occupied = Arc::clone(&occupied);
         let prompt = Arc::clone(&prompt);
-        thread::spawn(move || {
-            if let Err(error) =
-                serve_connection(stream, address.ip(), &identity, &config, &occupied, &prompt)
-            {
-                eprintln!("SeamlessControl connection from {address}: {error}");
-            }
-        });
+        thread::Builder::new()
+            .name("seamlesscontrol-receiver".into())
+            .spawn(move || {
+                let _slot = slot;
+                if let Err(error) =
+                    serve_connection(stream, address.ip(), &identity, &config, &occupied, &prompt)
+                {
+                    eprintln!("SeamlessControl connection from {address}: {error}");
+                }
+            })?;
     }
     Ok(())
 }
@@ -778,4 +825,22 @@ fn receive_file(
         println!("File was declined.");
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn receiver_slots_bound_stalled_connections_and_reopen_after_drop() {
+        let active = Arc::new(AtomicUsize::new(0));
+        let slots: Vec<_> = (0..MAX_RECEIVER_CONNECTIONS)
+            .map(|_| ConnectionSlot::acquire(&active).expect("slot available"))
+            .collect();
+        assert_eq!(active.load(Ordering::Acquire), MAX_RECEIVER_CONNECTIONS);
+        assert!(ConnectionSlot::acquire(&active).is_none());
+        drop(slots);
+        assert_eq!(active.load(Ordering::Acquire), 0);
+        assert!(ConnectionSlot::acquire(&active).is_some());
+    }
 }

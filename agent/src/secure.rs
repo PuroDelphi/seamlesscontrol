@@ -260,10 +260,23 @@ impl<S: Read + Write> SecureChannel<S> {
     /// `confirm` must require local human approval of the SAS on first pair.
     /// A known peer is accepted only if its static key matches `pinned_peer`.
     pub fn connect(
+        stream: S,
+        role: Role,
+        identity: &Identity,
+        pinned_peer: Option<&[u8; 32]>,
+        confirm: impl FnMut(&PeerInfo) -> bool,
+    ) -> Result<(Self, PeerInfo), SecureError> {
+        Self::connect_with_handshake_hook(stream, role, identity, pinned_peer, |_| Ok(()), confirm)
+    }
+
+    /// Let a transport adjust its I/O deadline once the Noise handshake has
+    /// finished, before any human pairing confirmation can begin.
+    pub fn connect_with_handshake_hook(
         mut stream: S,
         role: Role,
         identity: &Identity,
         pinned_peer: Option<&[u8; 32]>,
+        mut after_handshake: impl FnMut(&mut S) -> Result<(), SecureError>,
         mut confirm: impl FnMut(&PeerInfo) -> bool,
     ) -> Result<(Self, PeerInfo), SecureError> {
         let params = PATTERN.parse().expect("constant Noise pattern");
@@ -294,6 +307,7 @@ impl<S: Read + Write> SecureChannel<S> {
             public_key,
             sas: format!("{short:06}"),
         };
+        after_handshake(&mut stream)?;
         let local_ok = if let Some(pinned) = pinned_peer {
             if pinned != &public_key {
                 return Err(SecureError::PeerKeyChanged);

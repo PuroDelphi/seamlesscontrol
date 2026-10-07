@@ -4,6 +4,12 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.23.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.2) — 2026-10-07
+
+- El receptor de control Windows admite como máximo ocho conexiones simultáneas. Las conexiones TCP sobrantes se cierran antes de crear un hilo, para que un equipo no autenticado no pueda aumentar sin límite el consumo de hilos y sockets.
+- El inicio del intercambio cifrado Noise en Windows tiene un tiempo de espera de E/S de diez segundos. El plazo largo para emparejar solo empieza después del intercambio criptográfico; la persona conserva tiempo para comparar y aprobar el código de seis cifras.
+- Se añade una prueba Windows del límite de conexiones y de la liberación automática de cupos. Esto corrige el problema señalado por el marketplace para 0.23.1; el panel Omarchy y los flujos de usuario no cambian.
+
 ## [0.23.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.1) — 2026-10-07
 
 - Los controles no disponibles de Omarchy se atenúan para distinguir visualmente su estado sin cambiar el tema. Se explica por qué **Actualizar agente** no está disponible durante una sesión activa.
