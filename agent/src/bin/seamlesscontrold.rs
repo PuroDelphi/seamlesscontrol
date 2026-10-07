@@ -872,10 +872,9 @@ mod linux {
                         let signal = signal.ok_or("capture zones stream closed")?;
                         if signal.zone_set().is_some_and(|id| id != zone_set) { continue; }
                         if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
-                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
-                            if let Ok(link) = mesh_link(&mut links, peer) {
-                                let _ = link.send(Kind::Control, epoch, b"END".to_vec());
-                            }
+                        if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch())
+                            && let Ok(link) = mesh_link(&mut links, peer) {
+                            let _ = link.send(Kind::Control, epoch, b"END".to_vec());
                         }
                         portal_active = false;
                         coordinator.reset_local(); pending_since = None; pending_entry = None; keys.clear(); buttons.clear(); current_activation = None;

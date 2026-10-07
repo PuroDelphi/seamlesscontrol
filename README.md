@@ -10,6 +10,7 @@
 
 - **Move naturally:** pointer, clicks, scroll and keyboard travel with you. Windows/Super shortcuts work on the destination.
 - **Keep your flow:** text clipboard synchronization, return by screen edge or Escape, and local input recovery if the connection ends.
+- **Keep the source awake:** when an Omarchy computer controls another, its panel prevents an automatic idle lock until control returns.
 - **Find computers nearby:** LAN discovery shows available receivers. Manual `IP:port` remains available when discovery is blocked.
 - **Pair securely:** compare the six digit code on both computers. Each computer remembers the other's identity; a changed key requires review.
 - **Copy and paste files across computers:** copy one file in Explorer or the Omarchy file manager, approve the visible offer on the receiver, then paste into the destination folder.

@@ -4,6 +4,14 @@
 
 This file summarizes published changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.23.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.1) — 2026-10-07
+
+- Dim unavailable Omarchy controls so their disabled state is visible without changing the theme. Explain why **Update agent** is unavailable during an active session.
+- Run the Omarchy agent installer from the plugin checkout so Cargo and rustc select the same Rust toolchain when launched from the panel.
+- Keep the source Omarchy awake while it controls another computer. Release input capture on a source lock and defer capture barriers while monitor geometry is unavailable after display sleep.
+- Add opt-in input tracing to diagnose intermittent remote keyboard delivery. In a physical two-Omarchy session, remote keys worked during the observed period; the intermittent failure was not reproduced.
+- In the same physical session, the source remained unlocked after more than five minutes without physical input while control stayed active. After the diagnostic session ended, the user confirmed that its physical mouse and keyboard worked. Manual locking during remote control has not been verified with this revision.
+
 ## [0.23.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.0) — 2026-10-06
 
 - Add pairing revocation to the Windows Computers screen with a confirmation and active-session cleanup.

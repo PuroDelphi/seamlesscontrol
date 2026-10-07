@@ -4,6 +4,14 @@
 
 Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.23.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.1) — 2026-10-07
+
+- Los controles no disponibles de Omarchy se atenúan para distinguir visualmente su estado sin cambiar el tema. Se explica por qué **Actualizar agente** no está disponible durante una sesión activa.
+- El instalador del agente Omarchy se ejecuta desde la carpeta del plugin para que Cargo y rustc elijan la misma versión de Rust al iniciarlo desde el panel.
+- El Omarchy de origen permanece despierto mientras controla otro equipo. El agente libera la captura si se bloquea el origen y aplaza las barreras mientras la geometría del monitor no está disponible tras apagarse la pantalla.
+- Se añade un registro de entrada opcional para investigar cortes intermitentes del teclado remoto. En una sesión física entre dos Omarchy, las teclas funcionaron durante el periodo observado; el fallo intermitente no se reprodujo.
+- En esa sesión física, el origen siguió desbloqueado tras más de cinco minutos sin entrada física mientras el control permanecía activo. Al cerrar la sesión de diagnóstico, el usuario confirmó que funcionaban el ratón y el teclado físicos. El bloqueo manual durante el control remoto no se ha verificado con esta revisión.
+
 ## [0.23.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.0) — 2026-10-06
 
 - Se añade **Revocar** a la lista de equipos emparejados de Windows, con confirmación y cierre de una sesión activa.

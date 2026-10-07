@@ -10,6 +10,7 @@
 
 - **Muévete con naturalidad:** el puntero, los clics, la rueda y el teclado te siguen. Los atajos con Windows/Super funcionan en el destino.
 - **Mantén el ritmo:** sincronización del portapapeles de texto, regreso por el borde o con Escape y recuperación de la entrada local si termina la conexión.
+- **Mantén despierto el origen:** cuando un Omarchy controla otro equipo, su panel evita el bloqueo automático por inactividad hasta que regrese el control.
 - **Encuentra equipos cercanos:** el descubrimiento LAN muestra receptores disponibles. Puedes introducir `IP:puerto` si la red bloquea el descubrimiento.
 - **Empareja con seguridad:** compara el código de seis cifras en ambos equipos. Cada uno recuerda la identidad del otro y exige revisar cualquier cambio de clave.
 - **Copia y pega archivos entre equipos:** copia un archivo en el explorador de Windows u Omarchy, aprueba la oferta visible en el receptor y pégalo en la carpeta de destino.
