@@ -4,11 +4,11 @@
 
 Usa el ratón y teclado de Omarchy en Windows, o el ratón y teclado físicos de Windows en Omarchy. Los equipos emparejados también pueden compartir texto y archivos aprobados. Cerrar la ventana mantiene la app en la bandeja del sistema; **no** detiene el uso compartido.
 
-Esta guía describe la interfaz `alpha` actual. Un release con tag puede ser anterior: sigue sus notas si los botones difieren. El [registro de pruebas](TEST-RESULTS.es.md) distingue observaciones físicas y comprobaciones pendientes; es un historial, no otra guía de instalación.
+Esta guía describe la interfaz actual del repositorio. Un release con tag puede ser anterior: sigue sus notas si los botones difieren. El [registro de pruebas](TEST-RESULTS.es.md) distingue observaciones físicas y comprobaciones pendientes; es un historial, no otra guía de instalación.
 
 **Ir a:** [Instalar](#instalar) · [Emparejar](#emparejar-los-equipos-una-vez) · [Recibir control](#recibir-control-en-windows) · [Controlar Omarchy](#controlar-omarchy-desde-windows) · [Volver o detener](#volver-o-detener-el-uso-compartido) · [Texto y archivos](#compartir-texto-y-archivos) · [Firewall](#permitir-solo-los-puertos-lan-necesarios) · [Problemas](#resolver-problemas-habituales) · [Actualizar o desinstalar](#actualizar-o-desinstalar)
 
-> **Sobre las imágenes:** son ilustraciones generadas a partir del HTML real `agent/src/windows_ui.html` con nombres, códigos, archivos y direcciones de documentación ficticios (`192.0.2.x`). Se generaron con Chromium en Linux; **no son capturas de un escritorio Windows en ejecución**. Las fuentes y los diálogos nativos pueden variar en Windows. No introduzcas las direcciones ni el código de ejemplo. El renderer repetible es `python3 scripts/render-windows-doc-screenshots.py` (requiere Chromium).
+> **Sobre las imágenes:** muestran la interfaz real de SeamlessControl para Windows con nombres, códigos, archivos y direcciones ficticios (`192.0.2.x`). No introduzcas las direcciones ni el código de ejemplo. Para regenerarlas, usa `python3 scripts/render-windows-doc-screenshots.py` (requiere Chromium).
 
 ## Instalar
 

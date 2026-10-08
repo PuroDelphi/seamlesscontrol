@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render current Windows HTML in Linux Chromium, not a native Windows capture.
+"""Render the real Windows interface with fictional documentation data.
 
 Run with no arguments for all bilingual images, or pass view names to refresh a
 subset. Requires Chromium/Google Chrome; no Windows agent or network is started.
@@ -80,9 +80,9 @@ def render(chromium: str, language: str, view: str, directory: Path) -> None:
         "<script>", "<script>window.ipc={postMessage:()=>{}};</script><script>", 1
     )
     provenance = (
-        "Illustration · current HTML · fictional data · Linux Chromium, not Windows"
+        "SeamlessControl for Windows · fictional example data"
         if language == "en" else
-        "Ilustración · HTML actual · datos ficticios · Chromium Linux, no Windows"
+        "SeamlessControl para Windows · datos de ejemplo ficticios"
     )
     css = (
         ".doc-provenance{padding:12px 20px;background:#243644;color:#f1eee5;"

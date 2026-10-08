@@ -31,7 +31,7 @@ python3 scripts/render-omarchy-doc-screenshots.py
 python3 scripts/render-windows-doc-screenshots.py
 ```
 
-The first requires Quickshell and the installed `/usr/share/omarchy/shell` components; `--shell-source` selects another shell checkout and `--output` a review folder. It renders real QML with a fictional-data backend without running the agent or using desktop configuration. The second requires Chromium and renders the Windows app's HTML on Linux without a Windows agent. Both regenerate English and Spanish images and label their provenance.
+The first requires Quickshell and the installed `/usr/share/omarchy/shell` components; `--shell-source` selects another shell checkout and `--output` a review folder. It renders real QML with a fictional-data backend without running the agent or using desktop configuration. The second requires Chromium and renders the Windows app's real HTML with fictional data without running the agent. Both regenerate English and Spanish images.
 
 Inspect the results in rendered guides: readable text, pairing code, layout and buttons without clipping. These images are not physical control, native-dialog or firewall verification. Remove images with no remaining references when changing the guide flow.
 

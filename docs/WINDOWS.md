@@ -4,11 +4,11 @@
 
 Use your Omarchy mouse and keyboard on Windows, or the physical Windows mouse and keyboard on Omarchy. Paired computers can also share text and approved files. Closing the window keeps the app running in the system tray; it does **not** stop sharing.
 
-This guide describes the current `alpha` interface. A tagged release can be older: follow that release's notes if its buttons differ. The [test record](TEST-RESULTS.md) distinguishes physical observations from pending checks; it is history, not a second installation guide.
+This guide describes the repository's current interface. A tagged release can be older: follow that release's notes if its buttons differ. The [test record](TEST-RESULTS.md) distinguishes physical observations from pending checks; it is history, not a second installation guide.
 
 **Go to:** [Install](#install) · [Pair](#pair-the-computers-once) · [Receive control](#receive-control-on-windows) · [Control Omarchy](#control-omarchy-from-windows) · [Return or stop](#return-or-stop-sharing) · [Text and files](#share-text-and-files) · [Firewall](#allow-only-the-needed-lan-ports) · [Problems](#solve-common-problems) · [Update or remove](#update-or-remove)
 
-> **About the images:** these are illustrations rendered from the real `agent/src/windows_ui.html` with fictional names, codes, files and documentation addresses (`192.0.2.x`). They were generated with Chromium on Linux, **not captured from a running Windows desktop**. Fonts and native dialogs may differ on Windows. Do not enter the example addresses or pairing code. The repeatable renderer is `python3 scripts/render-windows-doc-screenshots.py` (requires Chromium).
+> **About the images:** they show the real SeamlessControl Windows interface with fictional names, codes, files and addresses (`192.0.2.x`). Do not enter the example addresses or pairing code. To regenerate them, use `python3 scripts/render-windows-doc-screenshots.py` (requires Chromium).
 
 ## Install
 

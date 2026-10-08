@@ -31,7 +31,7 @@ python3 scripts/render-omarchy-doc-screenshots.py
 python3 scripts/render-windows-doc-screenshots.py
 ```
 
-El primero requiere Quickshell y los componentes instalados en `/usr/share/omarchy/shell`; `--shell-source` permite elegir otro checkout del shell y `--output` una carpeta de revisión. Renderiza el QML real con un backend de datos ficticios, sin ejecutar el agente ni usar la configuración del escritorio. El segundo requiere Chromium y renderiza el HTML de la app Windows en Linux, sin un agente Windows. Ambos regeneran inglés y español y rotulan la procedencia.
+El primero requiere Quickshell y los componentes instalados en `/usr/share/omarchy/shell`; `--shell-source` permite elegir otro checkout del shell y `--output` una carpeta de revisión. Renderiza el QML real con un backend de datos ficticios, sin ejecutar el agente ni usar la configuración del escritorio. El segundo requiere Chromium y renderiza el HTML real de la app Windows con datos ficticios, sin ejecutar el agente. Ambos regeneran inglés y español.
 
 Inspecciona el resultado en las guías renderizadas: texto legible, código de emparejamiento, mapa y botones sin recortar. No confundas estas imágenes con pruebas físicas del control, diálogos nativos o firewall. Retira las imágenes que ya no tengan referencias cuando cambies el recorrido.
 

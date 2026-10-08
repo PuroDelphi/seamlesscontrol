@@ -2,13 +2,14 @@
 
 [Español](CHANGELOG.es.md) · [All GitHub releases](https://github.com/PuroDelphi/seamlesscontrol/releases)
 
-This file summarizes published changes and unreleased `alpha` changes. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
+This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
-## Unreleased — alpha
+## Unreleased
 
 - Reorganize English and Spanish README and Omarchy/Windows guides by task: installation, first connection, return, files, permissions and troubleshooting.
 - Refresh explanatory images from the project's interfaces, with fictional data and identified provenance. Separate current instructions from historical release notes.
 - Remove the unnecessary reverse-layout setup for direct sessions, explain the two Windows Connect steps, and distinguish copy/paste ports from manual file sends. Remove the missing roadmap link and update technical return and stop documentation.
+- Simplify Windows image captions: show the real interface with example data, without references to the system used to generate them.
 
 ## [0.23.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.2) — 2026-10-07
 
