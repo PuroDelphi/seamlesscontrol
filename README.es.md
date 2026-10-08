@@ -1,107 +1,105 @@
 # SeamlessControl
 
-[![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Última versión y descargas Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [MIT](LICENSE) · [English](README.md)
+[![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [English](README.md) · [MIT](LICENSE)
 
-**Un ratón. Un teclado. Todas tus pantallas al alcance.** Cruza el borde para trabajar en el siguiente equipo y vuelve cruzando en sentido contrario o pulsando **Escape**. SeamlessControl une Omarchy y Windows en tu red privada con el mismo protocolo de emparejamiento y control.
+**Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
-![Pantallas Omarchy y Windows unidas por ratón, teclado, portapapeles y archivos](preview.png)
+También puedes compartir texto durante la conexión y copiar **un archivo local cada vez** entre equipos emparejados. El receptor decide cómo aprobar los archivos; solo quedan disponibles después de verificarse.
 
-![Equipos Omarchy y Windows en un mismo espacio de trabajo](docs/images/ecosystem.svg)
+## Elige por dónde empezar
 
-- **Muévete con naturalidad:** el puntero, los clics, la rueda y el teclado te siguen. Los atajos con Windows/Super funcionan en el destino.
-- **Mantén el ritmo:** sincronización del portapapeles de texto, regreso por el borde o con Escape y recuperación de la entrada local si termina la conexión.
-- **Mantén despierto el origen:** cuando un Omarchy controla otro equipo, su panel evita el bloqueo automático por inactividad hasta que regrese el control.
-- **Encuentra equipos cercanos:** el descubrimiento LAN muestra receptores disponibles. Puedes introducir `IP:puerto` si la red bloquea el descubrimiento.
-- **Empareja con seguridad:** compara el código de seis cifras en ambos equipos. Cada uno recuerda la identidad del otro y exige revisar cualquier cambio de clave.
-- **Copia y pega archivos entre equipos:** copia un archivo en el explorador de Windows u Omarchy, aprueba la oferta visible en el receptor y pégalo en la carpeta de destino.
-- **Elige cómo se autorizan los archivos:** pregunta siempre, acepta automáticamente desde equipos emparejados o aprueba durante los minutos que elijas. La opción temporal muestra una cuenta regresiva y vuelve a preguntar al vencer.
-- **Usa una interfaz familiar:** un panel Omarchy organizado y una aplicación Windows que permanece en la bandeja. Ambas tienen inglés y español, confirman los ajustes guardados y muestran claramente los archivos entrantes.
-
-Usa tus equipos Omarchy y Windows en un mismo espacio: el control cruza en ambos sentidos y el emparejamiento, el descubrimiento y el portapapeles de texto facilitan cada sesión. Seguiremos mejorando SeamlessControl continuamente. La [guía técnica](docs/TECHNICAL.es.md) explica la arquitectura, los permisos y las verificaciones.
-
-**Comprobado en equipos físicos Omarchy y Windows 11 x64:** control de ratón y teclado en ambos sentidos, regreso por el borde y con Escape, portapapeles de texto en ambos sentidos y copia y pegado de archivos aprobados en ambos sentidos. El aviso de archivo entrante apareció en otro workspace de Omarchy y en otro escritorio virtual de Windows; rechazar una oferta no transfirió ningún archivo. El [registro de pruebas](docs/TEST-RESULTS.es.md) distingue estos resultados de las comprobaciones pendientes con más equipos.
-
-## Pantallas sencillas, decisiones claras
-
-**Omarchy** deja la instalación y la sesión activa en **Inicio**. **Equipos** guía el emparejamiento en cuatro pasos: dirección, receptores cercanos, equipos emparejados y mapa. Si este equipo ya recibe control, **Detener recepción para emparejar** aparece junto al paso 1; el corte de emergencia solo pausa el receptor. **Archivos** permite copiar y pegar o enviar deliberadamente; **Ajustes** contiene la aprobación y el firewall. La ayuda opcional se abre cuando la necesitas.
-
-![Inicio organizado del panel Omarchy](docs/images/omarchy-overview-es.png)
-
-**Windows** tiene **Inicio, Equipos, Archivos y Ajustes**. Equipos sigue los mismos cuatro pasos y sitúa los emparejados justo encima del mapa arrastrable. Al iniciar un emparejamiento, la app detiene brevemente su propia sesión de control y restaura el modo anterior al terminar. También recuerda el último modo de control, dirección y borde. Puedes cerrar la ventana y dejarla disponible en la bandeja.
-
-![Pasos de emparejamiento y mapa de pantallas en Windows](docs/images/windows-devices-es.png)
-
-Para un archivo entrante de un equipo **emparejado**, elige cuánto quieres intervenir:
-
-| Modo de aprobación | Qué ocurre |
+| Quiero… | Dónde está explicado |
 |---|---|
-| **Preguntar siempre** | Revisa remitente, archivo y tamaño en un solo aviso visible. |
-| **Aceptar automáticamente** | Recibe archivos autenticados sin mostrar una solicitud. |
-| **Preguntar y aceptar por un tiempo** | Aprueba el primer archivo y recibe los siguientes de ese equipo hasta que termine la cuenta regresiva. Después vuelve a **Preguntar siempre**. |
+| Instalar el plugin y conectar desde Omarchy | [Guía ilustrada Omarchy](docs/USER-GUIDE.es.md) |
+| Instalar la app, recibir o controlar desde Windows | [Guía ilustrada Windows](docs/WINDOWS.es.md) |
+| Copiar y pegar archivos o enviarlos a una carpeta | [Guía Omarchy](docs/USER-GUIDE.es.md) / [Guía Windows](docs/WINDOWS.es.md), sección Archivos |
+| Resolver un problema de conexión | Sección de problemas de cada guía; [pedir ayuda](SUPPORT.es.md) |
+| Usar comandos o conocer permisos y límites | [Guía técnica](docs/TECHNICAL.es.md) |
 
-El archivo se verifica antes de quedar disponible para **Pegar**. El aviso llega al workspace activo de Omarchy o al escritorio virtual de Windows aunque el panel principal esté cerrado. [Consulta la guía ilustrada de archivos](docs/USER-GUIDE.es.md#elegir-cómo-se-aprueban-los-archivos-entrantes).
+**Origen** es el equipo donde están el ratón y el teclado físicos que vas a usar. **Receptor** es el equipo que quieres controlar. Los papeles pueden cambiar para otra sesión; no necesitas emparejar de nuevo por invertirlos.
 
-## Empezar en Omarchy
+## 1. Instala en ambos equipos
 
-Instala el plugin en cada equipo Omarchy con el comando estándar:
+### Omarchy
 
 ```bash
 omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable
 ```
 
-Abre **SeamlessControl** desde la barra de Omarchy. En **Preparar este equipo**, pulsa **Instalar agente**. El panel instala los paquetes necesarios y el agente; solicitará autorización del sistema cuando corresponda. Empieza en inglés; puedes escoger **Español** arriba.
+Abre **SeamlessControl** desde la barra y pulsa **Inicio → Preparar este equipo → Instalar agente**. Se abre una terminal para instalar las dependencias y compilar el agente; autoriza la instalación cuando el sistema lo pida. Espera a que termine antes de conectar. El idioma inicial es inglés; selecciona **Español** arriba.
 
-![Instalación del agente desde el panel Omarchy](docs/images/setup-es.png)
+![Inicio del plugin Omarchy: preparación del agente y recepción de control](docs/images/omarchy-overview-es.png)
 
-## Empezar en Windows x64
+### Windows x64
 
-Abre la [última versión y sus notas de instalación](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). En **Assets**, descarga el único **`seamlesscontrol-windows-x64.zip`** y extráelo en una carpeta propia. Ya contiene juntos los dos ejecutables necesarios. Haz doble clic en **`seamlesscontrol.exe`**. El archivo contiguo `seamlesscontrol-windows-x64.zip.sha256` permite verificar la descarga. La primera vez comienza a recibir en el puerto `47832`; después restaura el último modo de control, incluida una conexión saliente. Sigue activo en la bandeja al cerrar la ventana. Puedes escoger **Español** arriba a la derecha.
+1. En la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), descarga **`seamlesscontrol-windows-x64.zip`** desde **Assets**.
+2. **Extrae el ZIP** en una carpeta propia. Mantén juntos `seamlesscontrol.exe` y `seamlesscontrold.exe`; no los ejecutes dentro del ZIP.
+3. Abre **`seamlesscontrol.exe`**. En el primer inicio recibe control por TCP `47832`. Después restaura el último modo que dejaste activo, incluso una conexión saliente.
+4. Si Windows pregunta por el acceso a la red, permite solo **Redes privadas**. Si falta WebView2, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
-Para iniciarlo automáticamente, activa **Ajustes → Iniciar con Windows** en la app. Se abrirá en la bandeja cuando inicies sesión; puedes desactivarlo desde la misma pantalla.
+Cerrar la ventana **no** cierra la aplicación: queda en la bandeja. Para salir, usa **Exit SeamlessControl** en su menú. El arranque automático se activa opcionalmente en **Ajustes → Iniciar con Windows**.
 
-![La aplicación SeamlessControl para Windows con la última conexión restaurada](docs/images/windows-home-es.png)
+La [guía Windows](docs/WINDOWS.es.md) incluye verificación SHA-256, firewall y descarga de compilaciones **alpha**. No confundas una compilación de prueba de Actions con la última versión publicada.
 
-![Copiar un archivo en Windows y ofrecerlo a un equipo emparejado](docs/images/windows-files-es.png)
+## 2. Empareja, ubica y conecta
 
-Windows 11 normalmente incluye WebView2. Si la aplicación indica que falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) y ábrela de nuevo. Si Windows pregunta por el acceso a la red, permite solamente **Redes privadas**. En **Ajustes → Firewall de Windows**, la app puede pedir autorización de administrador para reglas LAN privadas del puerto de control, el de archivos y el autodescubrimiento mDNS (`UDP 5353`). Los botones TCP toman los puertos que ves en la interfaz.
+1. **En el receptor:** activa **Recibir control**. En Omarchy, espera a **Disponible**; en Windows, comprueba que la recepción esté activa en Inicio.
+2. **En el origen:** abre **Equipos**. En **1 · Emparejar por dirección**, escribe la `IP:puerto` privada del receptor; o usa **2 · Equipos cercanos → Emparejar**. Son alternativas, no dos pasos obligatorios.
+3. **En ambos equipos:** compara el código de **seis cifras** y aprueba solo si coincide. La huella de identidad larga no es ese código. El receptor aparecerá en **3 · Equipos emparejados**.
+4. **En el origen:** coloca el receptor en **4 · Mapa de pantallas**, junto a tu equipo y en el lado donde esté físicamente su pantalla. Esto guarda el borde: **todavía no conecta**.
+5. **Inicia la sesión:** en Omarchy, pulsa **Conectar** junto al receptor descubierto, o usa **Ajustes → Conectar por IP** si no aparece. En Windows, **Conectar** en la fila prepara Inicio; pulsa **Conectar otra vez en Inicio** para arrancar la sesión.
+6. Cuando esté listo, cruza el **borde exterior del escritorio completo**, no la separación entre monitores del mismo equipo. Vuelve por el borde de entrada del receptor o con **Escape** físico. El regreso deja la sesión preparada para otro cruce; detenerla es una acción distinta.
 
-[Guía Windows paso a paso](docs/WINDOWS.es.md) · [Guía ilustrada Omarchy](docs/USER-GUIDE.es.md)
+![Equipos de Windows: alternativas de emparejamiento, pares y ubicación en el mapa](docs/images/windows-devices-es.png)
 
-## Conectar tus pantallas
+Las imágenes muestran interfaces con datos ficticios de documentación; la guía de cada plataforma explica cómo se obtuvieron.
 
-1. En el equipo que quieres controlar, pulsa **Recibir control** y espera a **Disponible**. La app Windows lo inicia la primera vez y lo restaura si lo dejaste activo.
-2. En el equipo con el ratón físico, abre **Equipos**. Usa **1 Emparejar por dirección** si conoces la `IP:puerto` privada del receptor o **2 Equipos cercanos** y pulsa **Emparejar**. Compara el código de seis cifras y aprueba en **ambos** equipos. El par aparecerá en **3 Equipos emparejados**. En Omarchy, si este equipo ya recibe control y quieres iniciar el emparejamiento desde aquí, pulsa **Detener recepción para emparejar** junto al paso 1; después podrás volver a activar Recibir control.
-3. En **4 Mapa de pantallas**, coloca el receptor emparejado en el lado donde está su pantalla. Omarchy y Windows tienen un mapa visual. En Windows, los equipos emparejados aparecen justo encima del mapa: arrastra uno siguiendo la flecha, pulsa un lado o usa las flechas del teclado. Su posición rellena el borde al preparar **Conectar**.
-4. Pulsa **Conectar** en el equipo con el ratón físico. Cuando indique **Listo**, cruza el **borde exterior** elegido. Regresa por el borde del receptor o pulsa **Escape** en el teclado físico.
+**Si Omarchy ya recibe y quieres iniciar allí el emparejamiento**, usa **Detener recepción para emparejar** junto al paso 1. El corte de emergencia solo pausa: no libera el receptor para iniciar el emparejamiento. Windows detiene temporalmente su propia sesión al emparejar y restaura el modo anterior al terminar. En ambos casos, el receptor del **otro** equipo debe seguir activo.
 
-**Emparejar** guarda la confianza una vez; **Conectar** inicia cada sesión. Mover una ficha del mapa solo define el lado de cruce. Para enviar archivos, abre **Archivos** en el receptor, autoriza si hace falta su puerto LAN independiente `47833`, pulsa **Esperar un archivo** y después elige y envía el archivo desde el origen. El receptor aprueba la oferta. Para copiar normalmente, permite TCP `47834` en el receptor, copia un archivo en el explorador Windows u Omarchy, aprueba el aviso de entrada y pégalo en la carpeta de destino. No hace falta una sesión de control activa.
+## 3. Elige cómo compartir
 
-![Emparejar y Conectar en el panel Omarchy](docs/images/connect-context-es.png)
+| Función | Qué necesitas | Puerto en el receptor |
+|---|---|---|
+| Ratón, teclado y texto del portapapeles | Emparejar + Recibir control + Conectar | TCP `47832` por defecto |
+| Copiar en un explorador y pegar en el otro | Apps abiertas + emparejamiento; aprobar la oferta si corresponde y esperar la verificación antes de Pegar | TCP `47834` |
+| Enviar a una carpeta elegida | Emparejamiento + Archivos → Esperar un archivo en el receptor; elegir y enviar en el origen | TCP `47833` por defecto |
+| Encontrar receptores cercanos | Recepción activa y descubrimiento permitido en la LAN | UDP `5353` (mDNS) |
 
-## Actualizar y desinstalar
+**Los dos flujos de archivos no requieren una sesión de control.** **Esperar un archivo** no activa la copia y pegado: es el envío manual, de una oferta cada vez. Abrir el puerto de control tampoco abre los de archivos.
 
-**Omarchy:** termina las sesiones y actualiza el plugin en cada equipo Omarchy:
+En **Ajustes → Aprobación de archivos entrantes**, puedes preguntar por cada oferta (predeterminado), aceptar automáticamente desde equipos emparejados o aprobar por un tiempo. El modo temporal pregunta por el primer archivo de cada equipo y vuelve a **Preguntar siempre** al vencer o reiniciar. Las [guías ilustradas](docs/USER-GUIDE.es.md) explican el límite de tamaño, la selección del destino y qué hacer si no llega una oferta.
+
+No abras estos puertos a Internet ni configures reenvío en el router. Usa las acciones de firewall de la interfaz en el **receptor**, limitadas a la LAN privada.
+
+## Actualizar o retirar
+
+### Omarchy
+
+Termina las sesiones en ambos equipos. Actualiza el plugin y recarga el shell:
 
 ```bash
 omarchy plugin update seamlesscontrol.control --yes
+omarchy restart shell
 ```
 
-`--yes` aplica la actualización sin abrir la vista larga de cambios ni pedir confirmación. Ejecuta `omarchy restart shell`, abre de nuevo SeamlessControl y pulsa **Actualizar agente** en **Preparar este equipo**. Se conservan las claves y el mapa.
+Abre el panel y pulsa **Actualizar agente**. Hazlo en cada Omarchy implicado antes de reanudar. Se conservan la identidad, los emparejamientos y el mapa.
 
-**Windows:** sal de SeamlessControl desde el menú de la bandeja, descarga `seamlesscontrol-windows-x64.zip` de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extráelo y reemplaza ambos ejecutables en su carpeta y abre `seamlesscontrol.exe` otra vez. Se conservan las claves en `%LOCALAPPDATA%\SeamlessControl`.
+Para retirarlo, usa **Ajustes → Retirar agente** y después `omarchy plugin remove seamlesscontrol.control`. La retirada conserva los datos de emparejamiento; las reglas de firewall se retiran por separado, como explica la [guía técnica](docs/TECHNICAL.es.md).
 
-Para retirarlo de Omarchy, pulsa **Retirar agente** en el panel y después:
+### Windows
 
-```bash
-omarchy plugin remove seamlesscontrol.control
-```
+Para actualizar, sal desde la bandeja, extrae el ZIP nuevo, reemplaza **ambos ejecutables** y abre la app otra vez. Se conservan los datos en `%LOCALAPPDATA%\SeamlessControl`.
 
-En Windows, escoge **Exit SeamlessControl** en la bandeja y borra la carpeta con los dos ejecutables. `%LOCALAPPDATA%\SeamlessControl` se conserva para mantener la identidad y los emparejamientos tras una actualización; bórrala también solo si deseas crear una identidad nueva. Puedes quitar las reglas en Firewall de Windows por sus nombres `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN`.
+Para desinstalar, primero desactiva **Ajustes → Iniciar con Windows**, sal desde la bandeja y borra la carpeta de los ejecutables. Retira las reglas `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN` que hayas autorizado. Borra la carpeta de datos **solo** si deseas una identidad nueva: tendrás que volver a emparejar.
 
-## Documentación y comunidad
+## Alcance y documentación del proyecto
 
-[Guía Omarchy](docs/USER-GUIDE.es.md) · [Guía Windows](docs/WINDOWS.es.md) · [Guía técnica](docs/TECHNICAL.es.md) · [Registro de verificación](docs/TEST-RESULTS.es.md) · [Ayuda](SUPPORT.es.md) · [Contribuir](CONTRIBUTING.es.md) · [Normas de conducta](CODE_OF_CONDUCT.es.md) · [Seguridad](SECURITY.es.md) · [Novedades](CHANGELOG.es.md)
+El [registro de pruebas](docs/TEST-RESULTS.es.md) recoge control, regreso, texto y copia de archivos en ambos sentidos entre Omarchy y Windows 11 x64 físicos. No equivale a una garantía para todas las combinaciones: la malla de varios equipos es experimental, y otras disposiciones, suspensión y fallos de red tienen escenarios pendientes. El bloqueo manual durante control remoto en Omarchy aún requiere verificación física; devuelve y detén el control antes de bloquear manualmente.
 
-Powered by JhonnySuarez - PuroDelphi. Si SeamlessControl te resulta útil, apoya su desarrollo continuo mediante [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) o [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ).
+Las guías anteriores describen el uso actual. Las notas `docs/RELEASE-*.md`, el changelog y el registro de viabilidad conservan **historia de versiones**, no instrucciones actuales de instalación.
+
+[Ayuda](SUPPORT.es.md) · [Contribuir](CONTRIBUTING.es.md) · [Seguridad](SECURITY.es.md) · [Novedades](CHANGELOG.es.md) · [Normas de conducta](CODE_OF_CONDUCT.es.md)
+
+Powered by JhonnySuarez - PuroDelphi. Apoya el proyecto mediante [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) o [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ).
 
 [![QR para donar por PayPal](docs/images/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ)

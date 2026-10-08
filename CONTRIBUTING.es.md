@@ -6,7 +6,7 @@ Se aceptan correcciones, documentación, traducciones y funciones concretas. Los
 
 ## Antes de empezar
 
-1. Busca issues existentes y consulta el [plan](PLAN.md). Abre un issue para un cambio grande, del protocolo o de plataforma para conversar primero sobre el comportamiento esperado. Una corrección pequeña puede ir directamente a un pull request.
+1. Busca [issues existentes](https://github.com/PuroDelphi/seamlesscontrol/issues) y consulta los [casos pendientes de verificación](docs/TESTING.md). Abre un issue para un cambio grande, del protocolo o de plataforma para conversar primero sobre el comportamiento esperado. Una corrección pequeña puede ir directamente a un pull request.
 2. Lee la [guía técnica](docs/TECHNICAL.es.md) y mantén los procesos de usuario final dentro del panel. La instalación debe seguir usando `omarchy plugin add`; el panel administra las dependencias adicionales del agente.
 3. Trabaja en una rama basada en el `main` actual. Separa los cambios independientes en pull requests distintos.
 
@@ -21,6 +21,19 @@ bash -n packaging/*.sh scripts/*.sh tests/*.sh
 ```
 
 Algunas pruebas integradas necesitan una sesión Omarchy activa o un segundo equipo. Indica qué comprobaste, en qué entorno y qué falta verificar. Para cambios visuales del panel, incluye capturas en inglés y español. Actualiza ambas guías si cambia el comportamiento visible. Confirma `agent/Cargo.lock` cuando cambien dependencias.
+
+## Mantener las imágenes de las guías
+
+Desde la raíz del repositorio:
+
+```bash
+python3 scripts/render-omarchy-doc-screenshots.py
+python3 scripts/render-windows-doc-screenshots.py
+```
+
+El primero requiere Quickshell y los componentes instalados en `/usr/share/omarchy/shell`; `--shell-source` permite elegir otro checkout del shell y `--output` una carpeta de revisión. Renderiza el QML real con un backend de datos ficticios, sin ejecutar el agente ni usar la configuración del escritorio. El segundo requiere Chromium y renderiza el HTML de la app Windows en Linux, sin un agente Windows. Ambos regeneran inglés y español y rotulan la procedencia.
+
+Inspecciona el resultado en las guías renderizadas: texto legible, código de emparejamiento, mapa y botones sin recortar. No confundas estas imágenes con pruebas físicas del control, diálogos nativos o firewall. Retira las imágenes que ya no tengan referencias cuando cambies el recorrido.
 
 ## Pull request
 

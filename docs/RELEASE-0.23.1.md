@@ -1,5 +1,7 @@
 # SeamlessControl 0.23.1 · Clearer controls and safer Omarchy sessions
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 SeamlessControl brings Omarchy and Windows screens together with one mouse and keyboard, text clipboard synchronization, and approved file copying. This release makes the Omarchy panel easier to read and protects the source computer during long control sessions.
 
 - **Clear button states.** Unavailable actions are visibly dimmed. **Update agent** explains when an active session prevents an update.

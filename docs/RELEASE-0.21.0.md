@@ -1,5 +1,7 @@
 # SeamlessControl 0.21.0 · Omarchy meets Windows
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 Move naturally between Omarchy and Windows with one physical mouse and keyboard. Cross the edge of one screen to control the next computer, then cross back or press Escape. This release brings the Windows x64 tray app into the same SeamlessControl ecosystem as the Omarchy plugin.
 
 ## What you can do

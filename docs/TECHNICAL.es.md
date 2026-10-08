@@ -4,7 +4,13 @@
 
 La [guía ilustrada del panel](USER-GUIDE.es.md) cubre la conexión y recuperación habituales desde la interfaz.
 
-La [guía Windows](WINDOWS.es.md) explica la aplicación de bandeja. En Windows x64, `seamlesscontrol.exe` es una interfaz Wry/WebView2 y Tao sobre el `seamlesscontrold.exe` existente; inicia el receptor como proceso hijo oculto y lo mantiene activo en la bandeja. Ambos ejecutables deben quedar juntos. El receptor publica `_seamlesscontrol._tcp.local.` con la versión del protocolo y la huella pública mediante `mdns-sd`, mientras la aplicación busca ese servicio. El descubrimiento solo proporciona una pista: siguen siendo obligatorios la fijación de la clave Noise XX y la aprobación del código de seis cifras. Los botones de firewall en Windows ejecutan el agente con privilegios elevados para agregar reglas TCP entrantes para los puertos de control y archivos elegidos y una regla UDP 5353 aparte para mDNS. Todas quedan limitadas al perfil Privado y LocalSubnet. Los botones informan que solicitaron la autorización; el comando elevado informa si se aplicó la regla. El CI Windows compila la GUI con entorno C estático. El workflow del release compila el commit etiquetado y adjunta al release de GitHub un ZIP que contiene ambos ejecutables y su archivo SHA-256 contiguo. El proceso hijo oculto usa una ventana invisible como propietario del portapapeles para no depender de una consola visible.
+La [guía Windows](WINDOWS.es.md) explica el uso de la aplicación de bandeja. En Windows x64, `seamlesscontrol.exe` es una interfaz Wry/WebView2 y Tao sobre `seamlesscontrold.exe`; ambos ejecutables deben quedar juntos. La app inicia el control como proceso hijo oculto: en el primer inicio recibe, y después restaura el último modo guardado (recibir, conectar o detenido). Cerrar la ventana la deja en la bandeja; salir desde la bandeja termina sus procesos.
+
+El receptor anuncia `_seamlesscontrol._tcp.local.` con la versión del protocolo y la huella pública mediante `mdns-sd`, mientras la app busca ese servicio. El descubrimiento solo proporciona una dirección: siguen siendo obligatorios la fijación de la clave Noise XX y la aprobación del código de seis cifras.
+
+Los botones de firewall elevan el agente para agregar reglas TCP entrantes de control, envío manual y archivos copiados, y una regla UDP `5353` para mDNS. Se limitan al perfil Privado y LocalSubnet. La interfaz informa que solicitó autorización; el comando elevado informa si la regla se aplicó.
+
+El CI Windows compila la GUI con entorno C estático. El workflow del release compila el commit etiquetado y adjunta un ZIP con ambos ejecutables y un SHA-256 del ZIP como asset contiguo. El hijo oculto usa una ventana invisible como propietario del portapapeles, sin depender de una consola visible.
 
 El receptor de control Windows admite un máximo de ocho conexiones TCP simultáneas y cierra las sobrantes antes de crear otro hilo. El intercambio inicial previo a la autenticación tiene un tiempo de espera de E/S de diez segundos; el plazo mayor para confirmar el código empieza solo cuando termina el intercambio Noise.
 
@@ -26,29 +32,32 @@ Para actualizar el widget en **cada** equipo, ejecuta `omarchy plugin update sea
 
 ## Conexión manual
 
-Inicia el receptor; después busca y empareja desde el equipo con ratón:
+En el **receptor**, ejecuta estos comandos en terminales separadas: la escucha se mantiene en primer plano.
 
 ```bash
 seamlesscontrold serve-auto 47832
+```
+
+```bash
 seamlesscontrold local-address 47832
+```
+
+En el **origen**, descubre el receptor y empareja usando su dirección real:
+
+```bash
 seamlesscontrold discover
 seamlesscontrold pair 192.168.50.20:47832
 ```
 
-El primer comando se ejecuta en el receptor; los dos últimos, en el origen. `serve-auto` selecciona una IPv4 según la ruta mDNS y anuncia `_seamlesscontrol._tcp` mediante Avahi. La búsqueda necesita multicast mDNS; si está bloqueado, usa `seamlesscontrold serve 192.168.50.20:47832` y la IP manual. La huella anunciada por mDNS es orientativa. El emparejamiento usa Noise XX y un código de seis cifras que debe compararse y aprobarse **en ambos equipos** desde el panel o con `seamlesscontrold status` y `seamlesscontrold approve <código-de-seis-cifras>`. En el receptor, `status` muestra `serve pairing` mientras espera. `seamlesscontrold reject` cancela. La identidad local de 64 caracteres es una huella pública permanente, no el código de comparación.
+`serve-auto` selecciona una IPv4 según la ruta mDNS y anuncia `_seamlesscontrol._tcp` mediante Avahi. La búsqueda necesita multicast mDNS; si está bloqueado, puedes conservar `serve-auto` y escribir su dirección manualmente, o usar `serve 192.168.50.20:47832` para una dirección fija. No lances ambos receptores a la vez.
 
-Coloca cada equipo junto al otro en los mapas de ambos. En el origen, si el receptor está a la derecha:
+El emparejamiento permanece abierto hasta recibir las dos aprobaciones. Compara el código de seis cifras **en ambos equipos**, desde el panel o con `seamlesscontrold status` en otra terminal de cada equipo. Aprueba allí con `seamlesscontrold approve <código-de-seis-cifras>`; `reject` cancela. La huella anunciada por mDNS es orientativa; la identidad local de 64 caracteres es una huella permanente, no el código de comparación.
+
+Para una conexión directa, basta con ubicar al receptor en el mapa del origen. El receptor aprende el borde de regreso al comenzar el control; no necesita un mapa inverso. En el origen, si el receptor está a la derecha:
 
 ```bash
 seamlesscontrold topology set 192.168.50.20 1 0
 seamlesscontrold connect 192.168.50.20:47832
-```
-
-En el receptor, ubícalo a la derecha y al origen a la izquierda:
-
-```bash
-seamlesscontrold topology set local 1 0
-seamlesscontrold topology set 192.168.50.10 0 0
 ```
 
 `connect` deduce el borde de las casillas vecinas; un argumento explícito `right`, `left`, `top` o `bottom` lo sustituye. Vuelve cruzando el borde del receptor hacia el origen, pulsando Escape en el teclado físico o ejecutando `seamlesscontrold return` en el receptor. `seamlesscontrold emergency-stop` desconecta y pausa la entrada nueva hasta `seamlesscontrold resume`. En el origen, `pause` y `resume` alternan la captura. Detén un agente iniciado en terminal con Ctrl+C.
@@ -65,7 +74,16 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh
 bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove 47832
 ```
 
-`allow` y `remove` piden confirmación y usan Polkit en sesión gráfica o sudo en terminal. El panel ya mostró la regla y confirmó el clic, así que pasa `--yes`; sigue siendo necesaria la autorización del sistema. El script no activa UFW. Si cambia la IP o subred del receptor, revisa `sudo ufw status numbered` y elimina manualmente reglas antiguas. La recepción de archivos usa normalmente TCP `47833` y necesita una regla aparte si está bloqueada.
+`allow` y `remove` piden confirmación y usan Polkit en sesión gráfica o sudo en terminal. El panel ya mostró la regla y confirmó el clic, así que pasa `--yes`; sigue siendo necesaria la autorización del sistema. El script no activa UFW. Si cambia la IP o subred del receptor, revisa `sudo ufw status numbered` y elimina manualmente reglas antiguas.
+
+| Uso | Puerto predeterminado en el receptor | Activación |
+|---|---|---|
+| Control y portapapeles de texto | TCP `47832` | Recibir control |
+| Envío manual a una carpeta | TCP `47833` | Esperar un archivo; una oferta por ejecución |
+| Copiar y pegar archivos | TCP `47834` | App Windows o widget Omarchy activo |
+| Descubrimiento mDNS | UDP `5353` | Receptor anunciado en la LAN |
+
+Cada puerto TCP necesita su propia regla si está bloqueado. La aprobación de archivos no abre puertos ni inicia la recepción manual.
 
 ## Protocolo y otras funciones
 
@@ -85,6 +103,8 @@ Los archivos usan otra sesión Noise y aprobación del receptor. En el panel, in
 La copia de archivos reutiliza la sesión Noise autenticada en TCP `47834`; el receptor manual de una sola transferencia sigue en `47833`. La app Windows y el widget Omarchy mantienen un receptor de archivos copiados mientras están abiertos. Windows lee un archivo local normal desde `CF_HDROP`. Omarchy lee `text/uri-list` y las cargas `copy`/`cut` de `x-special/gnome-copied-files`, `x-special/mate-copied-files` y `x-special/nautilus-clipboard`; el indicador `application/x-kde-cutselection` evita interpretar «Cortar» de KDE como una copia. La vista Recientes de GNOME puede poner `recent://` en la lista URI mientras el formato GNOME incluye el `file://` local real. Cuando hace falta, GIO puede resolver una referencia `recent://`, `starred://`, `search://` o `trash://` al destino local `file://`. El resultado debe seguir siendo un único archivo local normal que respete el límite; se ignoran enlaces simbólicos, directorios, destinos remotos y selecciones múltiples. Estos formatos describen compatibilidad, no una prueba física de cada explorador. Los [atributos GIO](https://docs.gtk.org/gio/file-attributes.html) documentan `standard::target-uri`; la [referencia de formatos de CopyQ](https://github.com/hluk/CopyQ/blob/master/docs/faq.rst) describe MIME habituales de los exploradores.
 
 Con un único par, el origen ofrece el archivo automáticamente; con varios, se escoge el destino en la interfaz. El receptor muestra un diálogo Windows prioritario o una notificación Omarchy con botones, además de los controles en Archivos. Rechazar impide enviar el contenido. Tras aprobar, el receptor verifica tamaño y SHA-256, publica el archivo en una carpeta temporal privada y única y, solo entonces, coloca una referencia local `CF_HDROP` o lista URI en el portapapeles del receptor. El usuario pega en el explorador. La carpeta temporal separa nombres repetidos, tiene una cuota mínima de 1 GiB o cuatro veces el límite por archivo y borra sesiones de más de siete días. El receptor necesita otra regla LAN privada para TCP `47834`. El portapapeles de texto ignora selecciones de archivos para no sustituirlas por texto. La implementación actual admite un archivo normal por vez; el pegado directo dependiente de la carpeta y los archivos virtuales Shell quedan fuera de su alcance. La aprobación y el pegado físicos funcionaron en ambos sentidos entre sistemas; faltan pruebas físicas entre equipos con el mismo sistema.
+
+En ambos flujos, la interfaz decide según **Aprobación de archivos entrantes**. **Preguntar siempre** muestra la oferta y espera una acción; **Aceptar automáticamente** aprueba ofertas autenticadas de pares guardados sin diálogo. El modo temporal pregunta por el primer archivo de cada par y conserva su permiso durante 1–1.440 minutos. Los plazos no sobreviven al reinicio; al vencer un plazo activo, el modo vuelve a Preguntar siempre. Las comprobaciones de clave, nombre, tamaño y espacio siguen aplicándose en los tres modos.
 
 Se instalan, pero no se activan, estas unidades: `seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service` y `seamlesscontrol-mesh.service`. El receptor automático usa `47832`. Archivos de entorno manuales en `~/.config/seamlesscontrol/` pueden definir `SEAMLESSCONTROL_LISTEN`, `SEAMLESSCONTROL_PEER`, `SEAMLESSCONTROL_EDGE` o `SEAMLESSCONTROL_PORT`. Activa solo la unidad elegida por equipo.
 

@@ -1,5 +1,7 @@
 # SeamlessControl 0.23.0 · Pairing that stays in one place
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 Pairing Omarchy and Windows is easier to follow. The **Computers** screen in both apps now walks through four numbered steps: **1 Pair by address**, **2 Nearby computers**, **3 Paired computers**, and **4 Screen layout**. The trusted computers sit directly above the layout, with an arrow and instructions for placing them. Address entry and discovery are alternative ways to start the same secure pairing; compare the six digit code on both screens and approve on each.
 
 On Omarchy, **Stop receiving to pair** appears beside step 1 when this computer is already receiving control. **Stop receiving** is also on Home, including when the receiver was started outside the current panel. This ends the receiver normally and makes outgoing pairing available. **Cut remote input · emergency** serves a different purpose: it cuts and pauses remote input if control needs to be recovered. If the other computer starts pairing, Omarchy can keep receiving and approve its code without stopping.

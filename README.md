@@ -1,107 +1,105 @@
 # SeamlessControl
 
-[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Latest release and Windows x64 downloads](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [MIT](LICENSE) · [Español](README.es.md)
+[![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Download Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Español](README.es.md) · [MIT](LICENSE)
 
-**One mouse. One keyboard. Every screen in reach.** Move the pointer across an edge to work on the next computer, then cross back or press **Escape** to return. SeamlessControl brings Omarchy and Windows together on your private network, with the same pairing and control protocol on both systems.
+**One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
-![Omarchy and Windows screens connected by mouse, keyboard, clipboard and files](preview.png)
+You can also share text during a connection and copy **one local file at a time** between paired computers. The receiver chooses how to approve files; they become available only after verification.
 
-![Omarchy computers and a Windows computer in one workspace](docs/images/ecosystem.svg)
+## Choose where to start
 
-- **Move naturally:** pointer, clicks, scroll and keyboard travel with you. Windows/Super shortcuts work on the destination.
-- **Keep your flow:** text clipboard synchronization, return by screen edge or Escape, and local input recovery if the connection ends.
-- **Keep the source awake:** when an Omarchy computer controls another, its panel prevents an automatic idle lock until control returns.
-- **Find computers nearby:** LAN discovery shows available receivers. Manual `IP:port` remains available when discovery is blocked.
-- **Pair securely:** compare the six digit code on both computers. Each computer remembers the other's identity; a changed key requires review.
-- **Copy and paste files across computers:** copy one file in Explorer or the Omarchy file manager, approve the visible offer on the receiver, then paste into the destination folder.
-- **Choose how files are approved:** ask every time, accept automatically from paired computers, or approve once for a chosen number of minutes. The temporary option shows a countdown and returns to asking when it expires.
-- **Use the interface you expect:** a focused Omarchy panel and a Windows app that stays in the system tray. Both offer English and Spanish, clear save feedback and visible incoming-file prompts.
-
-Use your Omarchy and Windows computers in one workspace: control crosses in either direction, while trusted pairing, discovery and text clipboard keep the session familiar. SeamlessControl is developed continuously. See the [technical guide](docs/TECHNICAL.md) for architecture, permissions and verification records.
-
-**Verified on real Omarchy and Windows 11 x64 computers:** mouse and keyboard control in both directions, return by edge and Escape, text clipboard in both directions, and approved file copy and Paste in both directions. An incoming file prompt appeared on another Omarchy workspace and another Windows virtual desktop; rejecting an offer transferred no file. The [test record](docs/TEST-RESULTS.md) separates these observations from checks still awaiting more computers.
-
-## Simple screens, clear decisions
-
-**Omarchy** keeps installation and the active session on **Home**. **Computers** guides pairing in four steps: address, nearby receivers, paired computers, then layout. If this computer is already receiving, **Stop receiving to pair** sits beside step 1; the emergency input cut only pauses the receiver. **Files** handles copy and paste or a deliberate send; **Settings** holds approval and firewall controls. Optional help opens when you need it.
-
-![The streamlined Omarchy Home screen](docs/images/omarchy-overview-en.png)
-
-**Windows** uses **Overview, Computers, Files and Settings**. Its Computers page follows the same four steps, with paired computers immediately above the draggable layout. When Windows starts an outgoing pairing, the app briefly stops its local control session and restores your previous mode afterward. It also remembers the last control mode, address and screen edge. Close the window to keep it available in the tray.
-
-![Windows pairing steps and screen layout](docs/images/windows-devices-en.png)
-
-For an incoming file from a **paired** computer, choose the level of interruption that suits you:
-
-| Approval mode | What happens |
+| I want to… | Where to look |
 |---|---|
-| **Ask every time** | Review the sender, file and size in one visible prompt. |
-| **Accept automatically** | Receive authenticated files without a prompt. |
-| **Ask, then accept for a while** | Approve the first file, then accept that computer's files until the countdown ends. The setting returns to **Ask every time**. |
+| Install the plugin and connect from Omarchy | [Illustrated Omarchy guide](docs/USER-GUIDE.md) |
+| Install the app, receive or control from Windows | [Illustrated Windows guide](docs/WINDOWS.md) |
+| Copy and paste files or send to a chosen folder | [Omarchy guide](docs/USER-GUIDE.md) / [Windows guide](docs/WINDOWS.md), Files section |
+| Resolve a connection problem | Troubleshooting in each guide; [get support](SUPPORT.md) |
+| Use commands or understand permissions and limits | [Technical guide](docs/TECHNICAL.md) |
 
-The received file is verified before it becomes available to **Paste**. The prompt reaches the active Omarchy workspace or Windows virtual desktop even when the main panel is closed. [See the illustrated file guide](docs/USER-GUIDE.md#choose-how-incoming-files-are-approved).
+The **source** is the computer with the physical mouse and keyboard you will use. The **receiver** is the computer you want to control. Roles can change for another session; reversing them does not require pairing again.
 
-## Get started on Omarchy
+## 1. Install on both computers
 
-On every Omarchy computer, install the plugin with the standard command:
+### Omarchy
 
 ```bash
 omarchy plugin add https://github.com/PuroDelphi/seamlesscontrol.git --enable
 ```
 
-Open **SeamlessControl** from the Omarchy bar. Under **Set up this computer**, choose **Install agent**; the panel installs the required packages and agent after asking for system authorization when needed. The panel opens in English; choose **Español** at the top if you prefer it.
+Open **SeamlessControl** from the bar and select **Home → Set up this computer → Install agent**. A terminal opens to install dependencies and build the agent; authorize installation when the system asks. Wait for it to finish before connecting. The initial language is English; select **Español** at the top if preferred.
 
-![Agent setup in the Omarchy panel](docs/images/setup-en.png)
+![Omarchy plugin Home: agent setup and receiving control](docs/images/omarchy-overview-en.png)
 
-## Get started on Windows x64
+### Windows x64
 
-Open the [latest release and its installation notes](https://github.com/PuroDelphi/seamlesscontrol/releases/latest). Under **Assets**, download the single **`seamlesscontrol-windows-x64.zip`** and extract it into a folder you own. It already contains both required executables together. Double click **`seamlesscontrol.exe`**. The adjacent `seamlesscontrol-windows-x64.zip.sha256` lets you verify the download. On first launch it starts receiving on port `47832`; later it restores your last control mode, including an outgoing connection. It stays active in the tray when you close the window. Choose **Español** in the top right if desired.
+1. In the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), download **`seamlesscontrol-windows-x64.zip`** under **Assets**.
+2. **Extract the ZIP** into a folder you own. Keep `seamlesscontrol.exe` and `seamlesscontrold.exe` together; do not run them inside the ZIP.
+3. Open **`seamlesscontrol.exe`**. On first launch it receives control on TCP `47832`. Later it restores the last mode you left active, including an outgoing connection.
+4. If Windows asks for network access, allow **Private networks** only. If WebView2 is missing, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/).
 
-For hands-free startup, turn on **Settings → Start with Windows** in the app. It will open in the tray when you sign in; you can turn it off from the same screen.
+Closing the window **does not** exit the app: it stays in the tray. To exit, choose **Exit SeamlessControl** in its tray menu. Automatic startup is optional under **Settings → Start with Windows**.
 
-![The SeamlessControl Windows app with the last connection restored](docs/images/windows-home-en.png)
+The [Windows guide](docs/WINDOWS.md) covers SHA-256 verification, firewall setup and **alpha** build downloads. An Actions test build is not the latest published release.
 
-![Copy a file in Windows and offer it to a paired computer](docs/images/windows-files-en.png)
+## 2. Pair, place and connect
 
-Windows 11 normally has the required WebView2 runtime. If the app reports it missing, install the [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/) and open the app again. Windows may ask about network access: allow **Private networks**. In **Settings → Windows firewall**, the app can request administrator approval for private LAN rules on the control port, the file port and mDNS discovery (`UDP 5353`). The TCP buttons follow the ports shown in the app.
+1. **On the receiver:** activate **Receive control**. In Omarchy, wait for **Available**; in Windows, check that receiving is active on Overview.
+2. **On the source:** open **Computers**. Under **1 · Pair by address**, enter the receiver's private LAN `IP:port`; or use **2 · Nearby computers → Pair**. These are alternatives, not two required steps.
+3. **On both computers:** compare the **six-digit** code and approve only if it matches. The long identity fingerprint is not this code. The receiver appears under **3 · Paired computers**.
+4. **On the source:** place the receiver in **4 · Screen layout**, next to your computer on the side where its physical screen sits. This saves the crossing edge: **it does not connect yet**.
+5. **Start the session:** in Omarchy, select **Connect** beside the discovered receiver, or use **Settings → Connect by IP** if it is not listed. In Windows, **Connect** in a computer row prepares Overview; select **Connect again on Overview** to start the session.
+6. Once ready, cross the **outer edge of the complete desktop**, not the boundary between monitors on the same computer. Return across the receiver's entry edge or with physical **Escape**. Returning keeps the session ready for another crossing; stopping it is a separate action.
 
-[Windows step by step guide](docs/WINDOWS.md) · [Illustrated Omarchy guide](docs/USER-GUIDE.md)
+![Windows Computers: pairing alternatives, trusted peers and screen placement](docs/images/windows-devices-en.png)
 
-## Connect your screens
+Images show interfaces with fictional documentation data; each platform guide explains how its images were produced.
 
-1. On the computer you want to control, select **Receive control** and wait for **Available**. The Windows app starts this on first launch and restores it if you left it active.
-2. On the computer with the physical mouse, open **Computers**. Use **1 Pair by address** when you know the receiver's private LAN `IP:port`, or **2 Nearby computers** and select **Pair**. Compare the six digit code on **both** computers and approve on both. The pair then appears under **3 Paired computers**. On Omarchy, if this computer is already receiving and you want to start pairing from here, select **Stop receiving to pair** beside step 1; you can start Receive control again afterward.
-3. In **4 Screen layout**, place the paired receiver on the side where its screen sits. Both Omarchy and Windows have a visual layout. In Windows, paired computers appear directly above the map: drag one along the arrow, click a side, or use the arrow keys. Its position fills in the edge when you prepare **Connect**.
-4. Select **Connect** on the computer with the physical mouse. When it says **Ready**, cross the chosen **outer edge**. Cross back from the receiver or press **Escape** on the physical keyboard to return.
+**If Omarchy is already receiving and you want to start pairing there**, select **Stop receiving to pair** beside step 1. The emergency cut only pauses: it does not release the receiver for initiating pairing. Windows temporarily stops its own session while pairing and restores the previous mode afterward. In both cases, the **other** computer's receiver must stay active.
 
-**Pair** records trust once; **Connect** starts a control session. Moving a tile in the layout sets the crossing direction and does not start the session. For file delivery, open **Files** on the receiver, allow its separate LAN port `47833` if needed, select **Wait for a file**, then choose and send a file from the source. The receiver approves the offer. For everyday copying, allow TCP `47834` on the receiving computer, copy one file in Explorer or the Omarchy file manager, approve the prominent incoming prompt, and paste it into the destination folder. This copied-file flow works without an active control session.
+## 3. Choose how to share
 
-![Pair and Connect in the Omarchy panel](docs/images/connect-context-en.png)
+| Feature | What you need | Port on the receiver |
+|---|---|---|
+| Mouse, keyboard and text clipboard | Pair + Receive control + Connect | TCP `47832` by default |
+| Copy in one file manager and paste in the other | Apps open + pairing; approve the offer when required and wait for verification before Paste | TCP `47834` |
+| Send to a chosen folder | Pairing + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
+| Find nearby receivers | Active receiving and discovery allowed on the LAN | UDP `5353` (mDNS) |
 
-## Update and remove
+**Neither file flow requires a control session.** **Wait for a file** does not enable copy and paste: it is the manual send flow, one offer at a time. Opening the control port does not open the file ports.
 
-**Omarchy:** stop active sessions, then update the widget on each Omarchy computer:
+Under **Settings → Incoming file approval**, you can ask for every offer (default), accept automatically from paired computers, or approve for a while. Temporary mode asks for the first file from each computer and returns to **Ask every time** on expiry or restart. The [illustrated guides](docs/USER-GUIDE.md) explain size limits, destination selection and missing offers.
+
+Do not expose these ports to the Internet or set up router port forwarding. Use the interface's firewall actions on the **receiver**, scoped to the private LAN.
+
+## Update or remove
+
+### Omarchy
+
+End sessions on both computers. Update the plugin and reload the shell:
 
 ```bash
 omarchy plugin update seamlesscontrol.control --yes
+omarchy restart shell
 ```
 
-`--yes` applies the update without opening the long change preview or asking for confirmation. Run `omarchy restart shell`, reopen SeamlessControl and choose **Update agent** under **Set up this computer**. Your pairing keys and layout are kept.
+Open the panel and select **Update agent**. Do this on each participating Omarchy before resuming. Identity, pairings and layout are preserved.
 
-**Windows:** exit SeamlessControl from its tray menu, download `seamlesscontrol-windows-x64.zip` from the [latest release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extract it and replace both executables in their folder and reopen `seamlesscontrol.exe`. Pairing keys in `%LOCALAPPDATA%\SeamlessControl` are kept.
+To remove it, use **Settings → Remove agent**, then `omarchy plugin remove seamlesscontrol.control`. Removal preserves pairing data; firewall rules are removed separately as explained in the [technical guide](docs/TECHNICAL.md).
 
-To remove SeamlessControl from Omarchy, choose **Remove agent** in the panel, then:
+### Windows
 
-```bash
-omarchy plugin remove seamlesscontrol.control
-```
+To update, exit from the tray, extract the new ZIP, replace **both executables** and reopen the app. Data in `%LOCALAPPDATA%\SeamlessControl` is preserved.
 
-On Windows, choose **Exit SeamlessControl** from the tray and delete the folder containing the two executables. The user data folder `%LOCALAPPDATA%\SeamlessControl` is intentionally kept so your identity and pairings survive an update; delete it too only if you want a completely fresh identity. Firewall rules can be removed in Windows Firewall by their `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` names.
+To uninstall, first disable **Settings → Start with Windows**, exit from the tray and delete the executable folder. Remove any authorized `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` rules. Delete the data folder **only** if you want a new identity: you will have to pair again.
 
-## Documentation and community
+## Scope and project documentation
 
-[Omarchy user guide](docs/USER-GUIDE.md) · [Windows user guide](docs/WINDOWS.md) · [Technical guide](docs/TECHNICAL.md) · [Verification record](docs/TEST-RESULTS.md) · [Support](SUPPORT.md) · [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+The [test record](docs/TEST-RESULTS.md) records control, return, text and file copying in both directions on physical Omarchy and Windows 11 x64 computers. This is not a guarantee for all combinations: multi-computer mesh is experimental, and other layouts, sleep and network faults have pending scenarios. Manual locking during remote control on Omarchy still needs physical verification; return and stop control before locking manually.
 
-Powered by JhonnySuarez - PuroDelphi. If SeamlessControl is useful to you, support its continued development through [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) or [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ).
+The guides above describe current use. The `docs/RELEASE-*.md` notes, changelog and feasibility log preserve **version history**, not current installation instructions.
+
+[Support](SUPPORT.md) · [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Code of conduct](CODE_OF_CONDUCT.md)
+
+Powered by JhonnySuarez - PuroDelphi. Support the project through [GitHub Sponsors](https://github.com/sponsors/PuroDelphi) or [PayPal](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ).
 
 [![PayPal donation QR](docs/images/paypal-qr.png)](https://www.paypal.com/donate/?hosted_button_id=KBAUBYYDNHQNQ)

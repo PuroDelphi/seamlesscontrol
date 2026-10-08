@@ -1,5 +1,7 @@
 # SeamlessControl 0.22.1 · Windows file destination fix
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 This update closes a Windows receive-path issue found during Omarchy marketplace review. A specially crafted file offer from an already paired computer could use a drive-relative name such as `C:payload.txt` to place an accepted new file outside the folder selected by the receiver. SeamlessControl now rejects drive-relative names, colons used for alternate data streams, and any name that is not a single path component **before** forming the destination path. Existing files are still never overwritten.
 
 The fix applies to both manual file sends and copied-file transfers, including automatic approval. Normal names, including Unicode, remain supported. Linux file names containing `:` must be renamed before transfer so the same offer is safe on Windows. A Windows x64 regression test covers the reported path case; the test record remains in [the repository](https://github.com/PuroDelphi/seamlesscontrol/blob/v0.22.1/docs/TEST-RESULTS.md).

@@ -4,7 +4,15 @@
 
 The [illustrated panel guide](USER-GUIDE.md) covers the ordinary UI connection and recovery flow.
 
-The [Windows user guide](WINDOWS.md) covers the tray app. On Windows x64, `seamlesscontrol.exe` is a Wry/WebView2 and Tao shell around the existing `seamlesscontrold.exe`; it starts the receiver in a hidden child process and keeps it alive in the tray. The app and agent must be adjacent. The receiver publishes `_seamlesscontrol._tcp.local.` with protocol version and public fingerprint through `mdns-sd`, while the app browses that service. Discovery is a hint only: the existing Noise XX key pinning and six digit pairing approval remain mandatory. The Windows control receiver caps concurrent TCP workers at eight and closes excess connections before spawning. Its initial preauthentication handshake uses a ten-second I/O timeout; the longer confirmation timeout begins only after Noise completes. On Windows, the app's firewall buttons launch the agent elevated to add inbound TCP rules for the selected control or file port and a separate UDP 5353 rule for mDNS. These rules are limited to the Private profile and LocalSubnet. The buttons report an authorization request; the elevated command reports whether the rule was applied. The GUI is built in Windows CI with a static C runtime. The release workflow builds the tagged Windows commit and attaches one ZIP containing both executables, with its adjacent SHA-256 file, to the GitHub Release. The hidden child uses a hidden clipboard owner window, so text clipboard writes do not depend on an attached console.
+The [Windows guide](WINDOWS.md) covers the tray app's use. On Windows x64, `seamlesscontrol.exe` is a Wry/WebView2 and Tao shell around `seamlesscontrold.exe`; both executables must stay together. The app starts control as a hidden child process: it receives on first launch, then restores the last saved mode (receive, connect or stopped). Closing the window leaves it in the tray; exiting from the tray ends its processes.
+
+The receiver advertises `_seamlesscontrol._tcp.local.` with protocol version and public fingerprint through `mdns-sd`, while the app browses that service. Discovery only supplies an address: Noise XX key pinning and six-digit pairing approval remain mandatory.
+
+Firewall buttons elevate the agent to add inbound TCP rules for control, manual sends and copied files, plus a UDP `5353` rule for mDNS. Rules are scoped to the Private profile and LocalSubnet. The interface reports an authorization request; the elevated command reports whether the rule was applied.
+
+Windows CI builds the GUI with a static C runtime. The release workflow builds the tagged commit and attaches a ZIP containing both executables, with a SHA-256 of the ZIP as an adjacent asset. The hidden child uses an invisible clipboard owner window without depending on a visible console.
+
+The Windows control receiver caps concurrent TCP connections at eight and closes excess connections before spawning a worker. The initial preauthentication exchange has a ten-second I/O timeout; the longer code-confirmation timeout begins only after Noise completes.
 
 This guide covers manual operation, packaging, security, and current limits. The addresses below are **fictional examples**: source `192.168.50.10`, receiver `192.168.50.20`, LAN `192.168.50.0/24`, interface `wlan0`.
 
@@ -24,29 +32,32 @@ To update the widget on **each** machine, run `omarchy plugin update seamlesscon
 
 ## Manual connection
 
-Start the receiver, then discover and pair from the mouse computer:
+On the **receiver**, run these commands in separate terminals: the listener stays in the foreground.
 
 ```bash
 seamlesscontrold serve-auto 47832
+```
+
+```bash
 seamlesscontrold local-address 47832
+```
+
+On the **source**, discover the receiver and pair using its actual address:
+
+```bash
 seamlesscontrold discover
 seamlesscontrold pair 192.168.50.20:47832
 ```
 
-The first command runs on the receiver; the last two run on the source. `serve-auto` selects an IPv4 address using the mDNS route and advertises `_seamlesscontrol._tcp` through Avahi. Discovery requires multicast mDNS; use `seamlesscontrold serve 192.168.50.20:47832` and a manual IP if multicast is blocked. An mDNS fingerprint is only a hint. Pairing uses Noise XX and a six digit comparison code; approve **on both computers** in the panel or with `seamlesscontrold status` followed by `seamlesscontrold approve <six-digit-code>`. `status` shows `serve pairing` on the receiver while approval is pending. `seamlesscontrold reject` cancels it. The 64 character local identity is a persistent public fingerprint, not the comparison code.
+`serve-auto` selects an IPv4 address using the mDNS route and advertises `_seamlesscontrol._tcp` through Avahi. Discovery needs multicast mDNS; if blocked, you can keep `serve-auto` and enter its address manually, or use `serve 192.168.50.20:47832` for a fixed address. Do not start both receivers at once.
 
-Place each computer next to the other on both layouts. On the source, for a receiver to the right:
+Pairing remains open until both sides approve. Compare the six-digit code **on both computers**, in the panel or with `seamlesscontrold status` in another terminal on each computer. Approve there with `seamlesscontrold approve <six-digit-code>`; `reject` cancels. The mDNS fingerprint is only a hint; the 64-character local identity is a persistent fingerprint, not the comparison code.
+
+For a direct connection, placing the receiver on the source layout is sufficient. The receiver learns its return edge when control begins; it does not need a reverse layout. On the source, for a receiver to the right:
 
 ```bash
 seamlesscontrold topology set 192.168.50.20 1 0
 seamlesscontrold connect 192.168.50.20:47832
-```
-
-On the receiver, place itself on the right and the source on the left:
-
-```bash
-seamlesscontrold topology set local 1 0
-seamlesscontrold topology set 192.168.50.10 0 0
 ```
 
 `connect` infers the edge from adjacent layout cells; an explicit `right`, `left`, `top`, or `bottom` argument overrides it. Return by crossing the receiver edge toward the source, pressing Escape on the physical keyboard, or running `seamlesscontrold return` on the receiver. `seamlesscontrold emergency-stop` on the receiver disconnects and pauses new input until `seamlesscontrold resume`. On the source, `pause` and `resume` toggle capture. Stop a terminal agent with Ctrl+C.
@@ -63,7 +74,16 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh
 bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh remove 47832
 ```
 
-`allow` and `remove` ask for confirmation, then use Polkit in a graphical session or sudo in a terminal. The panel has already shown the rule and confirmed the click, so it passes `--yes`; system authorization is still required. The script does not enable UFW. If the receiver address or subnet later changes, inspect `sudo ufw status numbered` and remove stale rules manually. File receiving normally uses TCP `47833` and needs a separate scoped rule if blocked.
+`allow` and `remove` ask for confirmation, then use Polkit in a graphical session or sudo in a terminal. The panel has already shown the rule and confirmed the click, so it passes `--yes`; system authorization is still required. The script does not enable UFW. If the receiver address or subnet later changes, inspect `sudo ufw status numbered` and remove stale rules manually.
+
+| Purpose | Default port on the receiver | Activation |
+|---|---|---|
+| Control and text clipboard | TCP `47832` | Receive control |
+| Manual send to a folder | TCP `47833` | Wait for a file; one offer per run |
+| File copy and paste | TCP `47834` | Windows app or Omarchy widget active |
+| mDNS discovery | UDP `5353` | Receiver advertised on the LAN |
+
+Each TCP port needs its own rule if blocked. File approval does not open ports or start the manual receiver.
 
 ## Protocol and other features
 
@@ -83,6 +103,8 @@ Files use a separate Noise session and receiver approval. In the panel, start **
 Copied-file transfers reuse the authenticated Noise file session on TCP `47834`, leaving the one-shot manual receiver on `47833`. The Windows app and Omarchy bar widget run a clipboard-file receiver while open. Windows reads one local regular file from `CF_HDROP`. Omarchy reads `text/uri-list` and the `copy`/`cut` payloads of `x-special/gnome-copied-files`, `x-special/mate-copied-files`, and `x-special/nautilus-clipboard`; KDE's `application/x-kde-cutselection` marker prevents a cut from being treated as a copy. GNOME's Recent view can put a `recent://` reference in the URI list while its GNOME payload contains the actual local `file://` URI. When needed, GIO may resolve one `recent://`, `starred://`, `search://`, or `trash://` reference to a local `file://` target. The result still has to be one regular local file within the size limit; symlinks, directories, remote targets, and multiple files are ignored. These formats describe compatibility, not a physical validation of every file manager. [GIO file attributes](https://docs.gtk.org/gio/file-attributes.html) document `standard::target-uri`; [CopyQ's format reference](https://github.com/hluk/CopyQ/blob/master/docs/faq.rst) describes common file-manager clipboard MIME types.
 
 If exactly one peer is paired, the source offers the file automatically; otherwise the source UI asks for a destination. The receiver gets a topmost Windows approval dialog or an actionable Omarchy desktop notification, plus buttons in its Files view. Rejection prevents content transfer. On approval, the existing file receiver checks size and SHA-256, publishes into a unique private staging directory, and only then places a local `CF_HDROP` or URI-list reference on the receiver clipboard. The user pastes in a file manager. Staging keeps separate directories for repeated names, has a quota of at least 1 GiB or four times the configured per-file limit, and removes sessions older than seven days. The receiver needs a separate private-LAN TCP `47834` rule. The text clipboard adapter ignores file-list selections to avoid replacing them with text. The current implementation supports one regular file at a time; native folder-specific paste timing and virtual Shell files are outside its scope. Physical approval and paste succeeded in both cross-platform directions; same-OS pairs still need physical checks.
+
+In both flows, the interface decides according to **Incoming file approval**. **Ask every time** shows the offer and waits for an action; **Accept automatically** approves authenticated offers from saved peers without a dialog. Timed mode asks for each peer's first file and keeps that peer's approval for 1–1,440 minutes. Time windows do not survive a restart; expiry of an active window returns the mode to Ask every time. Key, name, size and space checks apply in all three modes.
 
 User services installed but not enabled: `seamlesscontrol-receiver-auto.service`, `seamlesscontrol-receiver.service`, `seamlesscontrol-sender.service`, and `seamlesscontrol-mesh.service`. The auto receiver uses `47832`. Manual service environment files in `~/.config/seamlesscontrol/` can set `SEAMLESSCONTROL_LISTEN`, `SEAMLESSCONTROL_PEER`, `SEAMLESSCONTROL_EDGE`, or `SEAMLESSCONTROL_PORT`. Enable only the chosen service per machine.
 

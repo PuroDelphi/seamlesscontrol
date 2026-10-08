@@ -1,5 +1,7 @@
 # SeamlessControl 0.23.2 · Windows receiver connection limit
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 This maintenance release addresses the marketplace review of 0.23.1. An unauthenticated LAN client could previously leave the Windows control receiver with an unbounded number of worker threads and open sockets by starting many connections that waited for the long pairing timeout.
 
 The receiver now admits at most **eight concurrent control connections**; excess connections close before a thread is created. An initial Noise handshake has a ten-second I/O timeout. Once that handshake succeeds, the existing longer window remains available for people to compare and approve the six-digit pairing code. A Windows test covers the connection limit and slot release. Omarchy controls, saved pairings, and the regular connection flow are unchanged.

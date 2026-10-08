@@ -1,5 +1,7 @@
 # SeamlessControl 0.21.1 · One Windows download
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 SeamlessControl connects Omarchy and Windows in one workspace. Move the pointer across a screen edge to work on another computer; your physical keyboard, tested shortcuts and text clipboard follow you. Return across the edge or with Escape. Nearby computers can be discovered on the private LAN, and pairing requires the same six digit code on both screens. Files are offered with receiver approval and verified before delivery.
 
 This release makes Windows setup simpler: **download one ZIP** instead of collecting two separate executables. The archive contains `seamlesscontrol.exe` (the bilingual tray app) and `seamlesscontrold.exe` (its agent) together. The ZIP is built from this exact tag; its adjacent `.sha256` asset lets you verify the download. The Omarchy plugin and agent behavior from 0.21.0 is unchanged.

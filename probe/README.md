@@ -5,7 +5,7 @@ Este programa sólo enumera las interfaces que el compositor anuncia a un client
 ## Compilar y ejecutar
 
 ```bash
-cd ~/Work/seamlesscontrol
+# Desde la raíz del checkout de SeamlessControl:
 cc -Wall -Wextra -Werror -std=c11 probe/wayland_registry.c \
   -o /tmp/seamlesscontrol-wayland-registry \
   $(pkg-config --cflags --libs wayland-client)
@@ -23,4 +23,4 @@ busctl --user --no-pager introspect \
   org.freedesktop.portal.InputCapture
 ```
 
-La prueba completa posterior tendrá que crear una sesión de captura con consentimiento, definir barreras en los bordes, conectarse a EIS e inyectar eventos por teclado y puntero virtuales en una segunda máquina.
+La presencia de estas interfaces no prueba el control remoto. Las pruebas integradas de captura e inyección ya existen: consulta [TESTING.md](../docs/TESTING.md) para ejecutarlas y el [registro de resultados](../docs/TEST-RESULTS.es.md) para distinguir las comprobaciones locales de las pruebas físicas entre equipos.

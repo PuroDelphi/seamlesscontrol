@@ -2,78 +2,208 @@
 
 [English](WINDOWS.md) · [Inicio](../README.es.md) · [Guía técnica](TECHNICAL.es.md)
 
-La aplicación Windows usa las mismas identidades de confianza y el mismo protocolo de control que el plugin Omarchy. Puede recibir control desde Omarchy, controlar Omarchy con el ratón y teclado físicos de Windows, sincronizar texto del portapapeles y enviar o recibir archivos aprobados. La ventana puede ocultarse en la bandeja mientras el agente sigue activo.
+Usa el ratón y teclado de Omarchy en Windows, o el ratón y teclado físicos de Windows en Omarchy. Los equipos emparejados también pueden compartir texto y archivos aprobados. Cerrar la ventana mantiene la app en la bandeja del sistema; **no** detiene el uso compartido.
 
-![Vista principal de Windows con la última dirección y borde de pantalla restaurados](images/windows-home-es.png)
+Esta guía describe la interfaz `alpha` actual. Un release con tag puede ser anterior: sigue sus notas si los botones difieren. El [registro de pruebas](TEST-RESULTS.es.md) distingue observaciones físicas y comprobaciones pendientes; es un historial, no otra guía de instalación.
 
-![Pantalla Equipos de Windows: emparejar por dirección, equipos cercanos, emparejados y mapa](images/windows-devices-es.png)
+**Ir a:** [Instalar](#instalar) · [Emparejar](#emparejar-los-equipos-una-vez) · [Recibir control](#recibir-control-en-windows) · [Controlar Omarchy](#controlar-omarchy-desde-windows) · [Volver o detener](#volver-o-detener-el-uso-compartido) · [Texto y archivos](#compartir-texto-y-archivos) · [Firewall](#permitir-solo-los-puertos-lan-necesarios) · [Problemas](#resolver-problemas-habituales) · [Actualizar o desinstalar](#actualizar-o-desinstalar)
 
-Las capturas muestran la interfaz actual con nombres, archivos y direcciones ficticios.
+> **Sobre las imágenes:** son ilustraciones generadas a partir del HTML real `agent/src/windows_ui.html` con nombres, códigos, archivos y direcciones de documentación ficticios (`192.0.2.x`). Se generaron con Chromium en Linux; **no son capturas de un escritorio Windows en ejecución**. Las fuentes y los diálogos nativos pueden variar en Windows. No introduzcas las direcciones ni el código de ejemplo. El renderer repetible es `python3 scripts/render-windows-doc-screenshots.py` (requiere Chromium).
 
 ## Instalar
 
-1. Abre la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), lee sus notas de instalación y descarga en **Assets** **`seamlesscontrol-windows-x64.zip`**. Su archivo `.sha256` contiguo permite comprobar esa única descarga.
-2. Extrae el ZIP en una carpeta propia, como Descargas o Documentos. Ya incluye juntos los dos ejecutables. Para verificar la descarga desde PowerShell, ejecuta `Get-FileHash .\seamlesscontrol-windows-x64.zip -Algorithm SHA256` y compara el resultado con `seamlesscontrol-windows-x64.zip.sha256` del mismo release.
-3. Haz doble clic en `seamlesscontrol.exe`. La primera vez se inicia **Recibir control** en TCP `47832` y Windows anuncia este equipo a los paneles SeamlessControl cercanos. Las siguientes veces restaura el modo de control que dejaste activo. Si Windows pregunta por acceso a la red, selecciona **Redes privadas**.
-4. Cierra la ventana para dejar la aplicación en la bandeja. Pulsa su icono para abrirla de nuevo. **Exit SeamlessControl** en el menú de la bandeja termina las sesiones y cierra la aplicación.
+### Instalación normal: un release con tag
 
-Para probar una compilación `alpha` de GitHub Actions, descarga el único artefacto **`seamlesscontrol-windows-x64`**. GitHub entrega un ZIP con `seamlesscontrol.exe`, `seamlesscontrold.exe` y `SHA256SUMS.txt`; este último contiene los SHA de los dos ejecutables. En los releases con tag, el SHA del ZIP completo aparece como asset contiguo.
+1. Abre la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) y lee sus notas.
+2. En **Assets**, descarga **`seamlesscontrol-windows-x64.zip`**, no el ZIP del código fuente de GitHub. Para comprobar opcionalmente la integridad, descarga su archivo contiguo `seamlesscontrol-windows-x64.zip.sha256`, ejecuta `Get-FileHash .\seamlesscontrol-windows-x64.zip -Algorithm SHA256` en PowerShell y compara el hash.
+3. Extrae el ZIP en una carpeta que vayas a conservar, por ejemplo dentro de Documentos. **`seamlesscontrol.exe` y `seamlesscontrold.exe` deben permanecer juntos.** No hay un instalador que ejecutar.
+4. Haz doble clic en **`seamlesscontrol.exe`** tras extraerlo; no lo abras dentro del ZIP. Continúa con el [primer inicio](#primer-inicio-y-bandeja-del-sistema).
 
-Para abrirla automáticamente al iniciar tu próxima sesión de Windows, ve a **Ajustes → Iniciar con Windows** y pulsa **Activar**. La app aparece en la bandeja y restaura el último modo de control elegido. Esta opción solo afecta a tu cuenta de Windows y no pide permisos de administrador. Pulsa **Desactivar** en la misma tarjeta para retirarla. Si mueves la carpeta con los dos ejecutables, abre la app desde la nueva ubicación y pulsa **Activar** otra vez para actualizar la ruta guardada.
+### Probar la alpha actual
 
-Windows 11 normalmente incluye WebView2. Si falta, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). Los ejecutables se distribuyen actualmente sin firma digital.
+Usa esta vía solo si quieres la compilación de desarrollo en lugar de un release con tag.
 
-## Emparejar una vez
+1. Abre [Actions → Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Inicia sesión en GitHub si la descarga de artefactos lo requiere.
+2. Elige una **ejecución satisfactoria de la rama `alpha`** y comprueba su commit. El mismo workflow compila `main`; no supongas que todas sus ejecuciones son alpha.
+3. Descarga el artefacto **`seamlesscontrol-windows-x64`**. GitHub entrega un ZIP con ambos ejecutables y **`SHA256SUMS.txt`**.
+4. Extráelo y conserva los ejecutables juntos. La comprobación SHA-256 opcional compara **cada `.exe` extraído** con `SHA256SUMS.txt`, no el ZIP del artefacto. Abre `seamlesscontrol.exe`.
 
-1. Conecta ambos equipos a la misma LAN privada. En el **receptor**, deja activo **Recibir control**. Windows lo inicia la primera vez y lo restaura después solo si lo dejaste activo; en Omarchy debes pulsar **Recibir control**.
-2. En el equipo con el ratón físico, abre **Equipos**. La página sigue cuatro pasos: **1 Emparejar por dirección** si conoces la `IP:puerto` del receptor, **2 Equipos cercanos** para elegir uno descubierto y pulsar **Emparejar**, **3 Equipos emparejados** para ver los pares aprobados y **4 Mapa de pantallas** para ubicarlos antes de controlar. Los pasos 1 y 2 son dos formas de iniciar el emparejamiento; no exigen cambiar de pestaña.
-3. Compara el **código de seis cifras** en ambos equipos y apruébalo en ambos. En Windows, escribe esas cifras en la aplicación y pulsa **Coinciden · aprobar**. La huella de identidad larga es otro valor; no eliges ni modificas el código.
-4. Ahora el equipo figura como emparejado. El descubrimiento solo proporciona la dirección; la identidad y el código siguen autorizando la confianza.
+Los releases con tag publican en cambio un checksum del **ZIP completo** como asset separado. No mezcles ejecutables de compilaciones distintas. Si ya está instalado, usa [Actualizar](#actualizar-o-desinstalar) para no dejar la app anterior en ejecución.
 
-Al iniciar **Emparejar** en Windows, la app detiene temporalmente su propia sesión activa de Recibir o Conectar para que el agente de emparejamiento use la identidad local. Restaura el modo anterior al terminar la solicitud, también si se rechaza. Mantén **Recibir control** activo en el *otro* equipo. Si ese receptor es Omarchy y prefieres iniciar allí el emparejamiento, usa **Detener recepción para emparejar** junto al paso 1 de Omarchy y vuelve a iniciar la recepción al terminar. **Cortar entrada remota · emergencia** solo pausa un receptor Omarchy; no termina su sesión.
+### Primer inicio y bandeja del sistema
 
-Si **Emparejar** no muestra un código, comprueba primero que **Recibir control** esté activo en el equipo al que intentas acceder y que su firewall permita el puerto TCP de control elegido (normalmente `47832`). La pestaña **Equipos** de Windows muestra ahora los errores de conexión y emparejamiento junto al botón. Tras revocar un emparejamiento, actualiza ambos agentes antes de repetirlo: las conexiones normales siguen bloqueadas, pero **Emparejar** muestra un código nuevo y coincidente en ambos equipos. Apruébalo en los dos para recuperar la confianza.
+1. En una LAN doméstica/laboral de confianza, usa el perfil de red **Privada** de Windows. Si aparece una petición del firewall, permite el acceso en **Redes privadas**, no en redes públicas.
+2. En el primer inicio, **Inicio → Recibir control** arranca en TCP `47832`. Estado esperado: **ACTIVO** y **DISPONIBLE** cuando se inicia el receptor. El descubrimiento también puede hacer que este equipo aparezca en Omarchy.
+3. Elige **English** o **Español** en el selector superior derecho si lo necesitas.
+4. Cerrar la ventana o pulsar **Ocultar en la bandeja** solo la oculta. Pulsa el icono de la bandeja para abrirla. **Ajustes → Salir de la app** o **Exit SeamlessControl** en el menú de la bandeja termina las sesiones de esta app y sale.
 
-Para quitar un emparejamiento en Windows, abre **Equipos → Equipos emparejados**, pulsa **Revocar** junto a ese equipo, lee el aviso y confirma **Sí, revocar**. Esto bloquea la identidad guardada, retira su posición del mapa y cierra una sesión de control activa. Hazlo solo si ya no confías en esa identidad: para volver a emparejarlo tendrás que aprobar un código nuevo y coincidente en ambos equipos. El comando manual equivalente en PowerShell, desde la carpeta de la app, es `.\seamlesscontrold.exe revoke 192.168.1.25`.
+![Inicio: Windows recibe control y Controlar otro equipo muestra los campos de dirección y borde](images/windows-home-es.png)
 
-## Omarchy controla Windows
+Los siguientes inicios restauran el último modo elegido: recibir, conexión saliente o ninguno. Una conexión saliente reintenta si el otro equipo no está disponible; volver a abrir la app no siempre inicia una nueva recepción.
 
-En Omarchy, sitúa Windows en el lado correcto del **Mapa de equipos**. Pulsa **Conectar** en el Windows emparejado y espera a **Listo**. Cruza el **borde exterior** de Omarchy hacia ese lado. El ratón y teclado de Windows responden a Omarchy. Para volver, cruza el borde de entrada en Windows o pulsa **Escape** en el teclado físico de Omarchy. Termina la sesión desde el panel Omarchy al acabar.
+Si el inicio indica que falta WebView2, instala [Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/). Los ejecutables no tienen firma digital; descárgalos del release o workflow de este proyecto y no desactives globalmente la seguridad de Windows para ejecutarlos.
 
-## Windows controla Omarchy
+**Inicio automático opcional:** en **Ajustes → Iniciar con Windows**, pulsa **Activar**. Estado esperado: **ACTIVADO**. Solo afecta a tu cuenta, no requiere autorización de administrador y abre la app en la bandeja al iniciar sesión, restaurando el modo de control. Pulsa **Desactivar** para anularlo. Si mueves la carpeta de la app, ábrela desde la nueva ubicación y pulsa **Activar** otra vez para actualizar la ruta. Un nuevo inicio de sesión sigue figurando como comprobación física pendiente en el registro; la ilustración no demuestra esa prueba.
 
-En Omarchy, pulsa **Recibir control** y espera a **Disponible**. En la app Windows, abre **Equipos**. Tras emparejar desde el paso 1 o 2, el equipo aparece en **3 Equipos emparejados**, justo encima de **4 Mapa de pantallas**; una flecha indica cómo llevarlo al mapa. Arrastra la fila de Omarchy a su posición alrededor de **Este Windows**, pulsa su posición tras seleccionar la fila o enfócala y usa una flecha del teclado. Pulsa **Conectar** en su fila: se abre **Inicio** con la dirección y el borde guardado. Pulsa allí **Conectar**. Cuando la actividad indique **Ready to control**, cruza ese borde exterior. Regresa por el borde de entrada en Omarchy o pulsa **Escape** en el teclado físico de Windows. El receptor Omarchy aprende el borde de regreso de esta sesión directa; no necesitas colocar Windows en el mapa de Omarchy para esta dirección. **Detener** finaliza la sesión. El mapa permanece visible mientras este Windows recibe control.
+## Emparejar los equipos una vez
 
-Windows puede recibir o iniciar el control. Al pulsar **Conectar**, la app pausa su receptor para que el teclado físico tenga un solo dueño. La app recuerda la última `IP:puerto` y el borde de pantalla; aparecen de nuevo en **Inicio → Controlar otro equipo** al abrirla. Si dejaste **Conectar** activo, la app vuelve a conectarse al equipo emparejado al iniciarse y sigue reintentando si no está disponible. **Detener** termina esa conexión y pasa a **Recibir control**. Detén también **Recibir control** si quieres que la app vuelva a abrirse sin una sesión de control. El regreso con Escape o por el borde deja la conexión lista para otro cruce.
+Emparejar establece confianza; **no** inicia la entrada remota. Necesitas acceso a ambas pantallas para aprobar el mismo código de seis cifras.
 
-## Portapapeles y archivos
+1. Conecta ambos equipos a la misma LAN privada de confianza. Decide cuál **recibirá** la solicitud. En ese equipo, inicia **Recibir control** y déjalo activo.
+2. En Windows, abre **Equipos** y usa **una** de estas alternativas:
+   - **2 Equipos cercanos → Emparejar** en el receptor que reconozcas.
+   - **1 Emparejar por dirección:** introduce la `IP:puerto` privada real del receptor (normalmente `47832`) y pulsa **Emparejar**. No hace falta autodescubrimiento.
+3. Compara las **seis cifras de ambas pantallas**. Si no coinciden o no esperabas la solicitud, pulsa **Rechazar**. En Windows, escribe las cifras mostradas y pulsa **Coinciden · aprobar**; aprueba también en el otro equipo. La huella de identidad larga no es el código de emparejamiento.
+4. Resultado esperado: **Equipo emparejado correctamente** y una fila en **3 Equipos emparejados**. Solo después sitúalo en el mapa o conecta.
 
-Durante una sesión, copia texto en un equipo y pégalo en el otro. El texto se sincroniza en ambos sentidos; las imágenes y los formatos enriquecidos no forman parte de esta función.
+![Aprobación de emparejamiento: compara el código ficticio de seis cifras en ambos equipos antes de aprobar](images/windows-pairing-es.png)
 
-Para recibir un archivo en Windows, abre **Archivos**, elige la carpeta de destino y pulsa **Esperar un archivo**. El emisor debe estar emparejado y enviar a `IP_WINDOWS:47833` desde **Archivos**. Revisa la oferta en Windows y pulsa **Aceptar archivo**. La recepción espera una sola oferta; pulsa **Esperar un archivo** de nuevo para el siguiente. Para enviar desde Windows, inicia **Esperar un archivo** en Omarchy, introduce su `IP:47833` en **Archivos** de Windows, elige el archivo y pulsa **Enviar archivo**. El receptor lo aprueba.
+![Equipos: alternativas de emparejamiento, filas emparejadas y mapa de pantallas](images/windows-devices-es.png)
 
-### Copiar en un explorador y pegar en el otro
+Cuando Windows inicia **Emparejar**, detiene temporalmente su propia recepción/conexión saliente y restaura el modo anterior al terminar, incluso tras un rechazo. Mantén **Recibir control** activo en el **otro** equipo. Si inicias desde Omarchy, detén su propio receptor con **Detener recepción para emparejar**, envía la solicitud al receptor Windows activo y vuelve a iniciar la recepción en Omarchy si ese es el papel que necesitas. **Cortar entrada remota · emergencia** es una pausa de seguridad en Omarchy, no sustituye detener su receptor.
 
-En **Archivos**, usa la tarjeta superior **Copia aquí, pega allá**. El botón **Esperar un archivo** de abajo pertenece al envío manual por el puerto `47833` y no hace falta para un archivo copiado.
+El descubrimiento aporta una dirección, no permiso para confiar. **CLAVE CAMBIADA** significa que la identidad descubierta difiere de la guardada. Comprueba el equipo real antes de cambiar la confianza; no apruebes una identidad de sustitución inesperada. Para un equipo revocado intencionadamente, inicia una solicitud explícita **Emparejar** y aprueba el nuevo código coincidente en ambos agentes actualizados. Las conexiones normales siguen bloqueadas.
 
-![Pantalla Archivos de Windows con un archivo copiado listo para ofrecer](images/windows-files-es.png)
+## Recibir control en Windows
 
-Con ambas aplicaciones abiertas y los equipos emparejados, copia **un archivo local** en el Explorador o en el explorador Omarchy. Si hay un solo par, se ofrece automáticamente; si hay varios, escoge el destino en **Archivos → Copia aquí, pega allá**. El receptor debe permitir TCP `47834` en su LAN privada. Windows muestra un diálogo nativo aunque la app esté en la bandeja; Omarchy muestra una notificación con botones incluso en otro workspace. Acepta o rechaza. Tras la transferencia verificada, abre la carpeta de destino y usa **Pegar**. Este flujo no requiere una sesión de control ni pulsar **Esperar un archivo**. El límite de tamaño de cada equipo se aplica en ambos extremos. Una oferta sin respuesta caduca a los dos minutos. El progreso aparece en la app. Se admite un archivo por vez.
+Sigue estos pasos cuando tu **teclado y ratón físicos están en Omarchy**.
 
-En **Ajustes → Aprobación de archivos entrantes**, elige **Preguntar siempre** (predeterminado), **Aceptar automáticamente** o **Preguntar y aceptar por un tiempo** (1–1.440 minutos). El modo temporal pregunta por el primer archivo de cada equipo emparejado; al aceptarlo abre el plazo de ese equipo. Al vencer el plazo o reiniciar la app, el ajuste vuelve visiblemente a **Preguntar siempre**. Tras pulsar **Guardar modo de aprobación** aparece una confirmación. La misma preferencia se aplica a la recepción manual. Windows muestra remitente, tamaño e instrucciones de pegado en un solo diálogo; la finalización aparece en **Actividad** sin otro diálogo. Consulta la [guía completa de aprobación](USER-GUIDE.es.md#elegir-cómo-se-aprueban-los-archivos-entrantes).
+1. En Windows, pulsa **Inicio → Recibir control → Empezar a recibir** si aún no está activo. Estado esperado: **ACTIVO / DISPONIBLE**. Puedes ocultar la ventana en la bandeja.
+2. En Omarchy, coloca el Windows emparejado en el lado correcto del **Mapa de equipos** y pulsa **Conectar**. Espera a **Listo**, no solo a una conexión autenticada.
+3. Cruza el **borde exterior** de las pantallas Omarchy hacia Windows. Tu entrada ahora maneja Windows.
+4. Vuelve por el borde de entrada de Windows o pulsa **Escape en el teclado físico de Omarchy**. Consulta [Volver o detener](#volver-o-detener-el-uso-compartido) para terminar la conexión y no solo regresar.
 
-## Firewall y descubrimiento
+Usa el escritorio normal de Windows desbloqueado. La entrada remota no permite operar la pantalla de bloqueo ni el escritorio seguro de UAC; Windows también puede bloquear la inyección en aplicaciones elevadas. Usa el teclado y ratón locales de Windows para esas acciones. No se han verificado físicamente todas las disposiciones de monitores, teclas y distribuciones de teclado.
 
-Usa **Ajustes → Firewall de Windows** si otro equipo no puede acceder a este Windows receptor. **Permitir puerto de control** pide autorización de administrador para TCP entrante en el puerto de control mostrado. **Permitir puerto de archivos** hace lo mismo para el envío manual. **Permitir puerto de archivos copiados 47834** habilita las ofertas de archivos copiados. Si Windows no aparece automáticamente en Omarchy, **Permitir descubrimiento · UDP 5353** permite las consultas mDNS locales. Las reglas quedan limitadas al perfil de red **Privada** y a **LocalSubnet**. Si cambias un puerto TCP, actualiza el campo correspondiente antes de pulsar el botón de firewall. La app informa de que *solicitó* autorización; la consola elevada de Windows informa del resultado. Puedes retirar las reglas `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN` desde Firewall de Windows.
+## Controlar Omarchy desde Windows
 
-![Pantalla Ajustes de Windows con aprobación de archivos, Iniciar con Windows y acciones del firewall para la LAN privada](images/windows-settings-es.png)
+Sigue estos pasos cuando tu **teclado y ratón físicos están en Windows**.
 
-El autodescubrimiento usa mDNS en la LAN privada y no sustituye el emparejamiento. Si el router, el aislamiento Wi-Fi o un filtro multicast ocultan un equipo, escribe su `IP:puerto` privada manualmente. Si el emparejamiento agota el tiempo, comprueba que el receptor esté activo y permita el puerto de control. Los archivos necesitan un puerto distinto permitido en el **receptor** del archivo.
+1. En Omarchy, pulsa **Recibir control** y espera a **Disponible**.
+2. En Windows **Equipos → 3 Equipos emparejados**, arrastra la fila de Omarchy al lado correcto de **ESTE WINDOWS** en **4 Mapa de pantallas**. También puedes seleccionar la fila y pulsar un lado, o enfocarla y pulsar una flecha del teclado. Resultado esperado: su dirección aparece en esa posición del mapa.
+3. Pulsa **Conectar en la fila emparejada**. Esto solo abre **Inicio** y rellena destino y borde guardado. **Aún no ha iniciado la conexión.** La fila supone el puerto de control `47832`; corrige la dirección en Inicio si el receptor usa otro puerto.
+4. Comprueba **Inicio → Controlar otro equipo → Dirección IP:puerto** y **Borde de pantalla**, y pulsa **Conectar allí**. Ese botón inicia el control y detiene el receptor propio de Windows.
+5. Espera a **`Ready to control` en Actividad** y cruza el **borde exterior de las pantallas Windows** elegido, no una separación interna entre monitores locales. Tu entrada ahora maneja Omarchy.
+
+![Fila emparejada seleccionada y posición guardada a la derecha de Este Windows](images/windows-layout-es.png)
+
+**Ejemplo:** Omarchy está físicamente a la derecha de Windows → colócalo a la derecha → **Borde de pantalla** en Windows es **Derecha** → cruza el borde exterior derecho de Windows. Vuelve por el borde de entrada izquierdo de Omarchy. La sesión directa comunica ese borde de regreso: **no necesitas configurar un mapa inverso en el receptor solo para volver.**
+
+La app recuerda el destino y el borde. Si dejaste habilitado el control saliente, reconecta al abrirse y reintenta mientras el receptor no esté disponible. Un indicador **CONECTADO/ACTIVO** por sí solo no demuestra que la captura de entrada esté lista; mira Actividad antes de cruzar.
+
+## Volver o detener el uso compartido
+
+| Qué quieres | Qué hacer | Resultado esperado |
+| --- | --- | --- |
+| Volver al equipo con tu ratón físico | Cruza el borde de entrada del receptor o pulsa **Escape en el teclado físico del origen** | La entrada vuelve a ser local; la conexión queda lista para otro cruce. |
+| Terminar la conexión saliente de Windows | **Inicio → Controlar otro equipo → Detener** | Termina el control saliente; Windows pasa a **Recibir control**. |
+| Dejar de aceptar control remoto en Windows | **Inicio → Recibir control → Detener** | Termina la recepción; el modo guardado queda inactivo. Para detener todo el control tras una conexión saliente, usa ambos botones Detener en ese orden. |
+| Detener completamente esta app | **Ajustes → Salir de la app** o **Exit SeamlessControl** en la bandeja | Terminan las sesiones iniciadas por esta app y sale el proceso. |
+| Retirar la confianza de un equipo | **Equipos → Equipos emparejados → Revocar → Sí, revocar** | Bloquea su identidad, elimina su posición del mapa y cierra el control afectado. Volver a emparejar exige aprobar un código nuevo en ambos equipos. |
+
+Detener solo el control **no** desactiva la recepción de archivos copiados mientras la app siga abierta. Sal de la app si quieres detener tanto control como archivos. Cerrar su ventana nunca es una parada de emergencia.
+
+## Compartir texto y archivos
+
+### Texto: necesita una conexión de control
+
+Mientras la conexión de control esté en ejecución, copia texto en un equipo y pégalo en el otro. La sincronización es bidireccional; no sincroniza imágenes del portapapeles ni formatos enriquecidos. No necesitas enviar un archivo de texto para compartir su texto.
+
+### Archivos: elige el flujo adecuado
+
+| Tarea | Usa | Qué necesita el receptor |
+| --- | --- | --- |
+| Copiar en un explorador y pegar en el otro | Tarjeta superior **Archivos → Copia aquí, pega allá** | App/plugin en ejecución; TCP `47834`; sin espera manual ni conexión de control. |
+| Elegir un archivo y guardarlo directamente en una carpeta | **Archivos → Enviar un archivo / Esperar un archivo** | **Esperar un archivo** activo; TCP `47833` por defecto. |
+
+Ambos flujos requieren emparejamiento, siguen la preferencia de aprobación del receptor y verifican la transferencia. Usa **un archivo**, no una carpeta ni una selección de varios archivos. Los archivos copiados admiten **Copiar**, no Cortar/mover entre equipos.
+
+#### Copia aquí, pega allá
+
+1. Mantén ambas apps/plugin en ejecución y los equipos emparejados. Copia **un archivo local** en el Explorador o en el explorador Omarchy.
+2. Con exactamente un equipo emparejado, se ofrece automáticamente. Con varios, elige el destino en **Archivos → Copia aquí, pega allá**. Resultado esperado: aparece el archivo copiado y llega una oferta al receptor.
+3. Con el modo predeterminado, el receptor revisa remitente, nombre y tamaño y pulsa **Aceptar archivo** o **Rechazar**. Windows también muestra un diálogo nativo aunque esté oculto en la bandeja; Omarchy usa una notificación de escritorio con botones. La página Archivos también tiene botones de aprobación.
+4. Espera la finalización verificada en **Actividad**. Abre entonces la carpeta donde quieres el archivo y **Pega** en el explorador del receptor. Aceptar prepara el portapapeles local; no pega por ti en la carpeta elegida.
+
+![Archivos: archivo copiado y acción de destino sobre las tarjetas separadas de envío manual](images/windows-files-es.png)
+
+![Detalle de una oferta entrante de archivo copiado y sus botones en la interfaz HTML Windows](images/windows-offer-es.png)
+
+La imagen de la oferta muestra los controles **de la app**, no el diálogo nativo Windows. Una oferta de archivo copiado sin respuesta caduca a los **dos minutos**. Cambiar el archivo copiado cancela su oferta saliente. Permite TCP `47834` en el **receptor**; **Esperar un archivo** en `47833` no pertenece a este flujo.
+
+#### Envío manual: guardar directamente en una carpeta
+
+1. En el receptor, abre **Archivos → Esperar un archivo**, introduce una **carpeta de destino existente** y pulsa **Esperar un archivo**. Resultado esperado: el indicador de espera está activo.
+2. En el emisor, abre **Archivos → Enviar un archivo**, introduce la `IP:47833` real del receptor (o su puerto de archivos elegido), escoge el archivo y pulsa **Enviar archivo**.
+3. El receptor aprueba la oferta salvo que su modo guardado permita aceptación automática. Espera a que termine: el archivo verificado se guarda en la carpeta receptora. **No hace falta Pegar.**
+4. Este receptor espera **una oferta**. Pulsa **Esperar un archivo** de nuevo para otra transferencia, también tras rechazar una oferta.
+
+Para Windows → Omarchy, inicia la espera en Omarchy y envía desde Windows. Para Omarchy → Windows, inicia la espera en Windows y envía desde Omarchy. No uses el puerto de control `47832` como destino de archivos.
+
+### Límites de tamaño y aprobación
+
+En **Archivos → Tamaño máximo de archivo**, el predeterminado es **100 MiB** por equipo. El intervalo permitido es **1–10.240 MiB (10 GiB)**. El archivo debe caber en los límites de **ambos** equipos. Tras guardar un límite nuevo, detén y reinicia una espera manual ya activa.
+
+En **Ajustes → Aprobación de archivos entrantes**, elige y pulsa **Guardar modo de aprobación**:
+
+- **Preguntar siempre** (predeterminado): aprueba cada archivo entrante.
+- **Aceptar automáticamente**: los archivos de equipos emparejados no requieren una petición individual. Actívalo solo para pares en los que confías para enviar sin preguntar.
+- **Preguntar y aceptar por un tiempo**: elige **1–1.440 minutos**. Aceptar el primer archivo de cada par inicia su permiso temporal. Al vencer el plazo o reiniciar la app, el ajuste vuelve a **Preguntar siempre**.
+
+Resultado esperado al guardar: **Modo de aprobación guardado.** La preferencia afecta a archivos copiados **y** manuales; la aprobación automática no elimina las comprobaciones de identidad, tamaño o integridad. Más detalle: [guía de aprobación de archivos](USER-GUIDE.es.md#límite-de-tamaño-y-aprobación-entrante).
+
+## Permitir solo los puertos LAN necesarios
+
+Usa **Ajustes → Firewall de Windows** en el Windows **receptor** si el tráfico está bloqueado. Cada acción pide autorización de administrador; que la app diga que **solicitó** autorización no confirma que Windows aplicó la regla. Lee el resultado de la consola elevada.
+
+| Acción | Puerto predeterminado | Para qué sirve |
+| --- | --- | --- |
+| **Permitir puerto de control** | TCP `47832` | Solicitudes de emparejamiento y control entrante. |
+| **Permitir puerto de archivos** | TCP `47833` | **Esperar un archivo** manual. |
+| **Permitir puerto de archivos copiados 47834** | TCP `47834` | Ofertas y transferencias de archivos copiados. |
+| **Permitir descubrimiento · UDP 5353** | UDP `5353` | Descubrimiento mDNS local. |
+
+![Ajustes: aprobación entrante, inicio de sesión, acciones de firewall y salida de la app](images/windows-settings-es.png)
+
+Las reglas generadas se limitan al perfil de red **Privada** y a direcciones **LocalSubnet**. Antes de permitir un puerto TCP de control/archivos personalizado, cambia su campo en **Inicio/Archivos**; los botones usan esos valores mostrados. Permitir un puerto no inicia su receptor. El firewall del otro equipo también puede necesitar su propia regla receptora.
+
+No abras estos puertos a Internet, no añadas reenvío en el router ni desactives el firewall. En una red pública/no confiable, no cambies el perfil solo para hacer funcionar el uso compartido. Si el filtrado multicast o el aislamiento de clientes Wi-Fi impiden descubrir equipos, usa la dirección privada real del receptor; escribirla manualmente no evita un bloqueo del tráfico entre equipos. El descubrimiento nunca evita el emparejamiento.
+
+## Resolver problemas habituales
+
+| Síntoma | Siguiente acción |
+| --- | --- |
+| La app no arranca | Extrae ambos ejecutables en la misma carpeta. Instala WebView2 si el mensaje de inicio lo solicita. Comprueba que descargaste el paquete Windows x64. |
+| No aparecen equipos cercanos | Inicia **Recibir control** en el destino; comprueba la LAN privada de ambos y las reglas de descubrimiento. Usa **Emparejar por dirección** si solo falla multicast. |
+| No aparece código o el emparejamiento agota el tiempo | Lee el aviso en **Equipos**. Comprueba el receptor de destino, su dirección real y su **puerto TCP de control**, y reintenta Emparejar. Mantén su receptor activo durante todo el proceso. |
+| Los códigos difieren / solicitud inesperada / CLAVE CAMBIADA | Rechaza y comprueba localmente la identidad del otro equipo. No apruebes solo para quitar el aviso. |
+| Un par revocado no conecta | Es lo esperado. Con ambos agentes actualizados, pulsa explícitamente **Emparejar** y compara/aprueba un código nuevo en las dos pantallas. |
+| Conectar en la fila solo abre Inicio | Prepara dirección y borde. Pulsa **Conectar en Inicio** para iniciar la sesión. |
+| CONECTADO pero cruzar no hace nada | Espera a **Ready to control** en Actividad. Comprueba que el receptor esté disponible y cruza el borde **exterior** elegido. Vuelve/Detén antes de cambiar el lado. |
+| No puedes volver por el borde | Pulsa **Escape en el teclado físico del origen**. Actualiza ambos agentes: las sesiones directas aprenden el borde de entrada/regreso sin mapa receptor. Revisa los errores en Actividad. |
+| Copiar un archivo no produce una oferta útil | Copia un archivo local, no Cortar ni una carpeta. Comprueba emparejamiento, límites y TCP `47834` en el receptor. Con varios pares, elige destino en la tarjeta superior de Archivos. |
+| El archivo copiado aceptado no está en la carpeta deseada | Espera a que termine y **Pega en el explorador del receptor**. Los envíos manuales guardan directamente y no necesitan Pegar. |
+| Falla el envío manual aunque funciona el control | Inicia **Esperar un archivo** en destino y permite su puerto de archivos (normalmente `47833`), no solo el de control. |
+| La app reconecta al abrirse / no puedes reemplazar archivos | Usa Detener para cambiar el modo guardado; para reemplazar ejecutables, **sal desde la bandeja**, no cierres solo la ventana. |
+
+Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa los controles locales; el acceso remoto a escritorios protegidos no es una función admitida. El [registro de pruebas](TEST-RESULTS.es.md) enumera comprobaciones físicas pendientes, como otras teclas/distribuciones, disposiciones de monitores, bloqueo/suspensión/pérdida de red y algunos casos de archivos. Las ilustraciones HTML no validan esos comportamientos.
 
 ## Actualizar o desinstalar
 
-Para actualizar, selecciona **Exit SeamlessControl** en la bandeja, descarga `seamlesscontrol-windows-x64.zip` de la [última versión](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), extráelo y reemplaza ambos `.exe` en su carpeta y abre la app de nuevo. Los emparejamientos de `%LOCALAPPDATA%\SeamlessControl` se conservan.
+### Actualizar
 
-Para desinstalar, pulsa primero **Ajustes → Iniciar con Windows → Desactivar**, sal desde la bandeja y borra la carpeta de los ejecutables. `%LOCALAPPDATA%\SeamlessControl` conserva la identidad y los pares por si reinstalas. Borra esa carpeta de datos solo si quieres una identidad nueva; los demás equipos deberán emparejarse otra vez. Retira también las reglas de firewall que hayas autorizado.
+1. Elige **Exit SeamlessControl** en la bandeja (o **Ajustes → Salir de la app**). Cierra también cualquier agente de consola iniciado por separado.
+2. Descarga el **release con tag** o **artefacto alpha satisfactorio** que quieras siguiendo la vía correspondiente de instalación.
+3. Extráelo y sustituye **ambos `.exe` juntos** en la carpeta de la app. Abre de nuevo `seamlesscontrol.exe`. Resultado esperado: se conservan el modo de control y los datos locales de emparejamiento.
+4. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde su ubicación nueva.
 
-Los comandos manuales, el diseño de seguridad y las verificaciones físicas están en la [guía técnica](TECHNICAL.es.md) y el [registro de pruebas](TEST-RESULTS.es.md).
+Los datos de **`%LOCALAPPDATA%\SeamlessControl`** están separados de los ejecutables. No los borres como paso de una actualización normal.
+
+### Desinstalar
+
+1. Pulsa **Ajustes → Iniciar con Windows → Desactivar** si está habilitado.
+2. Sal desde la bandeja y borra la carpeta de los ejecutables.
+3. Retira las reglas que autorizaste en el Firewall de Windows; sus nombres generados son **`SeamlessControl TCP <puerto> Private LAN`** y **`SeamlessControl UDP 5353 Private LAN`**.
+4. Conserva **`%LOCALAPPDATA%\SeamlessControl`** si quieres la misma identidad y pares al reinstalar. Bórrala **solo si quieres eliminar la identidad y ajustes locales**; los demás equipos deberán emparejar la identidad nueva después.
+
+Para usar la consola y conocer la seguridad interna, consulta la [guía técnica](TECHNICAL.es.md). Para observaciones y comprobaciones físicas pendientes, consulta el [registro de pruebas](TEST-RESULTS.es.md).

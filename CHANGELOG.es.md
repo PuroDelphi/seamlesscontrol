@@ -2,7 +2,13 @@
 
 [English](CHANGELOG.md) · [Todos los releases de GitHub](https://github.com/PuroDelphi/seamlesscontrol/releases)
 
-Este archivo resume los cambios publicados. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
+Este archivo resume los cambios publicados y los cambios sin publicar de `alpha`. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
+
+## Sin publicar — alpha
+
+- Reorganiza README y guías Omarchy/Windows en español e inglés por tareas: instalación, primera conexión, regreso, archivos, permisos y resolución de problemas.
+- Renueva las imágenes explicativas desde las interfaces del proyecto, con datos ficticios y procedencia identificada. Separa las instrucciones actuales de las notas históricas de versiones.
+- Corrige la configuración innecesaria del mapa inverso en sesiones directas, explica los dos pasos de Conectar en Windows y distingue los puertos de copiar/pegar y envío manual. Retira el enlace al plan inexistente y actualiza la documentación técnica de retorno y parada.
 
 ## [0.23.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.2) — 2026-10-07
 

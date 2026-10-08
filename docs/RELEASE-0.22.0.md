@@ -1,5 +1,7 @@
 # SeamlessControl 0.22.0 · Omarchy and Windows together
 
+> **Historical release notes / Notas históricas.** Instructions below belong to this version. For current installation and use, see [English](../README.md) / [Español](../README.es.md).
+
 Move the pointer between Omarchy and Windows and keep working with the same keyboard, text clipboard and files. This release brings the simpler interface and the new copied-file experience to the published version.
 
 ## Highlights
