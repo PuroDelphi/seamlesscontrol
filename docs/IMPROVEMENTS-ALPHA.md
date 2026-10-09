@@ -10,7 +10,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | 2 | Clear and safer updates | Implemented | Show plugin and agent versions in Omarchy, detect mismatch and confirm update completion; offer a Windows package/update flow that replaces the GUI and agent together without losing preferences. Windows CI and physical UI verification remain before marking verified. |
 | 3 | Recover control through lock, sleep and disconnect | In progress | Release physical input before a source locks or sleeps; restore local control and require a fresh edge crossing after recovery; test on both physical systems. |
 | 4 | Copy multiple files and folders | Planned | Offer a group as one approval with item count, total size and safe destination handling; preserve the existing single-file behavior. |
-| 5 | Configurable edge crossing | Planned | Offer an intentional crossing gesture and a full-screen safeguard without weakening Escape or remote return. |
+| 5 | Configurable edge crossing | Implemented | Offer an intentional crossing gesture and a full-screen safeguard without weakening Escape or remote return. Physical UI verification remains. |
 | 6 | Per-computer permissions and activity | Planned | Show last connection and allow separate control, text and file permissions per paired identity; revocation must remain immediate. |
 
 ## Verification record
@@ -23,6 +23,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | 2026-10-09 | Omarchy setup result | The setup wrapper now records success, failure or removal. The panel confirms installation only after that result and a matching agent version. Isolated shell integration test covers all three outcomes. | Implemented; live panel check pending. |
 | 2026-10-09 | Windows bundled updater | Added Settings button to choose the tagged release ZIP with its adjacent SHA256 asset. A detached updater validates the digest and exact two-file contents, waits for app exit, replaces both executables with rollback, preserves user data and reopens the app with a result message. Windows CI includes success and checksum-rejection scenarios. | Implemented; CI and physical UI check pending. |
 | 2026-10-09 | Omarchy lock fallback | Bounded portal disable and cleanup to 500 ms when the source locks. If the compositor does not answer, the capture loop exits so reconnect waits for unlock. Direct mode continues to require moving clear of the edge before recapture. | In progress; CI and physical lock/sleep check pending. |
+| 2026-10-09 | Crossing options | Added fluid, deliberate (two crossings within 1.6 seconds), and fullscreen-only deliberate modes to the shared agent, Windows app and Omarchy panel. Escape and receiver return path remain independent. | Implemented; Windows CI and physical crossing check pending. |
 
 ## Implementation notes
 
@@ -34,5 +35,4 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 
 1. **Lock recovery:** trace the current portal capture release on source lock and sleep, then add a bounded fallback that restores physical input without relying on a live remote connection. Keep the source from immediately recapturing after unlock. Verify lock, unlock, suspend and network loss on physical computers.
 2. **File groups:** define a bounded manifest with item count, total size and relative paths. Authenticate that manifest, ask once for the entire group, reject absolute paths, traversal and symlinks, and publish files to the clipboard only after all items verify. Preserve the one-file wire path for older paired agents.
-3. **Edge policy:** add an optional deliberate-crossing mode and a full-screen safeguard to both source adapters, with the existing return edge and Escape remaining available.
-4. **Peer policy:** store permission choices under each pinned identity and enforce them at authenticated control, clipboard and file entry points. Show the last successful connection and a clear revoke action in both interfaces.
+3. **Peer policy:** store permission choices under each pinned identity and enforce them at authenticated control, clipboard and file entry points. Show the last successful connection and a clear revoke action in both interfaces.

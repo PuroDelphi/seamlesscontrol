@@ -7,6 +7,8 @@ Item {
   id: root
   property string language: "en"
   property int fileLimitMiB: 100
+  property string edgePolicy: "fluid"
+  property string edgePolicyFeedback: ""
   property string approvalMode: "always"
   property int approvalMinutes: 15
   property var approvalUntil: ({})
@@ -33,6 +35,18 @@ Item {
       clipboardReceiveProcess.running = false
     }
     return true
+  }
+  function setEdgePolicy(mode) {
+    if (!["fluid", "deliberate", "fullscreen"].includes(mode)) return false
+    try {
+      edgePolicyFile.setText(mode + "\n")
+      edgePolicy = mode
+      edgePolicyFeedback = "saved"
+      return true
+    } catch (error) {
+      edgePolicyFeedback = "error"
+      return false
+    }
   }
   function fileCommand(args) {
     return ["env", "SEAMLESSCONTROL_MAX_FILE_BYTES=" + String(fileLimitMiB * 1048576), "seamlesscontrold"].concat(args)
@@ -229,6 +243,19 @@ Item {
     onLoaded: {
       var value = Number(String(text() || "").trim())
       root.fileLimitMiB = Number.isInteger(value) && value >= 1 && value <= 10240 ? value : 100
+    }
+    onFileChanged: reload()
+  }
+
+  FileView {
+    id: edgePolicyFile
+    path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/seamlesscontrol/edge-policy"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      var value = String(text() || "").trim()
+      root.edgePolicy = ["fluid", "deliberate", "fullscreen"].includes(value) ? value : "fluid"
     }
     onFileChanged: reload()
   }

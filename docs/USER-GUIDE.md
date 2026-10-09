@@ -61,6 +61,7 @@ If edge return fails, use **Home → Return control to source** on the receiver.
 - **Pair** authorizes a computer. **Place** selects its layout position. **Connect** actually starts the source session. **Connect by IP** also starts control; it is not the manual pairing field.
 - A paired computer must be adjacent horizontally or vertically to **This computer** for the normal Connect button; diagonal placement is not an exit edge. The layout has four cells, not one cell per monitor of the same computer.
 - **Keyboard placement:** in the Computers tab, Tab reaches and cycles through layout cells. Enter selects a tile; arrows move to the destination; Enter places it. Escape cancels the selection. **Help · Layout and keyboard** expands the explanation. Other Help rows also expand with a click or keyboard activation.
+- **Screen crossing:** in Settings choose **Fluid crossing**, **Deliberate crossing** (move away and cross twice within 1.6 seconds), or **Protect full-screen apps** (two crossings only while the active window fills its monitor). This applies on the next connection; Escape and the receiver's return edge still work.
 - Discovery is only a hint. A new IP is checked against the saved key; the row can show **Actualizar IP** (currently this label is Spanish in both languages). **Key changed** means stop and check which computer owns that address. Do not revoke a still-valid identity merely because DHCP gave its address to another system. See [troubleshooting](#if-the-connection-does-not-progress).
 
 ## Return, pause and stop

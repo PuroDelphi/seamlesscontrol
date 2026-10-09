@@ -93,6 +93,8 @@ Sigue estos pasos cuando tu **teclado y ratón físicos están en Windows**.
 
 La app recuerda el destino y el borde. Si dejaste habilitado el control saliente, reconecta al abrirse y reintenta mientras el receptor no esté disponible. Un indicador **CONECTADO/ACTIVO** por sí solo no demuestra que la captura de entrada esté lista; mira Actividad antes de cruzar.
 
+**Preferencia de cruce:** En **Ajustes → Cruce entre pantallas**, elige **Fluido** (un cruce), **Deliberado** (sal del borde y crúzalo dos veces en 1,6 segundos) o **Proteger pantalla completa** (dos cruces solo cuando la ventana activa llena su monitor). Se aplica en la siguiente conexión. Escape y el borde de regreso siguen devolviendo el control.
+
 ## Volver o detener el uso compartido
 
 | Qué quieres | Qué hacer | Resultado esperado |

@@ -93,6 +93,8 @@ Use these steps when your **physical keyboard and mouse are on Windows**.
 
 The app remembers the destination and edge. If outgoing control was left enabled, it reconnects on the next launch and retries while the receiver is unavailable. A **CONNECTED/ACTIVE** badge alone is not proof that input capture is ready; use the Activity message before crossing.
 
+**Crossing preference:** In **Settings → Screen crossing**, choose **Fluid** (one edge crossing), **Deliberate** (move away and cross twice within 1.6 seconds), or **Protect full-screen apps** (two crossings only while the foreground window fills its monitor). The choice takes effect with the next connection. Escape and the receiver's return edge still return your input.
+
 ## Return or stop sharing
 
 | What you want | What to do | Expected result |

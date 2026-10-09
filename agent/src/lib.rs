@@ -4,6 +4,7 @@
 pub mod clipboard;
 pub mod clipboard_file;
 pub mod diagnostics;
+pub mod edge_policy;
 pub mod file_session;
 pub mod file_transfer;
 pub mod handoff;

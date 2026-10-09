@@ -1202,6 +1202,47 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
+          text: root.t("CRUCE ENTRE PANTALLAS")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        HelpDisclosure {
+          Layout.fillWidth: true
+          title: root.t("Ayuda · Cruce entre pantallas")
+          description: root.t("Fluido cruza al llegar al borde. Deliberado requiere salir del borde y cruzarlo dos veces en 1,6 segundos. Protección a pantalla completa lo exige solo cuando hay una ventana a pantalla completa. Se aplica al iniciar la próxima conexión; Escape y el borde de regreso siguen disponibles.")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        StateButton {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.edgePolicy === "fluid" ? "● " : "○ ") + root.t("Cruce fluido")
+          bordered: true; focusable: true; foreground: root.ink; accent: Color.accent; fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setEdgePolicy("fluid")
+        }
+        StateButton {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.edgePolicy === "deliberate" ? "● " : "○ ") + root.t("Cruce deliberado")
+          bordered: true; focusable: true; foreground: root.ink; accent: Color.accent; fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setEdgePolicy("deliberate")
+        }
+        StateButton {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.edgePolicy === "fullscreen" ? "● " : "○ ") + root.t("Proteger pantalla completa")
+          bordered: true; focusable: true; foreground: root.ink; accent: Color.accent; fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setEdgePolicy("fullscreen")
+        }
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.edgePolicyFeedback !== ""
+          text: root.backend && root.backend.edgePolicyFeedback === "saved" ? root.t("Cruce guardado para la próxima conexión.") : root.t("No se pudo guardar el cruce.")
+          color: root.backend && root.backend.edgePolicyFeedback === "error" ? Color.urgent : Color.accent
+          font.family: root.face; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap
+        }
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
           text: root.t("APROBACIÓN DE ARCHIVOS ENTRANTES")
             + (root.backend && root.backend.approvalFeedback === "saved" ? " · " + root.t("GUARDADO") : "")
           foreground: root.ink

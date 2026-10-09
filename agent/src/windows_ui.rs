@@ -2,6 +2,7 @@
 //! No input, encryption, file or clipboard protocol is reimplemented here.
 
 use seamlesscontrol_core::diagnostics::{PeerDiagnosis, diagnose_peer};
+use seamlesscontrol_core::edge_policy::EdgePolicy;
 use seamlesscontrol_core::windows_clipboard::WindowsClipboard;
 use seamlesscontrol_core::windows_discovery::{DiscoveredServer, DiscoveryBrowser};
 use std::collections::{BTreeMap, VecDeque};
@@ -375,6 +376,7 @@ struct Controller {
     clipboard_progress: Option<u8>,
     clipboard_receiver_attempt: Instant,
     file_path: Option<PathBuf>,
+    edge_policy: EdgePolicy,
     state_message: String,
 }
 
@@ -441,6 +443,7 @@ impl Controller {
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
+        let edge_policy = EdgePolicy::load(layout_path.parent().unwrap_or(Path::new(".")));
         let mut controller = Self {
             cli,
             executable,
@@ -479,6 +482,7 @@ impl Controller {
             clipboard_progress: None,
             clipboard_receiver_attempt: Instant::now() - Duration::from_secs(5),
             file_path: None,
+            edge_policy,
             state_message: "Ready. Start receiving or select a nearby computer.".into(),
         };
         let result_file = controller.layout_path.with_file_name("update-result.txt");
@@ -1081,6 +1085,7 @@ impl Controller {
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
             "fileLimitMiB": self.file_limit_mib,
+            "edgePolicy": self.edge_policy.as_str(),
             "startup": self.startup,
             "approvalMode": self.approval_mode,
             "approvalMinutes": self.approval_minutes,
@@ -1212,6 +1217,17 @@ impl Controller {
                         self.stop(Slot::ReceiveClipboard);
                         self.clipboard_receiver_attempt = Instant::now() - Duration::from_secs(5);
                     }
+                }
+                "setEdgePolicy" => {
+                    let policy = EdgePolicy::parse(string("policy"))
+                        .ok_or("choose a valid crossing preference")?;
+                    policy.save(
+                        self.layout_path
+                            .parent()
+                            .ok_or("app data folder unavailable")?,
+                    )?;
+                    self.edge_policy = policy;
+                    self.log("Crossing preference saved for the next connection.");
                 }
                 "setFileApproval" => self.set_file_approval(string("mode"), string("minutes"))?,
                 "enableStartup" | "disableStartup" => {

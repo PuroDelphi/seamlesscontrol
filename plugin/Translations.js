@@ -2,6 +2,14 @@
 
 // Spanish source strings are kept here so both languages share the same UI layout.
 var english = {
+  "CRUCE ENTRE PANTALLAS": "SCREEN CROSSING",
+  "Ayuda · Cruce entre pantallas": "Help · Screen crossing",
+  "Fluido cruza al llegar al borde. Deliberado requiere salir del borde y cruzarlo dos veces en 1,6 segundos. Protección a pantalla completa lo exige solo cuando hay una ventana a pantalla completa. Se aplica al iniciar la próxima conexión; Escape y el borde de regreso siguen disponibles.": "Fluid crosses at the edge. Deliberate requires moving away from the edge and crossing twice within 1.6 seconds. Full-screen protection does this only for a full-screen window. Applies on the next connection; Escape and the return edge remain available.",
+  "Cruce fluido": "Fluid crossing",
+  "Cruce deliberado": "Deliberate crossing",
+  "Proteger pantalla completa": "Protect full-screen apps",
+  "Cruce guardado para la próxima conexión.": "Crossing preference saved for the next connection.",
+  "No se pudo guardar el cruce.": "Could not save the crossing preference.",
   "Plugin ": "Plugin ",
   " · Agente ": " · Agent ",
   "comprobando…": "checking…",

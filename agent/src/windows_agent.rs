@@ -3,6 +3,7 @@
 
 use crate::clipboard::{ClipboardPacket, ClipboardSync};
 use crate::clipboard_file;
+use crate::edge_policy::EdgePolicy;
 use crate::file_session;
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::run_receiver_with_first;
@@ -505,7 +506,7 @@ fn connect_source(
     }
     channel.stream_mut().set_read_timeout(None)?;
     let (capture_tx, capture_rx) = sync_channel(4096);
-    let capture = CaptureHandle::start(edge, capture_tx)?;
+    let capture = CaptureHandle::start(edge, EdgePolicy::load(config), capture_tx)?;
     let (mut reader, mut writer) = channel.into_tcp_halves()?;
     let mut sequence = 0;
     send_source_frame(&mut writer, &mut sequence, Kind::Heartbeat, 0, Vec::new())?;
@@ -692,6 +693,20 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         _ => {}
     }
     let config = config_dir()?;
+    match args.as_slice() {
+        [_, command] if command == "edge-policy" => {
+            println!("{}", EdgePolicy::load(&config).as_str());
+            return Ok(());
+        }
+        [_, command, set, value] if command == "edge-policy" && set == "set" => {
+            let policy = EdgePolicy::parse(value)
+                .ok_or("edge policy must be fluid, deliberate or fullscreen")?;
+            policy.save(&config)?;
+            println!("{}", policy.as_str());
+            return Ok(());
+        }
+        _ => {}
+    }
     let identity = load_or_create_identity(&config.join("identity"))?;
     let peers = config.join("peers");
     match args.as_slice() {

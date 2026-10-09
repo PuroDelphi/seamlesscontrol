@@ -20,6 +20,7 @@ mod linux {
     };
     use seamlesscontrol_core::control::{self, ControlHandle, ControlServer};
     use seamlesscontrol_core::discovery::{self, ServiceAdvertisement};
+    use seamlesscontrol_core::edge_policy::{EdgeGate, EdgePolicy};
     use seamlesscontrol_core::file_session;
     use seamlesscontrol_core::handoff::HandoffCoordinator;
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
@@ -631,6 +632,8 @@ mod linux {
         let mut current_activation = None;
         let mut release_position = None;
         let mut portal_active = false;
+        let edge_policy = EdgePolicy::load(config);
+        let mut edge_gate = EdgeGate::default();
         let mut last_epoch = 0_u64;
         let mut keys = BTreeSet::new();
         let mut buttons = BTreeSet::new();
@@ -832,6 +835,13 @@ mod linux {
                             portal.release(&session, ReleaseOptions::default().set_activation_id(signal.activation_id())).await?;
                             continue;
                         }
+                        if !edge_gate.allow(edge_policy, lock_ipc.active_window_fullscreen().unwrap_or(true), Instant::now()) {
+                            let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
+                            if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
+                            portal.release(&session, options).await?;
+                            control.set_phase("cross_again");
+                            continue;
+                        }
                         portal_active = true;
                         current_activation = signal.activation_id();
                         release_position = signal.cursor_position().map(|p| edge.release_position(p));
@@ -965,6 +975,7 @@ mod linux {
         local_id: [u8; 32],
         remote_id: [u8; 32],
         topology_watch: Option<(&std::path::Path, IpAddr)>,
+        edge_policy: EdgePolicy,
     ) -> Result<(), Box<dyn Error>> {
         let local_lock =
             HyprIpc::from_env().ok_or("Hyprland IPC is required to guard local capture")?;
@@ -1040,6 +1051,7 @@ mod linux {
         let mut active = false;
         let mut release_position = None;
         let mut rearm_after_return = false;
+        let mut edge_gate = EdgeGate::default();
         let trace_input = std::env::var_os("SEAMLESSCONTROL_INPUT_TRACE").is_some();
         let result: Result<(), Box<dyn Error>> = async {
             loop {
@@ -1163,6 +1175,13 @@ mod linux {
                             let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
                             if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
                             portal.release(&session, options).await?;
+                            continue;
+                        }
+                        if !edge_gate.allow(edge_policy, local_lock.active_window_fullscreen().unwrap_or(true), Instant::now()) {
+                            let mut options = ReleaseOptions::default().set_activation_id(signal.activation_id());
+                            if let Some(position) = signal.cursor_position() { options = options.set_cursor_position(edge.release_position(position)); }
+                            portal.release(&session, options).await?;
+                            control.set_phase("cross_again");
                             continue;
                         }
                         epoch = next_epoch(epoch)?;
@@ -2073,6 +2092,7 @@ mod linux {
                     peer.public_key,
                     matches!(mode, ConnectionMode::CaptureMapped(_))
                         .then_some((topology_path.as_path(), address.ip())),
+                    EdgePolicy::load(config),
                 )
                 .await
                 .map_err(|error| {
@@ -2297,6 +2317,17 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let args: Vec<String> = std::env::args().collect();
+        if args.len() == 2 && args[1] == "edge-policy" {
+            println!("{}", EdgePolicy::load(&config_dir()?).as_str());
+            return Ok(());
+        }
+        if args.len() == 4 && args[1] == "edge-policy" && args[2] == "set" {
+            let policy = EdgePolicy::parse(&args[3])
+                .ok_or("edge policy must be fluid, deliberate or fullscreen")?;
+            policy.save(&config_dir()?)?;
+            println!("{}", policy.as_str());
+            return Ok(());
+        }
         if args.len() == 3 && matches!(args[1].as_str(), "choose-file" | "choose-folder") {
             if args[2] != "en" && args[2] != "es" {
                 return Err("picker language must be en or es".into());
