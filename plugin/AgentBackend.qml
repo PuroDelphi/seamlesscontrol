@@ -599,7 +599,7 @@ Item {
       waitForEnd: true
       onStreamFinished: root.agentVersion = String(text || "").trim()
     }
-    onExited: function(code) { if (code !== 0) root.agentVersion = "" }
+    onExited: function(code) { if (code !== 0) root.agentVersion = "?" }
   }
 
   Process {

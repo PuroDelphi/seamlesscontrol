@@ -592,6 +592,10 @@ Panel {
             id: pairAddress
             Layout.fillWidth: true
             enabled: root.backend && !root.backend.available
+            onTextChanged: if (root.backend) {
+              root.backend.diagnosisReason = ""
+              root.backend.diagnosisError = ""
+            }
             placeholderText: root.t("Dirección del receptor · IP:puerto")
             color: root.ink
             font.family: root.face

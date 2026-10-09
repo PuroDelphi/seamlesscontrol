@@ -56,6 +56,8 @@ Pairing establishes trust; it does **not** start remote input. You need access t
 3. Compare the **six digits on both screens**. If they differ, or the request is unexpected, choose **Decline**. In Windows, type the displayed digits and choose **Codes match · approve**; approve on the other computer too. The long identity fingerprint is not the pairing code.
 4. Expected result: **Computer paired successfully** and a row in **3 Paired computers**. Only then place it on the map or connect.
 
+If pairing failed with an address you entered manually, select **Check connection**. It distinguishes an unreachable port from a reachable computer that still needs pairing. An open port does not prove identity; compare the six-digit code.
+
 ![Pairing approval: compare the example six-digit code on both computers before approving](images/windows-pairing-en.png)
 
 ![Computers: pairing alternatives, paired rows and the screen layout](images/windows-devices-en.png)
@@ -195,6 +197,7 @@ If a Windows lock/UAC prompt or an elevated application blocks input, use the lo
 1. Choose **Exit SeamlessControl** from the tray (or **Settings → Exit app**). Close any separately started console agent too.
 2. Download the desired **tagged release** or **successful alpha artifact**, following the matching installation route above.
 3. Extract it and replace **both `.exe` files together** in your app folder. Open `seamlesscontrol.exe` again. Expected result: the saved control mode and local pairing data are retained.
+   **Settings → About SeamlessControl** shows the app and agent versions. If they differ, exit from the tray and replace both executables from the same ZIP.
 4. If you moved the app folder, update **Start with Windows** from its new location.
 
 The data in **`%LOCALAPPDATA%\SeamlessControl`** is separate from the executables. Do not delete it as an ordinary update step.

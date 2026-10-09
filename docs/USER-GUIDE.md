@@ -24,6 +24,8 @@ The default control port is TCP `47832`. If pairing times out, allow that port o
 
 Open **Computers → 2 · Nearby computers**, select **Scan**, then **Pair** beside the receiver. If discovery misses it, use **1 · Pair by address** with the receiver's actual LAN `IP:port` instead. These are **two alternatives**, not two required steps.
 
+For a manual address, select **Check connection before pairing**. If the control port does not respond, start **Receive control** on the destination and allow its TCP control port in that computer's firewall. If it responds, proceed with pairing. The port check does not establish trust: the matching six-digit code still does that.
+
 A **six-digit code** appears on both computers. Compare the two screens and select **Codes match · approve here** on **each** only if they agree. Otherwise select **Codes differ · reject**. Pairing saves trust; it does not start mouse and keyboard control. A long identity fingerprint is not this comparison code.
 
 ![Current Computers panel: pairing address, six-digit confirmation and nearby computers](images/omarchy-peers-en.png)
@@ -160,6 +162,8 @@ The capture repair button only appears for a **panel-started source session** af
 ## Update and remove
 
 Stop active sessions before installation, updating or removal. **Home → Update agent** opens an Omarchy terminal to install the current agent and missing dependencies. Update the **plugin** separately and restart the Omarchy shell following the [README](../README.md#update-or-remove); reopen the panel afterward. If current tabs or approval settings are missing, the shell may still have an older panel loaded.
+
+Home shows the plugin and installed agent versions. If they differ, stop the session and select **Update agent**. Wait for the installation terminal to finish, then return to Home and check that both versions match.
 
 **Settings → Remove agent** asks for confirmation and removes the managed agent and only packages SeamlessControl installed for it. Saved paired keys and layout remain. Removing the agent is not removing the plugin or its firewall rules; the README and technical guide explain those separate steps. If the panel cannot open the setup terminal, use the [technical guide's manual installation](TECHNICAL.md#packaging-and-updates).
 

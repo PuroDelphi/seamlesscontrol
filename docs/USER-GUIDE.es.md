@@ -24,6 +24,8 @@ El puerto de control predeterminado es TCP `47832`. Si el emparejamiento agota e
 
 Abre **Equipos → 2 · Equipos cercanos**, pulsa **Buscar** y luego **Emparejar** junto al receptor. Si no aparece, usa **1 · Emparejar por dirección** con la `IP:puerto` real del receptor en la LAN. Son **dos alternativas**, no dos pasos obligatorios.
 
+Para una dirección manual, pulsa **Comprobar conexión antes de emparejar**. Si el puerto de control no responde, inicia **Recibir control** en el destino y autoriza allí su puerto TCP en el firewall. Si responde, continúa con el emparejamiento. Esta comprobación del puerto no establece confianza: para eso sigue siendo necesario comparar el código de seis cifras.
+
 Aparece un **código de seis cifras** en ambos equipos. Compara las dos pantallas y pulsa **Coincide · aprobar aquí** en **cada una** solo si coinciden. Si no, pulsa **No coincide · rechazar**. Emparejar guarda la confianza; no inicia el control del ratón y teclado. Una huella larga de identidad no es este código de comparación.
 
 ![Panel Equipos actual: dirección de emparejamiento, confirmación de seis cifras y equipos cercanos](images/omarchy-peers-es.png)
@@ -160,6 +162,8 @@ El botón de reparar captura solo aparece en una **sesión de origen iniciada de
 ## Actualizar y retirar
 
 Detén las sesiones activas antes de instalar, actualizar o retirar. **Inicio → Actualizar agente** abre una terminal de Omarchy para instalar el agente actual y las dependencias que falten. Actualiza el **plugin** por separado y reinicia el shell de Omarchy siguiendo el [README](../README.es.md#actualizar-o-retirar); vuelve a abrir el panel después. Si faltan las pestañas actuales o los ajustes de aprobación, el shell puede tener cargado un panel anterior.
+
+Inicio muestra las versiones del plugin y del agente instalado. Si son distintas, termina la sesión y pulsa **Actualizar agente**. Espera a que finalice la terminal de instalación; después vuelve a Inicio y comprueba que coincidan.
 
 **Ajustes → Retirar agente** pide confirmación y retira el agente administrado y solo los paquetes que SeamlessControl instaló para él. Conserva las claves emparejadas y el mapa. Retirar el agente no retira el plugin ni sus reglas de firewall; el README y la guía técnica explican esos pasos separados. Si el panel no puede abrir la terminal de instalación, usa la [instalación manual de la guía técnica](TECHNICAL.es.md#paquetes-y-actualizaciones).
 

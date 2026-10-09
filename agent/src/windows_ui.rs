@@ -456,6 +456,14 @@ impl Controller {
     }
 
     fn start_desired_control(&mut self, proxy: &EventLoopProxy<UiEvent>) -> io::Result<()> {
+        if self.session.mode != ControlMode::Idle
+            && self.agent_version != seamlesscontrol_core::PRODUCT_VERSION
+        {
+            self.retry_control_after = None;
+            return Err(io::Error::other(
+                "app and agent versions differ; exit from the tray and replace both executables from the same ZIP",
+            ));
+        }
         let receive_port = self.session.receive_port;
         let address = self.session.address.map(|address| address.to_string());
         let edge = self.session.edge.clone();
@@ -1140,6 +1148,7 @@ impl Controller {
                 }
                 "refreshPeers" => self.refresh_peers(),
                 "diagnosePeer" => {
+                    self.diagnosis = None;
                     let address = parse_address(string("address"))?;
                     self.diagnosis = Some(diagnose_peer(
                         address,

@@ -56,6 +56,8 @@ Emparejar establece confianza; **no** inicia la entrada remota. Necesitas acceso
 3. Compara las **seis cifras de ambas pantallas**. Si no coinciden o no esperabas la solicitud, pulsa **Rechazar**. En Windows, escribe las cifras mostradas y pulsa **Coinciden · aprobar**; aprueba también en el otro equipo. La huella de identidad larga no es el código de emparejamiento.
 4. Resultado esperado: **Equipo emparejado correctamente** y una fila en **3 Equipos emparejados**. Solo después sitúalo en el mapa o conecta.
 
+Si falla el emparejamiento con una dirección escrita manualmente, pulsa **Comprobar conexión**. Distingue un puerto inaccesible de un equipo accesible que aún necesita emparejarse. Un puerto abierto no demuestra la identidad: compara el código de seis cifras.
+
 ![Aprobación de emparejamiento: compara el código ficticio de seis cifras en ambos equipos antes de aprobar](images/windows-pairing-es.png)
 
 ![Equipos: alternativas de emparejamiento, filas emparejadas y mapa de pantallas](images/windows-devices-es.png)
@@ -195,6 +197,7 @@ Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa lo
 1. Elige **Exit SeamlessControl** en la bandeja (o **Ajustes → Salir de la app**). Cierra también cualquier agente de consola iniciado por separado.
 2. Descarga el **release con tag** o **artefacto alpha satisfactorio** que quieras siguiendo la vía correspondiente de instalación.
 3. Extráelo y sustituye **ambos `.exe` juntos** en la carpeta de la app. Abre de nuevo `seamlesscontrol.exe`. Resultado esperado: se conservan el modo de control y los datos locales de emparejamiento.
+   **Ajustes → Acerca de SeamlessControl** muestra las versiones de la app y del agente. Si son distintas, sal desde la bandeja y reemplaza ambos ejecutables del mismo ZIP.
 4. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde su ubicación nueva.
 
 Los datos de **`%LOCALAPPDATA%\SeamlessControl`** están separados de los ejecutables. No los borres como paso de una actualización normal.
