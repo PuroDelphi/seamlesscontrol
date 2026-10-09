@@ -25,6 +25,7 @@ mod linux {
     use seamlesscontrol_core::handoff::HandoffCoordinator;
     use seamlesscontrol_core::hypr_ipc::{HyprIpc, SessionLockState};
     use seamlesscontrol_core::omarchy::VirtualInput;
+    use seamlesscontrol_core::peer_policy::{Capability, PeerPolicy};
     use seamlesscontrol_core::protocol::{
         AGENT_PROTOCOL, EntryPosition, Frame, FrameError, Kind, ReturnRequest, SwitchRequest,
     };
@@ -395,6 +396,10 @@ mod linux {
         let peers = config.join("peers");
         let pinned = load_peer_key(&peers, address.ip())?
             .ok_or("every mesh peer must be paired before capture")?;
+        let mut policy = PeerPolicy::load(config, &pinned)?;
+        if !policy.control {
+            return Err("control is disabled for this mesh computer".into());
+        }
         let stream = TcpStream::connect_timeout(&address, Duration::from_secs(5))?;
         stream.set_nodelay(true)?;
         stream.set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -423,9 +428,14 @@ mod linux {
         }
         .write_to(&mut channel)?;
         let response = Frame::read_from(&mut channel)?;
+        if response.kind == Kind::Control && response.payload == b"DENIED" {
+            return Err("mesh destination disabled control for this computer".into());
+        }
         if response.kind != Kind::Control || response.payload != b"READY" {
             return Err("mesh peer did not grant exclusive input claim".into());
         }
+        policy.mark_connected()?;
+        policy.save(config, &pinned)?;
         channel.stream_mut().set_read_timeout(None)?;
         channel
             .stream_mut()
@@ -722,7 +732,9 @@ mod linux {
                         reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         if !locked && let Some(packet) = clipboard_mesh.local_changed(event)? {
                             for link in links.values_mut() {
-                                link.send(Kind::Clipboard, 0, packet.encode())?;
+                                if PeerPolicy::load(config, &link.peer_key)?.text {
+                                    link.send(Kind::Clipboard, 0, packet.encode())?;
+                                }
                             }
                         }
                     }
@@ -735,11 +747,14 @@ mod linux {
                         let frame = frame?;
                         if frame.kind == Kind::Clipboard {
                             let expected = mesh_link(&mut links, from)?.peer_key;
+                            if !PeerPolicy::load(config, &expected)?.text { continue; }
                             let packet = ClipboardPacket::decode(&frame.payload)?;
                             if !locked && let Some(relay) = clipboard_mesh.peer_changed(expected, packet)? {
                                 clipboard_apply.try_send(relay.event.clone()).map_err(|_| "mesh clipboard apply queue is full")?;
                                 for link in links.values_mut() {
-                                    link.send(Kind::Clipboard, 0, relay.encode())?;
+                                    if PeerPolicy::load(config, &link.peer_key)?.text {
+                                        link.send(Kind::Clipboard, 0, relay.encode())?;
+                                    }
                                 }
                             }
                             continue;
@@ -810,7 +825,7 @@ mod linux {
                             if let std::collections::btree_map::Entry::Vacant(entry) = links.entry(target) {
                                 let address = SocketAddr::new(target, port);
                                 let mut link = connect_mesh_peer(address, identity, config, feedback_tx.clone())?;
-                                if let Some(packet) = clipboard_mesh.latest() {
+                                if PeerPolicy::load(config, &link.peer_key)?.text && let Some(packet) = clipboard_mesh.latest() {
                                     link.send(Kind::Clipboard, 0, packet.encode())?;
                                 }
                                 entry.insert(link);
@@ -857,7 +872,7 @@ mod linux {
                                     return Err(error);
                                 }
                             };
-                            if let Some(packet) = clipboard_mesh.latest() {
+                            if PeerPolicy::load(config, &link.peer_key)?.text && let Some(packet) = clipboard_mesh.latest() {
                                 link.send(Kind::Clipboard, 0, packet.encode())?;
                             }
                             entry.insert(link);
@@ -968,6 +983,7 @@ mod linux {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn capture_loop(
         mut channel: SecureChannel<TcpStream>,
         edge: Edge,
@@ -976,6 +992,7 @@ mod linux {
         remote_id: [u8; 32],
         topology_watch: Option<(&std::path::Path, IpAddr)>,
         edge_policy: EdgePolicy,
+        text_enabled: bool,
     ) -> Result<(), Box<dyn Error>> {
         let local_lock =
             HyprIpc::from_env().ok_or("Hyprland IPC is required to guard local capture")?;
@@ -1132,7 +1149,7 @@ mod linux {
                         send_frame(&mut writer, Kind::Heartbeat, epoch, &mut sequence, Vec::new())?;
                     }
                     Some(event) = clipboard_rx.recv() => {
-                        if !locked { send_frame(&mut writer, Kind::Clipboard, 0, &mut sequence, event.encode())?; }
+                        if !locked && text_enabled { send_frame(&mut writer, Kind::Clipboard, 0, &mut sequence, event.encode())?; }
                     }
                     feedback = feedback_rx.recv() => {
                         let frame = feedback.ok_or("feedback reader stopped")??;
@@ -1141,7 +1158,7 @@ mod linux {
                             if packet.origin != remote_id {
                                 return Err("clipboard origin does not match peer".into());
                             }
-                            if !locked { clipboard_apply.try_send(packet).map_err(|_| "clipboard apply queue is full")?; }
+                            if !locked && text_enabled { clipboard_apply.try_send(packet).map_err(|_| "clipboard apply queue is full")?; }
                             continue;
                         }
                         if frame.kind != Kind::Control
@@ -1312,6 +1329,7 @@ mod linux {
         motion_generation: Arc<AtomicU64>,
         clipboard_apply: tokio::sync::mpsc::Sender<ClipboardPacket>,
         clipboard_remote_id: [u8; 32],
+        text_enabled: bool,
         lock_ipc: HyprIpc,
         acknowledge_release: std::sync::mpsc::SyncSender<u64>,
         entry_return_edge: Arc<Mutex<Option<LogicalEdge>>>,
@@ -1393,6 +1411,9 @@ mod linux {
         }
 
         fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
+            if !self.text_enabled {
+                return Ok(());
+            }
             if packet.origin != self.clipboard_remote_id {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
@@ -1643,6 +1664,17 @@ mod linux {
         {
             return Err("capture claim required before remote input".into());
         }
+        let mut peer_policy = PeerPolicy::load(config, &peer.public_key)?;
+        if !peer_policy.permits(Capability::Control) {
+            Frame {
+                kind: Kind::Control,
+                epoch: 0,
+                sequence: 0,
+                payload: b"DENIED".to_vec(),
+            }
+            .write_to(&mut channel)?;
+            return Err("control is disabled for this paired computer".into());
+        }
         let Some(_lease) = control.claim_receiver(&peer_ip.to_string()) else {
             Frame {
                 kind: Kind::Control,
@@ -1660,6 +1692,8 @@ mod linux {
             payload: b"READY".to_vec(),
         }
         .write_to(&mut channel)?;
+        peer_policy.mark_connected()?;
+        peer_policy.save(config, &peer.public_key)?;
         channel
             .stream_mut()
             .set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
@@ -1721,14 +1755,20 @@ mod linux {
             spawn_apply_worker(Arc::clone(&clipboard_sync));
         let (clipboard_tx, clipboard_rx) = std::sync::mpsc::sync_channel(8);
         let (release_tx, release_rx) = std::sync::mpsc::sync_channel(8);
-        let clipboard_watch = match ClipboardWatch::start(clipboard_sync, move |event| {
-            let _ = clipboard_tx.send(event);
-        }) {
-            Ok(watch) => Some(watch),
-            Err(error) => {
-                eprintln!("SeamlessControl: observación del portapapeles no disponible: {error}");
-                None
+        let clipboard_watch = if peer_policy.text {
+            match ClipboardWatch::start(clipboard_sync, move |event| {
+                let _ = clipboard_tx.send(event);
+            }) {
+                Ok(watch) => Some(watch),
+                Err(error) => {
+                    eprintln!(
+                        "SeamlessControl: observación del portapapeles no disponible: {error}"
+                    );
+                    None
+                }
             }
+        } else {
+            None
         };
         let injector = OmarchyInjector {
             input,
@@ -1737,6 +1777,7 @@ mod linux {
             motion_generation: Arc::clone(&motion_generation),
             clipboard_apply: clipboard_apply.clone(),
             clipboard_remote_id: peer.public_key,
+            text_enabled: peer_policy.text,
             lock_ipc: hypr.clone(),
             acknowledge_release: release_tx,
             entry_return_edge,
@@ -2053,6 +2094,13 @@ mod linux {
             .map_err(|e| AttemptError::Retry(Box::new(e)))?;
         match mode {
             ConnectionMode::Capture(edge) | ConnectionMode::CaptureMapped(edge) => {
+                let mut peer_policy = PeerPolicy::load(config, &peer.public_key)
+                    .map_err(|error| AttemptError::Stop(Box::new(error)))?;
+                if !peer_policy.control {
+                    return Err(AttemptError::Stop(
+                        "control is disabled for this paired computer".into(),
+                    ));
+                }
                 Frame {
                     kind: Kind::Control,
                     epoch: 0,
@@ -2065,6 +2113,11 @@ mod linux {
                 if response.kind == Kind::Control && response.payload == b"BUSY" {
                     return Err(AttemptError::Retry("remote input is busy".into()));
                 }
+                if response.kind == Kind::Control && response.payload == b"DENIED" {
+                    return Err(AttemptError::Stop(
+                        "destination disabled control for this paired computer".into(),
+                    ));
+                }
                 if response.kind != Kind::Control
                     || response.epoch != 0
                     || response.sequence != 0
@@ -2072,6 +2125,12 @@ mod linux {
                 {
                     return Err(AttemptError::Stop("invalid capture claim reply".into()));
                 }
+                peer_policy
+                    .mark_connected()
+                    .map_err(|error| AttemptError::Stop(Box::new(error)))?;
+                peer_policy
+                    .save(config, &peer.public_key)
+                    .map_err(|error| AttemptError::Stop(Box::new(error)))?;
                 let ipc = HyprIpc::from_env().ok_or_else(|| {
                     AttemptError::Stop("Hyprland IPC is required to guard local capture".into())
                 })?;
@@ -2093,6 +2152,7 @@ mod linux {
                     matches!(mode, ConnectionMode::CaptureMapped(_))
                         .then_some((topology_path.as_path(), address.ip())),
                     EdgePolicy::load(config),
+                    peer_policy.text,
                 )
                 .await
                 .map_err(|error| {
@@ -2326,6 +2386,37 @@ mod linux {
                 .ok_or("edge policy must be fluid, deliberate or fullscreen")?;
             policy.save(&config_dir()?)?;
             println!("{}", policy.as_str());
+            return Ok(());
+        }
+        if args.len() == 3 && args[1] == "peer-policy" {
+            let config = config_dir()?;
+            let ip: IpAddr = args[2].parse()?;
+            let key = load_peer_key(&config.join("peers"), ip)?.ok_or("computer is not paired")?;
+            let policy = PeerPolicy::load(&config, &key)?;
+            println!(
+                "POLICY\t{}\t{}\t{}\t{}\t{}",
+                key_fingerprint(&key),
+                policy.control,
+                policy.text,
+                policy.files,
+                policy.last_connected_ms
+            );
+            return Ok(());
+        }
+        if args.len() == 6 && args[1] == "peer-policy" && args[2] == "set" {
+            let config = config_dir()?;
+            let ip: IpAddr = args[3].parse()?;
+            let key = load_peer_key(&config.join("peers"), ip)?.ok_or("computer is not paired")?;
+            let capability = Capability::parse(&args[4]).ok_or("choose control, text or files")?;
+            let allowed = match args[5].as_str() {
+                "allow" => true,
+                "deny" => false,
+                _ => return Err("choose allow or deny".into()),
+            };
+            let mut policy = PeerPolicy::load(&config, &key)?;
+            policy.set(capability, allowed);
+            policy.save(&config, &key)?;
+            println!("Peer permission saved for {}", key_fingerprint(&key));
             return Ok(());
         }
         if args.len() == 3 && matches!(args[1].as_str(), "choose-file" | "choose-folder") {
@@ -2589,6 +2680,21 @@ mod linux {
             let config = config_dir()?;
             for (address, key) in list_peer_keys(&config.join("peers"))? {
                 println!("PEER\t{address}\t{}", key_fingerprint(&key));
+            }
+            return Ok(());
+        }
+        if args.len() == 2 && args[1] == "peer-policies" {
+            let config = config_dir()?;
+            for (address, key) in list_peer_keys(&config.join("peers"))? {
+                let policy = PeerPolicy::load(&config, &key)?;
+                println!(
+                    "POLICY\t{address}\t{}\t{}\t{}\t{}\t{}",
+                    key_fingerprint(&key),
+                    policy.control,
+                    policy.text,
+                    policy.files,
+                    policy.last_connected_ms
+                );
             }
             return Ok(());
         }

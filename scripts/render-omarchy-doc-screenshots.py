@@ -148,6 +148,8 @@ def fixture_qml(language):
     values = {
         "language": language, "installed": True, "pluginVersion": "0.24.0", "agentVersion": "0.24.0",
         "peers": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4}],
+        "peerPolicies": {"abcdef0123456789" * 4: {"control": True, "text": True, "files": True, "lastConnectedMs": 0}},
+        "edgePolicy": "fluid",
         "discovered": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4, "name": "Demo receiver", "address": "192.0.2.20:47832"}],
         "topology": [{"id": "local", "column": 0, "row": 0}, {"id": "192.0.2.20", "column": 1, "row": 0}],
         "peer": "192.0.2.20", "fileLimitMiB": 100, "approvalMode": "always", "approvalMinutes": 15,

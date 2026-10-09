@@ -820,6 +820,16 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          text: root.t("Elija qué puede hacer cada identidad emparejada. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.backend && root.backend.peers.length === 0
           text: root.t("Aquí aparecerán los equipos después de aprobar el mismo código en ambos lados.")
           textFormat: Text.PlainText
@@ -831,12 +841,16 @@ Panel {
 
         Repeater {
           model: root.backend ? root.backend.peers.length : 0
-          delegate: RowLayout {
+          delegate: ColumnLayout {
             id: peerRow
             required property int index
             Layout.fillWidth: true
             spacing: Style.space(8)
             readonly property var peer: root.backend.peers[peerRow.index]
+            readonly property var policy: root.backend.peerPolicies[peer.key] || ({ control: true, text: true, files: true, lastConnectedMs: 0 })
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.space(8)
             Text {
               Layout.fillWidth: true
               text: peerRow.peer.ip + " · " + peerRow.peer.key.slice(0, 12) + "…"
@@ -855,7 +869,42 @@ Panel {
               fontFamily: root.face
               onClicked: root.revokeCandidate = peerRow.peer.ip
             }
+            }
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.space(8)
+              Repeater {
+                model: ["control", "text", "files"]
+                delegate: StateButton {
+                  required property string modelData
+                  text: (peerRow.policy[modelData] ? "● " : "○ ") + root.t(modelData === "control" ? "Control" : modelData === "text" ? "Texto" : "Archivos")
+                  bordered: true
+                  focusable: true
+                  foreground: root.ink
+                  accent: Color.accent
+                  fontFamily: root.face
+                  onClicked: if (root.backend) root.backend.setPeerPermission(peerRow.peer.ip, peerRow.peer.key, modelData, !peerRow.policy[modelData])
+                }
+              }
+            }
+            Text {
+              Layout.fillWidth: true
+              text: peerRow.policy.lastConnectedMs ? root.t("Última conexión: ") + new Date(peerRow.policy.lastConnectedMs).toLocaleString() : root.t("Sin conexión registrada")
+              color: root.muted
+              font.family: root.face
+              font.pixelSize: Style.font.caption
+            }
           }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.peerPolicyError !== ""
+          text: root.backend ? root.backend.peerPolicyError : ""
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
         }
 
         RowLayout {

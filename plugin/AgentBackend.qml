@@ -124,6 +124,8 @@ Item {
   property string pairError: ""
   property string actionName: ""
   property var peers: []
+  property var peerPolicies: ({})
+  property string peerPolicyError: ""
   property var discovered: []
   property string discoveryError: ""
   property bool diagnosisBusy: false
@@ -492,6 +494,20 @@ Item {
     peersProcess.running = true
   }
 
+  function refreshPolicies() {
+    if (!installed || peerPoliciesProcess.running) return
+    peerPoliciesProcess.running = true
+  }
+
+  function setPeerPermission(ip, fingerprint, capability, allowed) {
+    if (!installed || peerPolicyAction.running || !peers.some(function(peer) {
+      return peer.ip === ip && peer.key === fingerprint
+    })) return
+    peerPolicyError = ""
+    peerPolicyAction.command = ["seamlesscontrold", "peer-policy", "set", ip, capability, allowed ? "allow" : "deny"]
+    peerPolicyAction.running = true
+  }
+
   function refreshDiscovery() {
     if (!installed || discoveryProcess.running) return
     discoveryProcess.running = true
@@ -765,8 +781,42 @@ Item {
             next.push({ ip: fields[1], key: fields[2] })
         })
         root.peers = next
+        root.refreshPolicies()
         root.maybeSendCopiedFile()
       }
+    }
+  }
+
+  Process {
+    id: peerPoliciesProcess
+    command: ["seamlesscontrold", "peer-policies"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = ({})
+        String(text || "").split("\n").forEach(function(line) {
+          var fields = line.split("\t")
+          if (fields.length === 7 && fields[0] === "POLICY")
+            next[fields[2]] = { control: fields[3] === "true", text: fields[4] === "true",
+              files: fields[5] === "true", lastConnectedMs: Number(fields[6]) || 0 }
+        })
+        root.peerPolicies = next
+      }
+    }
+    onExited: function(code) {
+      if (code !== 0) root.peerPolicyError = root.t("No se pudieron leer los permisos de los equipos.")
+    }
+  }
+
+  Process {
+    id: peerPolicyAction
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.peerPolicyError = String(text || "").trim()
+    }
+    onExited: function(code) {
+      if (code !== 0 && root.peerPolicyError === "") root.peerPolicyError = root.t("No se pudo guardar el permiso.")
+      root.refreshPolicies()
     }
   }
 

@@ -3,6 +3,8 @@
 
 use seamlesscontrol_core::diagnostics::{PeerDiagnosis, diagnose_peer};
 use seamlesscontrol_core::edge_policy::EdgePolicy;
+use seamlesscontrol_core::peer_policy::{Capability, PeerPolicy};
+use seamlesscontrol_core::storage::load_peer_key;
 use seamlesscontrol_core::windows_clipboard::WindowsClipboard;
 use seamlesscontrol_core::windows_discovery::{DiscoveredServer, DiscoveryBrowser};
 use std::collections::{BTreeMap, VecDeque};
@@ -1060,8 +1062,18 @@ impl Controller {
             .peers
             .iter()
             .map(|(ip, fingerprint)| {
+                let policy = load_peer_key(&self.layout_path.with_file_name("peers"), *ip)
+                    .and_then(|key| key.ok_or_else(|| io::Error::other("pairing missing")))
+                    .and_then(|key| {
+                        PeerPolicy::load(self.layout_path.parent().unwrap_or(Path::new(".")), &key)
+                    });
                 serde_json::json!({
                     "ip": ip.to_string(), "fingerprint": fingerprint,
+                    "policy": policy.as_ref().ok().map(|policy| serde_json::json!({
+                        "control": policy.control, "text": policy.text, "files": policy.files,
+                        "lastConnectedMs": policy.last_connected_ms,
+                    })),
+                    "policyError": policy.is_err(),
                 })
             })
             .collect();
@@ -1360,6 +1372,40 @@ impl Controller {
                 }
                 "setLayout" => {
                     self.set_layout(string("fingerprint"), Some(string("edge")))?;
+                }
+                "setPeerPermission" => {
+                    let ip = string("ip").parse::<IpAddr>()?;
+                    let fingerprint = string("fingerprint");
+                    if self.peers.get(&ip).is_none_or(|saved| saved != fingerprint) {
+                        return Err(
+                            "the selected pairing changed; refresh the computer list".into()
+                        );
+                    }
+                    let key = load_peer_key(&self.layout_path.with_file_name("peers"), ip)?
+                        .ok_or("computer is no longer paired")?;
+                    let capability = Capability::parse(string("capability"))
+                        .ok_or("choose control, text or files")?;
+                    let allowed = match string("allowed") {
+                        "allow" => true,
+                        "deny" => false,
+                        _ => return Err("choose allow or deny".into()),
+                    };
+                    let mut policy = PeerPolicy::load(
+                        self.layout_path
+                            .parent()
+                            .ok_or("app data folder unavailable")?,
+                        &key,
+                    )?;
+                    policy.set(capability, allowed);
+                    policy.save(
+                        self.layout_path
+                            .parent()
+                            .ok_or("app data folder unavailable")?,
+                        &key,
+                    )?;
+                    self.log(format!(
+                        "Permission saved for {ip}; active control updates on the next connection."
+                    ));
                 }
                 "clearLayout" => {
                     self.set_layout(string("fingerprint"), None)?;

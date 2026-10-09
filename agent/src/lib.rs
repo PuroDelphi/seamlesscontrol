@@ -8,6 +8,7 @@ pub mod edge_policy;
 pub mod file_session;
 pub mod file_transfer;
 pub mod handoff;
+pub mod peer_policy;
 pub mod protocol;
 pub mod receiver;
 pub mod secure;

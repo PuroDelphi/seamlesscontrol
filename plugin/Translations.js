@@ -2,6 +2,13 @@
 
 // Spanish source strings are kept here so both languages share the same UI layout.
 var english = {
+  "Elija qué puede hacer cada identidad emparejada. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.": "Choose what each paired identity may do. Control and text change on the next connection; files on the next offer. Revoke removes trust immediately.",
+  "Control": "Control",
+  "Texto": "Text",
+  "Última conexión: ": "Last connection: ",
+  "Sin conexión registrada": "No connection recorded",
+  "No se pudieron leer los permisos de los equipos.": "Could not read computer permissions.",
+  "No se pudo guardar el permiso.": "Could not save this permission.",
   "CRUCE ENTRE PANTALLAS": "SCREEN CROSSING",
   "Ayuda · Cruce entre pantallas": "Help · Screen crossing",
   "Fluido cruza al llegar al borde. Deliberado requiere salir del borde y cruzarlo dos veces en 1,6 segundos. Protección a pantalla completa lo exige solo cuando hay una ventana a pantalla completa. Se aplica al iniciar la próxima conexión; Escape y el borde de regreso siguen disponibles.": "Fluid crosses at the edge. Deliberate requires moving away from the edge and crossing twice within 1.6 seconds. Full-screen protection does this only for a full-screen window. Applies on the next connection; Escape and the return edge remain available.",

@@ -5,6 +5,7 @@ use crate::clipboard::{ClipboardPacket, ClipboardSync};
 use crate::clipboard_file;
 use crate::edge_policy::EdgePolicy;
 use crate::file_session;
+use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::run_receiver_with_first;
 use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter, negotiate_pairing};
@@ -320,6 +321,18 @@ fn serve_connection(
     {
         return Err("input requires a capture claim".into());
     }
+    let pinned = load_peer_key(&config.join("peers"), ip)?.ok_or("peer was removed")?;
+    let mut policy = PeerPolicy::load(config, &pinned)?;
+    if !policy.permits(Capability::Control) {
+        Frame {
+            kind: Kind::Control,
+            epoch: 0,
+            sequence: 0,
+            payload: b"DENIED".to_vec(),
+        }
+        .write_to(&mut channel)?;
+        return Err("control is disabled for this paired computer".into());
+    }
     let Some(_lease) = ReceiverLease::claim(occupied) else {
         Frame {
             kind: Kind::Control,
@@ -340,6 +353,8 @@ fn serve_connection(
         payload: b"READY".to_vec(),
     }
     .write_to(&mut channel)?;
+    policy.mark_connected()?;
+    policy.save(config, &pinned)?;
     channel
         .stream_mut()
         .set_read_timeout(Some(PAIRING_TIMEOUT))?;
@@ -348,8 +363,7 @@ fn serve_connection(
         .stream_mut()
         .set_read_timeout(Some(Duration::from_secs(5)))?;
     let (mut reader, writer) = channel.into_tcp_halves()?;
-    let pinned = load_peer_key(&config.join("peers"), ip)?.ok_or("peer was removed")?;
-    let injector = WindowsInjector::new(writer, identity.public, pinned)?;
+    let injector = WindowsInjector::new(writer, identity.public, pinned, policy.text)?;
     println!("Input session from {ip} is ready.");
     run_receiver_with_first(&mut reader, injector, Some(first_input))?;
     println!("Input session from {ip} ended; held keys and buttons were released.");
@@ -477,6 +491,10 @@ fn connect_source(
     set_dpi_awareness();
     let pinned = load_peer_key(&config.join("peers"), address.ip())?
         .ok_or("pair with this Omarchy receiver before connecting")?;
+    let mut policy = PeerPolicy::load(config, &pinned)?;
+    if !policy.control {
+        return Err("control is disabled for this paired computer".into());
+    }
     let stream = TcpStream::connect_timeout(&address, Duration::from_secs(8))?;
     stream.set_nodelay(true)?;
     stream.set_read_timeout(Some(Duration::from_secs(10)))?;
@@ -497,6 +515,9 @@ fn connect_source(
             "Omarchy is already controlling or receiving input; end that session first".into(),
         );
     }
+    if answer.kind == Kind::Control && answer.payload == b"DENIED" {
+        return Err("the destination disabled control for this paired computer".into());
+    }
     if answer.kind != Kind::Control
         || answer.epoch != 0
         || answer.sequence != 0
@@ -504,6 +525,8 @@ fn connect_source(
     {
         return Err("Omarchy did not accept the input claim".into());
     }
+    policy.mark_connected()?;
+    policy.save(config, &pinned)?;
     channel.stream_mut().set_read_timeout(None)?;
     let (capture_tx, capture_rx) = sync_channel(4096);
     let capture = CaptureHandle::start(edge, EdgePolicy::load(config), capture_tx)?;
@@ -566,7 +589,7 @@ fn connect_source(
                             println!("Control returned to Windows.");
                         }
                     }
-                    Kind::Clipboard => {
+                    Kind::Clipboard if policy.text => {
                         let packet = ClipboardPacket::decode(&frame.payload)?;
                         if clipboard_sync.remote_needs_apply(&packet)? {
                             if let Err(error) = clipboard.apply(&packet.event) {
@@ -639,7 +662,9 @@ fn connect_source(
                 clipboard_tick = Instant::now();
                 match clipboard.changed() {
                     Ok(Some(event)) => {
-                        if let Some(packet) = clipboard_sync.local_changed(&event) {
+                        if policy.text
+                            && let Some(packet) = clipboard_sync.local_changed(&event)
+                        {
                             send_source_frame(
                                 &mut writer,
                                 &mut sequence,
@@ -694,6 +719,36 @@ pub fn run() -> Result<(), Box<dyn Error>> {
     }
     let config = config_dir()?;
     match args.as_slice() {
+        [_, command, ip] if command == "peer-policy" => {
+            let ip: IpAddr = ip.parse()?;
+            let key = load_peer_key(&config.join("peers"), ip)?.ok_or("computer is not paired")?;
+            let policy = PeerPolicy::load(&config, &key)?;
+            println!(
+                "POLICY\t{}\t{}\t{}\t{}\t{}",
+                key_fingerprint(&key),
+                policy.control,
+                policy.text,
+                policy.files,
+                policy.last_connected_ms
+            );
+            return Ok(());
+        }
+        [_, command, set, ip, capability, allowed] if command == "peer-policy" && set == "set" => {
+            let ip: IpAddr = ip.parse()?;
+            let key = load_peer_key(&config.join("peers"), ip)?.ok_or("computer is not paired")?;
+            let capability =
+                Capability::parse(capability).ok_or("choose control, text or files")?;
+            let allowed = match allowed.as_str() {
+                "allow" => true,
+                "deny" => false,
+                _ => return Err("choose allow or deny".into()),
+            };
+            let mut policy = PeerPolicy::load(&config, &key)?;
+            policy.set(capability, allowed);
+            policy.save(&config, &key)?;
+            println!("Peer permission saved for {}", key_fingerprint(&key));
+            return Ok(());
+        }
         [_, command] if command == "edge-policy" => {
             println!("{}", EdgePolicy::load(&config).as_str());
             return Ok(());
@@ -716,6 +771,19 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         [_, command] if command == "peers" => {
             for (ip, key) in list_peer_keys(&peers)? {
                 println!("PEER\t{ip}\t{}", key_fingerprint(&key));
+            }
+        }
+        [_, command] if command == "peer-policies" => {
+            for (ip, key) in list_peer_keys(&peers)? {
+                let policy = PeerPolicy::load(&config, &key)?;
+                println!(
+                    "POLICY\t{ip}\t{}\t{}\t{}\t{}\t{}",
+                    key_fingerprint(&key),
+                    policy.control,
+                    policy.text,
+                    policy.files,
+                    policy.last_connected_ms
+                );
             }
         }
         [_, command, address] if command == "diagnose-peer" => {

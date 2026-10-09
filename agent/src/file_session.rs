@@ -4,6 +4,7 @@
 use crate::file_transfer::{
     DEFAULT_MAX_FILE_BYTES, FileMessage, FileOffer, FileReceiver, FileSender,
 };
+use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{Frame, Kind};
 use crate::secure::{Identity, Role, SecureChannel};
 use crate::storage::load_peer_key;
@@ -96,6 +97,14 @@ pub fn send_once_with_progress(
     mut progress: impl FnMut(u8),
 ) -> Result<(), Box<dyn Error>> {
     let pinned = pinned_key(peers, address.ip())?;
+    if !PeerPolicy::load(
+        peers.parent().ok_or("peer directory has no parent")?,
+        &pinned,
+    )?
+    .permits(Capability::Files)
+    {
+        return Err("file transfers are disabled for this paired computer".into());
+    }
     let mut sender = FileSender::open(source, limit)?;
     let total = sender.offer.size;
     let stream = TcpStream::connect_timeout(&address, Duration::from_secs(10))?;
@@ -224,7 +233,7 @@ fn receive_with_listener_progress(
     approve: &mut impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
     progress: &mut impl FnMut(u8),
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
-    let (mut channel, peer_address) = loop {
+    let (mut channel, peer_address, files_allowed) = loop {
         let (stream, peer_address) = listener.accept()?;
         let Some(pinned) = load_peer_key(peers, peer_address.ip())? else {
             eprintln!(
@@ -247,7 +256,12 @@ fn receive_with_listener_progress(
         }
         channel.stream_mut().set_read_timeout(Some(FILE_TIMEOUT))?;
         channel.stream_mut().set_write_timeout(Some(FILE_TIMEOUT))?;
-        break (channel, peer_address);
+        let files_allowed = PeerPolicy::load(
+            peers.parent().ok_or("peer directory has no parent")?,
+            &pinned,
+        )?
+        .permits(Capability::Files);
+        break (channel, peer_address, files_allowed);
     };
     let mut sent = 0;
     let mut received = 0;
@@ -255,6 +269,10 @@ fn receive_with_listener_progress(
         return Err("expected a file offer".into());
     };
     offer.validate(limit)?;
+    if !files_allowed {
+        send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
+        return Ok(None);
+    }
     if !approve(&offer, peer_address.ip())? {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
