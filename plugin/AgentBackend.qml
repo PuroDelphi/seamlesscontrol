@@ -77,16 +77,17 @@ Item {
     }
     return true
   }
-  function autoAcceptFrom(peer) {
+  function autoAcceptFrom(fingerprint) {
     return approvalMode === "automatic"
-      || approvalMode === "timed" && Number(approvalUntil[peer] || 0) > Date.now()
+      || approvalMode === "timed" && fingerprint !== ""
+        && Number(approvalUntil[fingerprint] || 0) > Date.now()
   }
-  function rememberApproval(peer) {
-    if (approvalMode === "timed" && peer) {
+  function rememberApproval(fingerprint) {
+    if (approvalMode === "timed" && fingerprint) {
       var next = Object.assign({}, approvalUntil)
-      // The file agent already pinned and authenticated this sender before OFFER.
-      // Its peer table may not yet have refreshed in the panel.
-      next[peer] = Date.now() + approvalMinutes * 60000
+      // OFFER carries the authenticated sender identity, even if the panel's
+      // peer table has not refreshed after a pairing change at the same IP.
+      next[fingerprint] = Date.now() + approvalMinutes * 60000
       approvalUntil = next
       approvalSecondsRemaining = approvalMinutes * 60
     }
@@ -436,9 +437,9 @@ Item {
 
   function decideFile(accept) {
     if (!receiveFileProcess.running || !fileOffer) return
-    var peer = fileOffer.peer
+    var fingerprint = fileOffer.fingerprint
     receiveFileProcess.write(accept ? "SI\n" : "NO\n")
-    if (accept) rememberApproval(peer)
+    if (accept) rememberApproval(fingerprint)
     fileOffer = null
   }
 
@@ -468,9 +469,9 @@ Item {
 
   function decideClipboardFile(accept) {
     if (!clipboardReceiveProcess.running || !clipboardOffer) return
-    var peer = clipboardOffer.peer
+    var fingerprint = clipboardOffer.fingerprint
     clipboardReceiveProcess.write(accept ? "SI\n" : "NO\n")
-    if (accept) rememberApproval(peer)
+    if (accept) rememberApproval(fingerprint)
     clipboardOffer = null
     if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
   }
@@ -610,6 +611,11 @@ Item {
 
   function revoke(address) {
     if (!installed || actionProcess.running || !address) return
+    var next = Object.assign({}, approvalUntil)
+    for (var i = 0; i < peers.length; ++i) {
+      if (peers[i].ip === address) delete next[peers[i].key]
+    }
+    approvalUntil = next
     actionName = root.t("revocar")
     actionProcess.command = ["seamlesscontrold", "revoke", address]
     actionProcess.running = true
@@ -780,6 +786,13 @@ Item {
           if (fields.length === 3 && fields[0] === "PEER")
             next.push({ ip: fields[1], key: fields[2] })
         })
+        // Revocation from the CLI or a replaced pairing also ends its grant.
+        var trusted = next.map(function(peer) { return peer.key })
+        var grants = Object.assign({}, root.approvalUntil)
+        Object.keys(grants).forEach(function(key) {
+          if (!trusted.includes(key)) delete grants[key]
+        })
+        root.approvalUntil = grants
         root.peers = next
         root.refreshPolicies()
         root.maybeSendCopiedFile()
@@ -957,14 +970,15 @@ Item {
         if (fields.length === 2 && fields[0] === "LISTENING") {
           root.fileListening = true
           root.fileListenEndpoint = fields[1]
-        } else if (fields.length === 5 && fields[0] === "OFFER") {
+        } else if (fields.length === 6 && fields[0] === "OFFER") {
           root.fileOffer = {
             peer: fields[1],
             name: fields[2],
             size: Number(fields[3]),
-            hash: fields[4]
+            hash: fields[4],
+            fingerprint: fields[5]
           }
-          if (root.autoAcceptFrom(fields[1])) {
+          if (root.autoAcceptFrom(fields[5])) {
             receiveFileProcess.write("SI\n")
             root.fileOffer = null
           }
@@ -1068,11 +1082,11 @@ Item {
         if (fields.length === 2 && fields[0] === "LISTENING") {
           root.clipboardFileListening = true
           root.clipboardFileError = ""
-        } else if (fields.length === 5 && fields[0] === "OFFER") {
+        } else if (fields.length === 6 && fields[0] === "OFFER") {
           root.clipboardFileResult = ""
           root.clipboardFileError = ""
-          root.clipboardOffer = { peer: fields[1], name: fields[2], size: Number(fields[3]), hash: fields[4] }
-          if (root.autoAcceptFrom(fields[1])) {
+          root.clipboardOffer = { peer: fields[1], name: fields[2], size: Number(fields[3]), hash: fields[4], fingerprint: fields[5] }
+          if (root.autoAcceptFrom(fields[5])) {
             clipboardReceiveProcess.write("SI\n")
             root.clipboardOffer = null
           } else {

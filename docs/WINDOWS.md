@@ -158,6 +158,8 @@ In **Settings → Incoming file approval**, choose and **Save approval mode**:
 - **Accept automatically**: files from paired computers need no individual prompt. Enable only for peers you trust to send files without asking.
 - **Ask, then accept for a while**: choose **1–1,440 minutes**. Accepting the first file from each paired computer starts its temporary permission. Expiry or an app restart returns the setting to **Ask every time**.
 
+Temporary permission follows the sender’s authenticated identity, not its IP address. Revoking that pairing clears its grant; a newly paired computer at the same address must be approved for its first file.
+
 Expected result after saving: **File approval mode saved.** The preference applies to **both** copied and manual files; automatic approval does not remove identity, size or integrity checks. More detail: [file approval guide](USER-GUIDE.md#size-limit-and-incoming-approval).
 
 ## Allow only the needed LAN ports

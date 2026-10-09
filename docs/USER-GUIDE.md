@@ -120,6 +120,8 @@ In **Settings → Incoming file approval**, choose how **this receiver** accepts
 
 ![Current Settings panel: approval modes and separate control firewall](images/omarchy-approval-en.png)
 
+Temporary permission follows the sender’s authenticated identity, not its IP address. Revoking that pairing clears its grant; a newly paired computer at the same address must be approved for its first file.
+
 Approval does **not** open firewall ports, start the manual receiver, or authorize mouse and keyboard control. On Windows, use that app's equivalent approval setting and firewall controls in the [Windows guide](WINDOWS.md).
 
 ## Ports and firewall permission

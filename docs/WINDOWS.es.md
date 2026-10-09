@@ -158,6 +158,8 @@ En **Ajustes → Aprobación de archivos entrantes**, elige y pulsa **Guardar mo
 - **Aceptar automáticamente**: los archivos de equipos emparejados no requieren una petición individual. Actívalo solo para pares en los que confías para enviar sin preguntar.
 - **Preguntar y aceptar por un tiempo**: elige **1–1.440 minutos**. Aceptar el primer archivo de cada par inicia su permiso temporal. Al vencer el plazo o reiniciar la app, el ajuste vuelve a **Preguntar siempre**.
 
+El permiso temporal pertenece a la identidad autenticada del remitente, no a su dirección IP. Revocar el emparejamiento borra ese permiso; otro equipo emparejado en la misma dirección debe solicitar aprobación para su primer archivo.
+
 Resultado esperado al guardar: **Modo de aprobación guardado.** La preferencia afecta a archivos copiados **y** manuales; la aprobación automática no elimina las comprobaciones de identidad, tamaño o integridad. Más detalle: [guía de aprobación de archivos](USER-GUIDE.es.md#límite-de-tamaño-y-aprobación-entrante).
 
 ## Permitir solo los puertos LAN necesarios

@@ -8,7 +8,7 @@ use crate::file_transfer::{
 use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{Frame, Kind};
 use crate::secure::{Identity, Role, SecureChannel};
-use crate::storage::load_peer_key;
+use crate::storage::{key_fingerprint, load_peer_key};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
@@ -206,7 +206,7 @@ pub fn receive_once(
     identity: &Identity,
     peers: &Path,
     limit: u64,
-    approve: impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    approve: impl FnMut(&FileOffer, IpAddr, &[u8; 32]) -> io::Result<bool>,
     ready: impl FnOnce(SocketAddr) -> io::Result<()>,
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
     receive_once_with_progress(
@@ -229,7 +229,7 @@ pub fn receive_once_with_progress(
     identity: &Identity,
     peers: &Path,
     limit: u64,
-    mut approve: impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    mut approve: impl FnMut(&FileOffer, IpAddr, &[u8; 32]) -> io::Result<bool>,
     ready: impl FnOnce(SocketAddr) -> io::Result<()>,
     mut progress: impl FnMut(u8),
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
@@ -256,7 +256,7 @@ fn receive_with_listener(
     identity: &Identity,
     peers: &Path,
     limit: u64,
-    approve: &mut impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    approve: &mut impl FnMut(&FileOffer, IpAddr, &[u8; 32]) -> io::Result<bool>,
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
     receive_with_listener_progress(
         listener,
@@ -275,10 +275,10 @@ fn receive_with_listener_progress(
     identity: &Identity,
     peers: &Path,
     limit: u64,
-    approve: &mut impl FnMut(&FileOffer, IpAddr) -> io::Result<bool>,
+    approve: &mut impl FnMut(&FileOffer, IpAddr, &[u8; 32]) -> io::Result<bool>,
     progress: &mut impl FnMut(u8),
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
-    let (mut channel, peer_address, files_allowed) = loop {
+    let (mut channel, peer_address, peer_key, files_allowed) = loop {
         let (stream, peer_address) = listener.accept()?;
         let Some(pinned) = load_peer_key(peers, peer_address.ip())? else {
             eprintln!(
@@ -306,7 +306,7 @@ fn receive_with_listener_progress(
             &pinned,
         )?
         .permits(Capability::Files);
-        break (channel, peer_address, files_allowed);
+        break (channel, peer_address, pinned, files_allowed);
     };
     let mut sent = 0;
     let mut received = 0;
@@ -322,7 +322,7 @@ fn receive_with_listener_progress(
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
-    if !approve(&offer, peer_address.ip())? {
+    if !approve(&offer, peer_address.ip(), &peer_key)? {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
@@ -362,7 +362,7 @@ fn receive_with_listener_progress(
     }
 }
 
-pub fn terminal_approval(offer: &FileOffer, peer: IpAddr) -> io::Result<bool> {
+pub fn terminal_approval(offer: &FileOffer, peer: IpAddr, _key: &[u8; 32]) -> io::Result<bool> {
     eprintln!(
         "Archivo de {peer}: {} ({} bytes, SHA-256 {:02x?})",
         offer.name, offer.size, offer.sha256
@@ -374,10 +374,11 @@ pub fn terminal_approval(offer: &FileOffer, peer: IpAddr) -> io::Result<bool> {
     Ok(answer.trim() == "SI")
 }
 
-pub fn panel_approval(offer: &FileOffer, peer: IpAddr) -> io::Result<bool> {
+pub fn panel_approval(offer: &FileOffer, peer: IpAddr, key: &[u8; 32]) -> io::Result<bool> {
     panel_approval_with_io(
         offer,
         peer,
+        key,
         &mut io::stdin().lock(),
         &mut io::stdout().lock(),
     )
@@ -386,6 +387,7 @@ pub fn panel_approval(offer: &FileOffer, peer: IpAddr) -> io::Result<bool> {
 fn panel_approval_with_io(
     offer: &FileOffer,
     peer: IpAddr,
+    key: &[u8; 32],
     input: &mut impl BufRead,
     output: &mut impl Write,
 ) -> io::Result<bool> {
@@ -396,8 +398,10 @@ fn panel_approval_with_io(
         .collect();
     writeln!(
         output,
-        "OFFER\t{peer}\t{}\t{}\t{hash}",
-        offer.name, offer.size
+        "OFFER\t{peer}\t{}\t{}\t{hash}\t{}",
+        offer.name,
+        offer.size,
+        key_fingerprint(key)
     )?;
     output.flush()?;
     let mut answer = String::new();
@@ -422,7 +426,7 @@ pub fn configured_limit() -> Result<u64, Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::storage::remember_peer_key;
+    use crate::storage::{remember_peer_key, revoke_peer_key};
     use std::fs;
     use std::thread;
 
@@ -435,7 +439,11 @@ mod tests {
         };
         let peer: IpAddr = "192.168.50.10".parse().unwrap();
         let mut output = Vec::new();
-        assert!(panel_approval_with_io(&offer, peer, &mut "SI\n".as_bytes(), &mut output).unwrap());
+        let key = [0xcd; 32];
+        assert!(
+            panel_approval_with_io(&offer, peer, &key, &mut "SI\n".as_bytes(), &mut output)
+                .unwrap()
+        );
         let line = String::from_utf8(output).unwrap();
         let fields: Vec<_> = line.trim_end().split('\t').collect();
         assert_eq!(
@@ -445,15 +453,105 @@ mod tests {
                 "192.168.50.10",
                 "informe.txt",
                 "8",
-                &"ab".repeat(32)
+                &"ab".repeat(32),
+                &"cd".repeat(32)
             ]
         );
         assert!(
-            !panel_approval_with_io(&offer, peer, &mut "NO\n".as_bytes(), &mut Vec::new()).unwrap()
+            !panel_approval_with_io(&offer, peer, &key, &mut "NO\n".as_bytes(), &mut Vec::new())
+                .unwrap()
         );
         assert!(
-            !panel_approval_with_io(&offer, peer, &mut "".as_bytes(), &mut Vec::new()).unwrap()
+            !panel_approval_with_io(&offer, peer, &key, &mut "".as_bytes(), &mut Vec::new())
+                .unwrap()
         );
+    }
+
+    #[test]
+    fn same_address_with_new_authenticated_identity_needs_new_approval() {
+        let offer = FileOffer {
+            name: "example.txt".to_owned(),
+            size: 3,
+            sha256: [0x11; 32],
+        };
+        let address: IpAddr = "192.168.50.10".parse().unwrap();
+        let previous_key = [0x22; 32];
+        let new_key = [0x33; 32];
+        let offer_identity = |key: &[u8; 32]| {
+            let mut output = Vec::new();
+            panel_approval_with_io(&offer, address, key, &mut "SI\n".as_bytes(), &mut output)
+                .unwrap();
+            let output = String::from_utf8(output).unwrap();
+            output.trim_end().split('\t').nth(5).unwrap().to_owned()
+        };
+        let approved = offer_identity(&previous_key);
+        assert_eq!(offer_identity(&previous_key), approved);
+        assert_ne!(offer_identity(&new_key), approved);
+    }
+
+    #[test]
+    fn re_pairing_an_address_does_not_reuse_a_file_grant() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-file-repair-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let downloads = dir.join("downloads");
+        fs::create_dir_all(&downloads).unwrap();
+        let source = dir.join("example.txt");
+        fs::write(&source, b"test").unwrap();
+        let receiver = Identity::generate().unwrap();
+        let first = Identity::generate().unwrap();
+        let second = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let receiver_peers = dir.join("receiver-peers");
+        let first_peers = dir.join("first-peers");
+        let second_peers = dir.join("second-peers");
+        remember_peer_key(&first_peers, ip, &receiver.public).unwrap();
+        remember_peer_key(&second_peers, ip, &receiver.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &first.public).unwrap();
+
+        let approved_identity = key_fingerprint(&first.public);
+        for (sender, sender_peers, accepted) in [
+            (&first, &first_peers, true),
+            (&second, &second_peers, false),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let receiver = receiver.clone();
+            let receiver_peers_for_worker = receiver_peers.clone();
+            let downloads = downloads.clone();
+            let approved_identity = approved_identity.clone();
+            let worker = thread::spawn(move || {
+                receive_with_listener(
+                    listener,
+                    &downloads,
+                    &receiver,
+                    &receiver_peers_for_worker,
+                    DEFAULT_MAX_FILE_BYTES,
+                    &mut |_, observed_ip, key| {
+                        assert_eq!(observed_ip, ip);
+                        Ok(key_fingerprint(key) == approved_identity)
+                    },
+                )
+                .unwrap()
+            });
+            let sent = send_once(
+                address,
+                &source,
+                sender,
+                sender_peers,
+                DEFAULT_MAX_FILE_BYTES,
+            );
+            let received = worker.join().unwrap();
+            assert_eq!(sent.is_ok(), accepted);
+            assert_eq!(received.is_some(), accepted);
+            if accepted {
+                assert_eq!(revoke_peer_key(&receiver_peers, ip).unwrap(), first.public);
+                remember_peer_key(&receiver_peers, ip, &second.public).unwrap();
+            }
+        }
+        fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]
@@ -488,7 +586,7 @@ mod tests {
                     &identity,
                     &peers,
                     DEFAULT_MAX_FILE_BYTES,
-                    &mut |offer, peer| {
+                    &mut |offer, peer, _key| {
                         assert_eq!(offer.name, "example.txt");
                         assert_eq!(peer, ip);
                         Ok(accepted)
@@ -565,7 +663,7 @@ mod tests {
                     &identity,
                     &peers,
                     1024 * 1024,
-                    &mut |offer, peer| {
+                    &mut |offer, peer, _key| {
                         approvals += 1;
                         assert_eq!(offer.name, "SeamlessControl 3 items.scbundle");
                         assert_eq!(peer, ip);
@@ -623,7 +721,7 @@ mod tests {
                 &receiver_id,
                 &receiver_peers,
                 DEFAULT_MAX_FILE_BYTES,
-                &mut |_, _| Ok(true),
+                &mut |_, _, _| Ok(true),
             )
             .map_err(|error| error.to_string())
         });
@@ -681,7 +779,7 @@ mod tests {
                     &receiver_id,
                     &receiver_peers,
                     DEFAULT_MAX_FILE_BYTES,
-                    &mut |_offer, _peer| {
+                    &mut |_offer, _peer, _key| {
                         let mut file = fs::OpenOptions::new().append(true).open(&source)?;
                         file.write_all(b" new data")?;
                         Ok(true)

@@ -817,12 +817,12 @@ impl Controller {
         }
         if slot == Slot::ReceiveFile && line.starts_with("OFFER\t") {
             self.file_offer = Some(line.to_owned());
-            if let Some(peer) = offer_peer(line)
-                && self.should_auto_accept(peer)
+            if let Some(fingerprint) = offer_fingerprint(line)
+                && self.should_auto_accept(fingerprint)
             {
                 if self.reply(Slot::ReceiveFile, "SI").is_ok() {
                     self.file_offer = None;
-                    self.log(format!("File automatically accepted from {peer}."));
+                    self.log("File automatically accepted from an authenticated peer.");
                 }
             }
         }
@@ -832,13 +832,13 @@ impl Controller {
                 self.clipboard_notification_open = false;
                 self.clipboard_offer_since = Some(Instant::now());
                 self.clipboard_progress = None;
-                if let Some(peer) = offer_peer(line)
-                    && self.should_auto_accept(peer)
+                if let Some(fingerprint) = offer_fingerprint(line)
+                    && self.should_auto_accept(fingerprint)
                 {
                     if self.reply(Slot::ReceiveClipboard, "SI").is_ok() {
                         self.clipboard_offer = None;
                         self.clipboard_offer_since = None;
-                        self.log(format!("Copied file automatically accepted from {peer}."));
+                        self.log("Copied file automatically accepted from an authenticated peer.");
                     }
                 }
             } else if let Some(percent) = line.strip_prefix("PROGRESS\t") {
@@ -944,14 +944,15 @@ impl Controller {
     }
 
     fn decide_copied_file(&mut self, accept: bool) -> io::Result<()> {
-        let peer = self
+        let fingerprint = self
             .clipboard_offer
             .as_deref()
-            .and_then(offer_peer)
+            .and_then(offer_fingerprint)
+            .map(str::to_owned)
             .ok_or_else(|| io::Error::other("no copied file offer is waiting"))?;
         self.reply(Slot::ReceiveClipboard, if accept { "SI" } else { "NO" })?;
         if accept {
-            self.remember_approval(peer);
+            self.remember_approval(&fingerprint);
         }
         self.clipboard_offer = None;
         self.clipboard_offer_since = None;
@@ -959,39 +960,37 @@ impl Controller {
     }
 
     fn decide_manual_file(&mut self, accept: bool) -> io::Result<()> {
-        let peer = self
+        let fingerprint = self
             .file_offer
             .as_deref()
-            .and_then(offer_peer)
+            .and_then(offer_fingerprint)
+            .map(str::to_owned)
             .ok_or_else(|| io::Error::other("no file offer is waiting"))?;
         self.reply(Slot::ReceiveFile, if accept { "SI" } else { "NO" })?;
         if accept {
-            self.remember_approval(peer);
+            self.remember_approval(&fingerprint);
         }
         self.file_offer = None;
         Ok(())
     }
 
-    fn should_auto_accept(&self, peer: IpAddr) -> bool {
+    fn should_auto_accept(&self, fingerprint: &str) -> bool {
         match self.approval_mode.as_str() {
             "automatic" => true,
             "timed" => self
-                .peers
-                .get(&peer)
-                .and_then(|fingerprint| self.approval_until.get(fingerprint))
+                .approval_until
+                .get(fingerprint)
                 .is_some_and(|until| Instant::now() < *until),
             _ => false,
         }
     }
 
-    fn remember_approval(&mut self, peer: IpAddr) {
+    fn remember_approval(&mut self, fingerprint: &str) {
         if self.approval_mode == "timed" {
-            if let Some(fingerprint) = self.peers.get(&peer) {
-                self.approval_until.insert(
-                    fingerprint.clone(),
-                    Instant::now() + Duration::from_secs(self.approval_minutes * 60),
-                );
-            }
+            self.approval_until.insert(
+                fingerprint.to_owned(),
+                Instant::now() + Duration::from_secs(self.approval_minutes * 60),
+            );
         }
     }
 
@@ -1475,6 +1474,16 @@ fn offer_peer(line: &str) -> Option<IpAddr> {
         .flatten()
 }
 
+fn offer_fingerprint(line: &str) -> Option<&str> {
+    let fields: Vec<_> = line.split('\t').collect();
+    let fingerprint = *fields.get(5)?;
+    (fields.len() == 6
+        && fields[0] == "OFFER"
+        && fingerprint.len() == 64
+        && fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit()))
+    .then_some(fingerprint)
+}
+
 fn parse_address(value: &str) -> Result<SocketAddr, Box<dyn Error>> {
     let address: SocketAddr = value.parse()?;
     if address.port() == 0 {
@@ -1495,12 +1504,12 @@ fn parse_address(value: &str) -> Result<SocketAddr, Box<dyn Error>> {
 fn show_copied_file_prompt(offer: String, spanish: bool, proxy: EventLoopProxy<UiEvent>) {
     thread::spawn(move || {
         let fields: Vec<_> = offer.split('\t').collect();
-        let body = if fields.len() == 5 && spanish {
+        let body = if fields.len() == 6 && spanish {
             format!(
                 "{}\n\nDe: {}\nTamaño: {} bytes\n\nSi lo acepta, se verificará y quedará listo para pegar en el Explorador. El resultado aparecerá en Actividad.",
                 fields[2], fields[1], fields[3]
             )
-        } else if fields.len() == 5 {
+        } else if fields.len() == 6 {
             format!(
                 "{}\n\nFrom: {}\nSize: {} bytes\n\nIf accepted, it will be verified and made ready to paste in Explorer. The result appears in Activity.",
                 fields[2], fields[1], fields[3]
@@ -1638,6 +1647,23 @@ pub fn run() {
 #[cfg(test)]
 mod session_tests {
     use super::*;
+
+    #[test]
+    fn file_offer_uses_authenticated_identity_instead_of_address() {
+        let first = format!(
+            "OFFER\t192.168.1.15\tfile.txt\t4\t{}\t{}",
+            "ab".repeat(32),
+            "11".repeat(32)
+        );
+        let second = format!(
+            "OFFER\t192.168.1.15\tfile.txt\t4\t{}\t{}",
+            "ab".repeat(32),
+            "22".repeat(32)
+        );
+        assert_eq!(offer_peer(&first), offer_peer(&second));
+        assert_ne!(offer_fingerprint(&first), offer_fingerprint(&second));
+        assert!(offer_fingerprint("OFFER\t192.168.1.15\tfile.txt\t4\thash").is_none());
+    }
 
     #[test]
     fn temporary_file_permission_expires_into_ask_every_time() {
