@@ -26,3 +26,11 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 - Keep the network protocol and authenticated pairing shared by both platforms.
 - Use the existing agent and UI backends; do not replace working input capture or file transfer with a second implementation.
 - Changes involving lock and multi-file transfers need physical Omarchy ↔ Windows verification before release.
+
+## Next implementation steps
+
+1. **Updater:** package the Windows GUI and agent as one verifiable update unit; stage both, check the published digest, exit active sessions and replace them together with rollback on failure. In Omarchy, show completion only after the newly built agent reports the plugin version.
+2. **Lock recovery:** trace the current portal capture release on source lock and sleep, then add a bounded fallback that restores physical input without relying on a live remote connection. Keep the source from immediately recapturing after unlock. Verify lock, unlock, suspend and network loss on physical computers.
+3. **File groups:** define a bounded manifest with item count, total size and relative paths. Authenticate that manifest, ask once for the entire group, reject absolute paths, traversal and symlinks, and publish files to the clipboard only after all items verify. Preserve the one-file wire path for older paired agents.
+4. **Edge policy:** add an optional deliberate-crossing mode and a full-screen safeguard to both source adapters, with the existing return edge and Escape remaining available.
+5. **Peer policy:** store permission choices under each pinned identity and enforce them at authenticated control, clipboard and file entry points. Show the last successful connection and a clear revoke action in both interfaces.
