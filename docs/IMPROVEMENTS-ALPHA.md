@@ -7,11 +7,11 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | Priority | Improvement | Status | Completion criteria |
 | --- | --- | --- | --- |
 | 1 | Connection diagnosis and repair in both interfaces | Implemented | Show agent, receiver, reachable control port, pairing and discovery results with a specific next action; do not claim that an open port proves the peer identity. Physical Omarchy ↔ Windows UI verification remains before marking verified. |
-| 2 | Clear and safer updates | Implemented | Show plugin and agent versions in Omarchy, detect mismatch and confirm update completion; offer a Windows package/update flow that replaces the GUI and agent together without losing preferences. Windows CI and physical UI verification remain before marking verified. |
+| 2 | Clear and safer updates | Implemented | Show plugin and agent versions in Omarchy, detect mismatch and confirm update completion; offer a Windows package/update flow that replaces the GUI and agent together without losing preferences. Physical UI verification remains before marking verified. |
 | 3 | Recover control through lock, sleep and disconnect | Implemented | Bound input-capture portal release on source lock, restore local input and require a fresh edge crossing after recovery. Physical lock, sleep and disconnect tests on both systems remain. |
 | 4 | Copy multiple files and folders | Implemented | Offer a group as one approval with item count, total size and safe destination handling; preserve the existing single-file behavior. Physical Omarchy ↔ Windows paste test remains. |
 | 5 | Configurable edge crossing | Implemented | Offer an intentional crossing gesture and a full-screen safeguard without weakening Escape or remote return. Physical UI verification remains. |
-| 6 | Per-computer permissions and activity | Implemented | Show last connection and allow separate control, text and file permissions per paired identity; revocation must remain immediate. Windows CI and physical cross-computer checks remain. |
+| 6 | Per-computer permissions and activity | Implemented | Show last connection and allow separate control, text and file permissions per paired identity; revocation must remain immediate. Physical cross-computer checks remain. |
 
 ## Verification record
 
@@ -26,6 +26,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | 2026-10-09 | Crossing options | Added fluid, deliberate (two crossings within 1.6 seconds), and fullscreen-only deliberate modes to the shared agent, Windows app and Omarchy panel. Escape and receiver return path remain independent. | Implemented; Linux and Windows CI passed; physical crossing check pending. |
 | 2026-10-09 | Peer permissions | Saved control/text/files choices by pinned public key on both systems. Both UIs show the choices and last authenticated control connection. New control claims and file offers enforce the relevant permission; direct and mesh text forwarding enforce the text choice. Revocation keeps its separate immediate stop. | Implemented; Linux and Windows CI passed; physical UI checks pending. |
 | 2026-10-09 | Copied-file groups | Added one bounded SCB1 package for a multi-file selection or folder, with 256-entry and configured-size limits, portable path checks, individual hashes and one existing encrypted offer/approval. Receiver publishes one verified folder to the local file clipboard; a single file still uses the original protocol. Source packages now count toward the staging quota and are pruned after seven days. Four bundle tests, the quota test and an encrypted loopback test with exactly one approval and rejection passed on Linux. The same portable-core test and complete x64 packaging passed in [Windows CI](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37938380915); [Linux validation](https://github.com/PuroDelphi/seamlesscontrol/actions/runs/37938380876) and local Clippy also passed. | Implemented; physical paste in both directions pending. |
+| 2026-10-09 | Physical test availability | The other LAN test computer did not respond during the verification check. No physical cross-computer result is inferred from the automated tests. | Physical checks remain pending. |
 
 ## Implementation notes
 
