@@ -8,7 +8,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | --- | --- | --- | --- |
 | 1 | Connection diagnosis and repair in both interfaces | Implemented | Show agent, receiver, reachable control port, pairing and discovery results with a specific next action; do not claim that an open port proves the peer identity. Physical Omarchy ↔ Windows UI verification remains before marking verified. |
 | 2 | Clear and safer updates | Implemented | Show plugin and agent versions in Omarchy, detect mismatch and confirm update completion; offer a Windows package/update flow that replaces the GUI and agent together without losing preferences. Windows CI and physical UI verification remain before marking verified. |
-| 3 | Recover control through lock, sleep and disconnect | Planned | Release physical input before a source locks or sleeps; restore local control and require a fresh edge crossing after recovery; test on both physical systems. |
+| 3 | Recover control through lock, sleep and disconnect | In progress | Release physical input before a source locks or sleeps; restore local control and require a fresh edge crossing after recovery; test on both physical systems. |
 | 4 | Copy multiple files and folders | Planned | Offer a group as one approval with item count, total size and safe destination handling; preserve the existing single-file behavior. |
 | 5 | Configurable edge crossing | Planned | Offer an intentional crossing gesture and a full-screen safeguard without weakening Escape or remote return. |
 | 6 | Per-computer permissions and activity | Planned | Show last connection and allow separate control, text and file permissions per paired identity; revocation must remain immediate. |
@@ -22,6 +22,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | 2026-10-09 | Updates | Embedded manifest version in both agents. Omarchy compares plugin and agent; Windows compares app and agent. | Version check implemented; bundled updater pending. |
 | 2026-10-09 | Omarchy setup result | The setup wrapper now records success, failure or removal. The panel confirms installation only after that result and a matching agent version. Isolated shell integration test covers all three outcomes. | Implemented; live panel check pending. |
 | 2026-10-09 | Windows bundled updater | Added Settings button to choose the tagged release ZIP with its adjacent SHA256 asset. A detached updater validates the digest and exact two-file contents, waits for app exit, replaces both executables with rollback, preserves user data and reopens the app with a result message. Windows CI includes success and checksum-rejection scenarios. | Implemented; CI and physical UI check pending. |
+| 2026-10-09 | Omarchy lock fallback | Bounded portal disable and cleanup to 500 ms when the source locks. If the compositor does not answer, the capture loop exits so reconnect waits for unlock. Direct mode continues to require moving clear of the edge before recapture. | In progress; CI and physical lock/sleep check pending. |
 
 ## Implementation notes
 

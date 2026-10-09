@@ -660,7 +660,12 @@ mod linux {
                                 let _ = tokio::time::timeout(Duration::from_millis(500), portal.release(&session, options)).await;
                                 portal_active = false;
                             }
-                            if capture_enabled { portal.disable(&session, Default::default()).await?; capture_enabled = false; }
+                            if capture_enabled {
+                                // A locked compositor can stop answering portal requests. Exit
+                                // this capture session instead of retaining physical input.
+                                tokio::time::timeout(Duration::from_millis(500), portal.disable(&session, Default::default())).await??;
+                                capture_enabled = false;
+                            }
                             if let (Machine::Peer(peer), Some(epoch)) = (coordinator.owner(), coordinator.epoch()) {
                                 if let Ok(link) = mesh_link(&mut links, peer) {
                                     let _ = link.send(Kind::Control, epoch, b"END".to_vec());
@@ -918,9 +923,17 @@ mod linux {
             if let Some(position) = release_position {
                 options = options.set_cursor_position(position);
             }
-            let _ = portal.release(&session, options).await;
+            let _ = tokio::time::timeout(
+                Duration::from_millis(500),
+                portal.release(&session, options),
+            )
+            .await;
         }
-        let _ = portal.disable(&session, Default::default()).await;
+        let _ = tokio::time::timeout(
+            Duration::from_millis(500),
+            portal.disable(&session, Default::default()),
+        )
+        .await;
         drop(clipboard_rx);
         if let Some(watch) = clipboard_watch {
             watch.stop();
@@ -1047,14 +1060,17 @@ mod linux {
                                 let options = ReleaseOptions::default().set_activation_id(current_activation.take());
                                 let _ = tokio::time::timeout(Duration::from_millis(500), portal.release(&session, options)).await;
                             }
-                            portal.disable(&session, Default::default()).await?;
-                            capture_enabled = false;
                             if active {
                                 let _ = send_frame(&mut writer, Kind::Control, epoch, &mut sequence, b"END".to_vec());
                                 active = false;
                                 current_activation = None;
                                 rearm_after_return = true;
                             }
+                            // The compositor may block the portal while locking. A bounded
+                            // disable lets the outer loop tear down this session and wait for
+                            // unlock instead of leaving the physical devices captured.
+                            tokio::time::timeout(Duration::from_millis(500), portal.disable(&session, Default::default())).await??;
+                            capture_enabled = false;
                             control.set_phase("locked");
                         } else if control.paused() && capture_enabled {
                             if active {
@@ -1244,9 +1260,17 @@ mod linux {
             if let Some(position) = release_position {
                 options = options.set_cursor_position(position);
             }
-            let _ = portal.release(&session, options).await;
+            let _ = tokio::time::timeout(
+                Duration::from_millis(500),
+                portal.release(&session, options),
+            )
+            .await;
         }
-        let _ = portal.disable(&session, Default::default()).await;
+        let _ = tokio::time::timeout(
+            Duration::from_millis(500),
+            portal.disable(&session, Default::default()),
+        )
+        .await;
         drop(clipboard_rx);
         if let Some(watch) = clipboard_watch {
             watch.stop();
