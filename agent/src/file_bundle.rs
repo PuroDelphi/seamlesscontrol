@@ -138,6 +138,10 @@ fn walk(
     if meta.file_type().is_symlink() {
         return Err(invalid("bundle contains a symlink"));
     }
+    #[cfg(windows)]
+    if std::os::windows::fs::MetadataExt::file_attributes(&meta) & 0x400 != 0 {
+        return Err(invalid("bundle contains a Windows reparse point"));
+    }
     if meta.is_dir() {
         entries.push(Entry {
             path: relative.to_owned(),

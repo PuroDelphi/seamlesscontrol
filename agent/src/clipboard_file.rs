@@ -51,6 +51,10 @@ pub fn staging_session_dir(root: &Path) -> io::Result<PathBuf> {
 
 pub fn staging_can_fit(root: &Path, next_size: u64, file_limit: u64) -> io::Result<bool> {
     let quota = file_limit.saturating_mul(4).max(1024 * 1024 * 1024);
+    Ok(staging_used(root)?.saturating_add(next_size) <= quota)
+}
+
+fn staging_used(root: &Path) -> io::Result<u64> {
     let mut used = 0u64;
     for session in std::fs::read_dir(root)? {
         let session = session?;
@@ -70,7 +74,7 @@ pub fn staging_can_fit(root: &Path, next_size: u64, file_limit: u64) -> io::Resu
             }
         }
     }
-    Ok(used.saturating_add(next_size) <= quota)
+    Ok(used)
 }
 
 fn managed_session(entry: &std::fs::DirEntry) -> bool {
@@ -222,11 +226,8 @@ mod tests {
         assert!(!staging_can_fit(&root, 1024 * 1024 * 1024, 1024).unwrap());
         let bundle = root.join("bundle-test").join("nested");
         std::fs::create_dir_all(&bundle).unwrap();
-        std::fs::File::create(bundle.join("sparse"))
-            .unwrap()
-            .set_len(1024 * 1024 * 1024)
-            .unwrap();
-        assert!(!staging_can_fit(&root, 1, 1024).unwrap());
+        std::fs::write(bundle.join("group.scbundle"), b"package").unwrap();
+        assert_eq!(staging_used(&root).unwrap(), 3 + 3 + 7);
         std::fs::remove_dir_all(base).unwrap();
     }
 
