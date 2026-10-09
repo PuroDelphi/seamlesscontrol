@@ -4,6 +4,12 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.23.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.4) — 2026-10-09
+
+- Vincula la aprobación temporal de archivos manuales y copiados a la identidad autenticada del remitente. Un equipo nuevo con la misma IP debe recibir su propia aprobación; revocar un par borra su permiso temporal.
+- Los modos de aceptación automática y de preguntar siempre conservan su funcionamiento. Hay que actualizar juntos el plugin y el agente en Omarchy, o ambos ejecutables en Windows, porque la línea interna de oferta ahora incluye la identidad. Los protocolos cifrados de transferencia y emparejamiento no cambian.
+- Añade una prueba cifrada local que revoca y vuelve a emparejar otra identidad en la misma IP, y actualiza las guías de usuario.
+
 ## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 
 - Actualiza las dependencias fijadas Tokio de 1.53.1 a 1.53.2 y `mdns-sd` de 0.21.4 a 0.21.5. La segunda corrige los temporizadores del descubrimiento tras cambios de hora o suspensión; no cambia el código de la aplicación ni el protocolo de emparejamiento.

@@ -4,6 +4,12 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.23.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.4) — 2026-10-09
+
+- Bind temporary approval for manual and copied-file offers to the authenticated sender identity. A newly paired computer at the same IP must obtain its own approval; revoking a peer clears its temporary grant.
+- Keep automatic and ask-every-time modes unchanged. Update both the Omarchy plugin and agent, or both Windows executables, together because the internal file-offer line now includes the sender identity. The encrypted network transfer and pairing protocols are unchanged.
+- Add a local encrypted regression test for revocation and re-pairing at the same IP, and update both user guides.
+
 ## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 
 - Update the locked Tokio dependency from 1.53.1 to 1.53.2 and `mdns-sd` from 0.21.4 to 0.21.5. The latter fixes discovery timer behavior after clock changes or system sleep; application code and the pairing protocol are unchanged.
