@@ -54,19 +54,29 @@ pub fn staging_can_fit(root: &Path, next_size: u64, file_limit: u64) -> io::Resu
     let mut used = 0u64;
     for session in std::fs::read_dir(root)? {
         let session = session?;
-        if !session.file_type()?.is_dir()
-            || !session.file_name().to_string_lossy().starts_with("offer-")
-        {
+        if !session.file_type()?.is_dir() || !managed_session(&session) {
             continue;
         }
-        for file in std::fs::read_dir(session.path())? {
-            let file = file?;
-            if file.file_type()?.is_file() {
-                used = used.saturating_add(file.metadata()?.len());
+        let mut pending = vec![session.path()];
+        while let Some(folder) = pending.pop() {
+            for item in std::fs::read_dir(folder)? {
+                let item = item?;
+                let kind = item.file_type()?;
+                if kind.is_dir() {
+                    pending.push(item.path());
+                } else if kind.is_file() {
+                    used = used.saturating_add(item.metadata()?.len());
+                }
             }
         }
     }
     Ok(used.saturating_add(next_size) <= quota)
+}
+
+fn managed_session(entry: &std::fs::DirEntry) -> bool {
+    let name = entry.file_name();
+    let name = name.to_string_lossy();
+    name.starts_with("offer-") || name.starts_with("bundle-")
 }
 
 fn prune_old_sessions(root: &Path) {
@@ -77,7 +87,7 @@ fn prune_old_sessions(root: &Path) {
         let Ok(kind) = entry.file_type() else {
             continue;
         };
-        if !kind.is_dir() || !entry.file_name().to_string_lossy().starts_with("offer-") {
+        if !kind.is_dir() || !managed_session(&entry) {
             continue;
         }
         let stale = entry
@@ -210,6 +220,13 @@ mod tests {
         std::fs::write(second.join("same.txt"), b"two").unwrap();
         assert!(staging_can_fit(&root, 32, 1024).unwrap());
         assert!(!staging_can_fit(&root, 1024 * 1024 * 1024, 1024).unwrap());
+        let bundle = root.join("bundle-test").join("nested");
+        std::fs::create_dir_all(&bundle).unwrap();
+        std::fs::File::create(bundle.join("sparse"))
+            .unwrap()
+            .set_len(1024 * 1024 * 1024)
+            .unwrap();
+        assert!(!staging_can_fit(&root, 1, 1024).unwrap());
         std::fs::remove_dir_all(base).unwrap();
     }
 

@@ -213,6 +213,9 @@ pub fn create_bundle(sources: &[PathBuf], limit: u64, staging: &Path) -> io::Res
         return Err(invalid("bundle exceeds the configured limit"));
     }
     fs::create_dir_all(staging)?;
+    if !crate::clipboard_file::staging_can_fit(staging, total + manifest_size as u64, limit)? {
+        return Err(invalid("clipboard-file staging folder is full"));
+    }
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(io::Error::other)?

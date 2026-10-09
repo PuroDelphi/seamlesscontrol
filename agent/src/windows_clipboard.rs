@@ -154,24 +154,27 @@ impl WindowsClipboard {
             self.last_sequence = sequence;
             return Ok(Some(None));
         }
-        let drop = unsafe { GetClipboardData(CF_HDROP) };
-        if drop.is_null() {
+        let clipboard_files = unsafe { GetClipboardData(CF_HDROP) };
+        if clipboard_files.is_null() {
             return Ok(None);
         }
-        let count = unsafe { DragQueryFileW(drop, u32::MAX, ptr::null_mut(), 0) };
+        let count = unsafe { DragQueryFileW(clipboard_files, u32::MAX, ptr::null_mut(), 0) };
         if count == 0 || count > 256 {
             self.last_sequence = sequence;
             return Ok(Some(None));
         }
         let mut paths = Vec::with_capacity(count as usize);
         for index in 0..count {
-            let length = unsafe { DragQueryFileW(drop, index, ptr::null_mut(), 0) } as usize;
+            let length =
+                unsafe { DragQueryFileW(clipboard_files, index, ptr::null_mut(), 0) } as usize;
             if length == 0 || length > 32767 {
                 self.last_sequence = sequence;
                 return Ok(Some(None));
             }
             let mut wide = vec![0u16; length + 1];
-            if unsafe { DragQueryFileW(drop, index, wide.as_mut_ptr(), wide.len() as u32) } as usize
+            if unsafe {
+                DragQueryFileW(clipboard_files, index, wide.as_mut_ptr(), wide.len() as u32)
+            } as usize
                 != length
             {
                 return Ok(None);

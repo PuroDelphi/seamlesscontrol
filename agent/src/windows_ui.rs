@@ -437,7 +437,10 @@ impl Controller {
         } else {
             ""
         };
-        let clipboard_staging = layout_path.with_file_name("clipboard-files");
+        let clipboard_staging = seamlesscontrol_core::clipboard_file::staging_dir(
+            layout_path.parent().unwrap_or(Path::new(".")),
+        )
+        .unwrap_or_else(|_| layout_path.with_file_name("clipboard-files"));
         let file_limit_mib = std::fs::read_to_string(&file_limit_path)
             .ok()
             .and_then(|value| value.trim().parse::<u64>().ok())
