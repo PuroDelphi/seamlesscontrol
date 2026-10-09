@@ -41,6 +41,50 @@ const MAX_FILE_LIMIT_MIB: u64 = 10240;
 const STARTUP_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const STARTUP_VALUE: &str = "SeamlessControl";
 const CONTROL_RETRY_DELAY: Duration = Duration::from_secs(5);
+const WINDOWS_UPDATE_SCRIPT: &str = include_str!("../../packaging/windows-update.ps1");
+
+fn start_windows_update(archive: &Path, executable: &Path) -> Result<(), Box<dyn Error>> {
+    if archive.file_name().and_then(|name| name.to_str()) != Some("seamlesscontrol-windows-x64.zip")
+    {
+        return Err("choose the official seamlesscontrol-windows-x64.zip release asset".into());
+    }
+    if !archive.with_extension("zip.sha256").is_file() {
+        return Err("download the matching .zip.sha256 asset into the same folder".into());
+    }
+    let data_dir = std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .ok_or("LOCALAPPDATA is unavailable")?
+        .join("SeamlessControl");
+    std::fs::create_dir_all(&data_dir)?;
+    let script = data_dir.join("windows-update.ps1");
+    std::fs::write(&script, WINDOWS_UPDATE_SCRIPT)?;
+    let result = data_dir.join("update-result.txt");
+    let _ = std::fs::remove_file(&result);
+    Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+        ])
+        .arg(&script)
+        .arg("-Archive")
+        .arg(archive)
+        .arg("-InstallDir")
+        .arg(
+            executable
+                .parent()
+                .ok_or("application folder is unavailable")?,
+        )
+        .arg("-ParentPid")
+        .arg(std::process::id().to_string())
+        .arg("-ResultFile")
+        .arg(result)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()?;
+    Ok(())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ControlMode {
@@ -397,7 +441,7 @@ impl Controller {
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
-        Self {
+        let mut controller = Self {
             cli,
             executable,
             agent_version,
@@ -436,7 +480,13 @@ impl Controller {
             clipboard_receiver_attempt: Instant::now() - Duration::from_secs(5),
             file_path: None,
             state_message: "Ready. Start receiving or select a nearby computer.".into(),
+        };
+        let result_file = controller.layout_path.with_file_name("update-result.txt");
+        if let Ok(result) = std::fs::read_to_string(&result_file) {
+            controller.log(result.trim().to_owned());
+            let _ = std::fs::remove_file(result_file);
         }
+        controller
     }
 
     fn log(&mut self, message: impl Into<String>) {
@@ -1069,6 +1119,7 @@ impl Controller {
                 .trim()
         };
         let action = string("action");
+        let mut exit_for_update = false;
         let result: Result<(), Box<dyn Error>> = (|| {
             match action {
                 "startReceive" => {
@@ -1172,6 +1223,13 @@ impl Controller {
                     } else {
                         "Start with Windows turned off."
                     });
+                }
+                "updatePackage" => {
+                    if let Some(archive) = choose_file(window) {
+                        start_windows_update(&archive, &self.executable)?;
+                        self.shutdown();
+                        exit_for_update = true;
+                    }
                 }
                 "setLanguage" => {
                     if !matches!(string("language"), "en" | "es") {
@@ -1305,7 +1363,7 @@ impl Controller {
             }
             self.log(error.to_string());
         }
-        action == "quit"
+        action == "quit" || exit_for_update
     }
 }
 

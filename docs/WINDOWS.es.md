@@ -194,11 +194,11 @@ Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa lo
 
 ### Actualizar
 
-1. Elige **Exit SeamlessControl** en la bandeja (o **Ajustes → Salir de la app**). Cierra también cualquier agente de consola iniciado por separado.
-2. Descarga el **release con tag** o **artefacto alpha satisfactorio** que quieras siguiendo la vía correspondiente de instalación.
-3. Extráelo y sustituye **ambos `.exe` juntos** en la carpeta de la app. Abre de nuevo `seamlesscontrol.exe`. Resultado esperado: se conservan el modo de control y los datos locales de emparejamiento.
-   **Ajustes → Acerca de SeamlessControl** muestra las versiones de la app y del agente. Si son distintas, sal desde la bandeja y reemplaza ambos ejecutables del mismo ZIP.
-4. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde su ubicación nueva.
+1. Descarga **`seamlesscontrol-windows-x64.zip`** y **`seamlesscontrol-windows-x64.zip.sha256`** del [último lanzamiento con tag](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) en la misma carpeta.
+2. En la app pulsa **Ajustes → Actualizar desde el ZIP de lanzamiento…** y elige el ZIP. La app comprueba su SHA256, cierra sus sesiones, sustituye ambos ejecutables juntos y vuelve a abrirse. El resultado aparece en **Actividad**. Conserva identidad, emparejamientos, preferencias y último modo de control.
+3. Revisa **Ajustes → Acerca de SeamlessControl**: las versiones de la app y el agente deben coincidir. Si aparece un fallo, se intenta restaurar los ejecutables anteriores; consulta Actividad antes de reintentar.
+
+Para un **artefacto alpha de desarrollo**, o si iniciaste un agente de consola por separado, sal antes de la app y el agente de consola. Extrae el artefacto y reemplaza manualmente los dos `.exe` juntos. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde la nueva ubicación.
 
 Los datos de **`%LOCALAPPDATA%\SeamlessControl`** están separados de los ejecutables. No los borres como paso de una actualización normal.
 

@@ -7,7 +7,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | Priority | Improvement | Status | Completion criteria |
 | --- | --- | --- | --- |
 | 1 | Connection diagnosis and repair in both interfaces | Implemented | Show agent, receiver, reachable control port, pairing and discovery results with a specific next action; do not claim that an open port proves the peer identity. Physical Omarchy ↔ Windows UI verification remains before marking verified. |
-| 2 | Clear and safer updates | In progress | Show plugin and agent versions in Omarchy, detect mismatch and confirm update completion; offer a Windows package/update flow that replaces the GUI and agent together without losing preferences. |
+| 2 | Clear and safer updates | Implemented | Show plugin and agent versions in Omarchy, detect mismatch and confirm update completion; offer a Windows package/update flow that replaces the GUI and agent together without losing preferences. Windows CI and physical UI verification remain before marking verified. |
 | 3 | Recover control through lock, sleep and disconnect | Planned | Release physical input before a source locks or sleeps; restore local control and require a fresh edge crossing after recovery; test on both physical systems. |
 | 4 | Copy multiple files and folders | Planned | Offer a group as one approval with item count, total size and safe destination handling; preserve the existing single-file behavior. |
 | 5 | Configurable edge crossing | Planned | Offer an intentional crossing gesture and a full-screen safeguard without weakening Escape or remote return. |
@@ -21,6 +21,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | 2026-10-09 | Diagnosis | Added a shared, read-only LAN port and local trust check, with an action in each interface. A reachable port is explicitly not treated as proof of identity. Linux: 77 core tests passed; direct CLI probe of the live receiver returned `CHECK … false true pair_first`; Omarchy preview loaded; Windows x64 CI passed at `eda1360`. | Implemented; physical Windows UI check pending. |
 | 2026-10-09 | Updates | Embedded manifest version in both agents. Omarchy compares plugin and agent; Windows compares app and agent. | Version check implemented; bundled updater pending. |
 | 2026-10-09 | Omarchy setup result | The setup wrapper now records success, failure or removal. The panel confirms installation only after that result and a matching agent version. Isolated shell integration test covers all three outcomes. | Implemented; live panel check pending. |
+| 2026-10-09 | Windows bundled updater | Added Settings button to choose the tagged release ZIP with its adjacent SHA256 asset. A detached updater validates the digest and exact two-file contents, waits for app exit, replaces both executables with rollback, preserves user data and reopens the app with a result message. Windows CI includes success and checksum-rejection scenarios. | Implemented; CI and physical UI check pending. |
 
 ## Implementation notes
 
@@ -30,8 +31,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 
 ## Next implementation steps
 
-1. **Updater:** package the Windows GUI and agent as one verifiable update unit; stage both, check the published digest, exit active sessions and replace them together with rollback on failure. In Omarchy, show completion only after the newly built agent reports the plugin version.
-2. **Lock recovery:** trace the current portal capture release on source lock and sleep, then add a bounded fallback that restores physical input without relying on a live remote connection. Keep the source from immediately recapturing after unlock. Verify lock, unlock, suspend and network loss on physical computers.
-3. **File groups:** define a bounded manifest with item count, total size and relative paths. Authenticate that manifest, ask once for the entire group, reject absolute paths, traversal and symlinks, and publish files to the clipboard only after all items verify. Preserve the one-file wire path for older paired agents.
-4. **Edge policy:** add an optional deliberate-crossing mode and a full-screen safeguard to both source adapters, with the existing return edge and Escape remaining available.
-5. **Peer policy:** store permission choices under each pinned identity and enforce them at authenticated control, clipboard and file entry points. Show the last successful connection and a clear revoke action in both interfaces.
+1. **Lock recovery:** trace the current portal capture release on source lock and sleep, then add a bounded fallback that restores physical input without relying on a live remote connection. Keep the source from immediately recapturing after unlock. Verify lock, unlock, suspend and network loss on physical computers.
+2. **File groups:** define a bounded manifest with item count, total size and relative paths. Authenticate that manifest, ask once for the entire group, reject absolute paths, traversal and symlinks, and publish files to the clipboard only after all items verify. Preserve the one-file wire path for older paired agents.
+3. **Edge policy:** add an optional deliberate-crossing mode and a full-screen safeguard to both source adapters, with the existing return edge and Escape remaining available.
+4. **Peer policy:** store permission choices under each pinned identity and enforce them at authenticated control, clipboard and file entry points. Show the last successful connection and a clear revoke action in both interfaces.

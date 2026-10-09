@@ -194,11 +194,11 @@ If a Windows lock/UAC prompt or an elevated application blocks input, use the lo
 
 ### Update
 
-1. Choose **Exit SeamlessControl** from the tray (or **Settings → Exit app**). Close any separately started console agent too.
-2. Download the desired **tagged release** or **successful alpha artifact**, following the matching installation route above.
-3. Extract it and replace **both `.exe` files together** in your app folder. Open `seamlesscontrol.exe` again. Expected result: the saved control mode and local pairing data are retained.
-   **Settings → About SeamlessControl** shows the app and agent versions. If they differ, exit from the tray and replace both executables from the same ZIP.
-4. If you moved the app folder, update **Start with Windows** from its new location.
+1. From the [latest tagged release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), download **`seamlesscontrol-windows-x64.zip`** and **`seamlesscontrol-windows-x64.zip.sha256`** into the same folder.
+2. In the app choose **Settings → Update from release ZIP…** and select the ZIP. The app verifies the ZIP's SHA256 against its sidecar, closes its sessions, replaces both executables together and opens again. The result appears in **Activity**. Your pairing identity, preferences and saved control mode remain in place.
+3. Check **Settings → About SeamlessControl**: the app and agent versions should match. If the update reports a failure, the previous executables are restored when possible; read Activity before retrying.
+
+For a **development alpha artifact**, or if a console agent was started separately, exit the tray app and console agent first, then extract the artifact and replace both `.exe` files together manually. If you moved the app folder, update **Start with Windows** from its new location.
 
 The data in **`%LOCALAPPDATA%\SeamlessControl`** is separate from the executables. Do not delete it as an ordinary update step.
 
