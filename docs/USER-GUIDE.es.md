@@ -114,6 +114,8 @@ En **Ajustes → Aprobación de archivos entrantes**, elige cómo **este recepto
 
 ![Panel Ajustes actual: modos de aprobación y firewall de control independiente](images/omarchy-approval-es.png)
 
+El permiso temporal pertenece a la identidad autenticada del remitente, no a su dirección IP. Revocar el emparejamiento borra ese permiso; otro equipo emparejado en la misma dirección debe solicitar aprobación para su primer archivo.
+
 La aprobación **no** abre puertos del firewall, inicia el receptor manual ni autoriza el control del ratón y teclado. En Windows usa sus ajustes equivalentes de aprobación y firewall descritos en la [guía Windows](WINDOWS.es.md).
 
 ## Puertos y autorización del firewall

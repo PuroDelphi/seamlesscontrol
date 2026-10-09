@@ -766,13 +766,13 @@ pub fn run() -> Result<(), Box<dyn Error>> {
                 &identity,
                 &peers,
                 limit,
-                |offer, peer| {
+                |offer, peer, key| {
                     if !clipboard_file::staging_can_fit(&staging, offer.size, limit)? {
                         println!("STAGING_FULL");
                         io::stdout().flush()?;
                         return Ok(false);
                     }
-                    file_session::panel_approval(offer, peer)
+                    file_session::panel_approval(offer, peer, key)
                 },
                 |address| {
                     println!("LISTENING\t{address}");
