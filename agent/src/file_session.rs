@@ -1,6 +1,7 @@
 //! One-shot encrypted file transfer. Pair the computers first; each received
 //! file requires a fresh local confirmation before any bytes are written.
 
+use crate::file_bundle;
 use crate::file_transfer::{
     DEFAULT_MAX_FILE_BYTES, FileMessage, FileOffer, FileReceiver, FileSender,
 };
@@ -13,10 +14,54 @@ use std::io::{self, BufRead, Write};
 use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
 use std::time::Duration;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 const GREETING: &[u8] = b"seamlesscontrol-file/1";
 const FILE_TIMEOUT: Duration = Duration::from_secs(300);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+
+struct BundleStage(std::path::PathBuf);
+
+impl Drop for BundleStage {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+fn bundle_stage(directory: &Path) -> io::Result<BundleStage> {
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_nanos();
+    let path = directory.join(format!(
+        ".seamlesscontrol-group-{}-{nonce}",
+        std::process::id()
+    ));
+    std::fs::create_dir(&path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))?;
+    }
+    Ok(BundleStage(path))
+}
+
+fn publish_bundle(
+    bundle: &Path,
+    directory: &Path,
+    stage: &BundleStage,
+    count: usize,
+    limit: u64,
+) -> io::Result<std::path::PathBuf> {
+    let unpacked = file_bundle::extract_bundle(bundle, &stage.0, count, limit)?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(io::Error::other)?
+        .as_nanos();
+    let target = directory.join(format!("SeamlessControl received group {nonce}"));
+    std::fs::rename(unpacked, &target)?;
+    Ok(target)
+}
 
 fn send_frame(
     channel: &mut SecureChannel<TcpStream>,
@@ -269,6 +314,10 @@ fn receive_with_listener_progress(
         return Err("expected a file offer".into());
     };
     offer.validate(limit)?;
+    let group_count = file_bundle::is_bundle_name(&offer.name);
+    if offer.name.ends_with(".scbundle") && group_count.is_none() {
+        return Err("invalid bundle offer name".into());
+    }
     if !files_allowed {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
@@ -278,7 +327,9 @@ fn receive_with_listener_progress(
         return Ok(None);
     }
     let total = offer.size;
-    let mut receiver = FileReceiver::accept(offer, directory, limit)?;
+    let stage = group_count.map(|_| bundle_stage(directory)).transpose()?;
+    let receive_directory = stage.as_ref().map_or(directory, |stage| stage.0.as_path());
+    let mut receiver = FileReceiver::accept(offer, receive_directory, limit)?;
     send_frame(&mut channel, &mut sent, FileMessage::Accept)?;
     progress(0);
     let mut transferred = 0u64;
@@ -296,6 +347,11 @@ fn receive_with_listener_progress(
             }
             FileMessage::End => {
                 let saved = receiver.finish()?;
+                let saved = if let (Some(count), Some(stage)) = (group_count, stage.as_ref()) {
+                    publish_bundle(&saved, directory, stage, count, limit)?
+                } else {
+                    saved
+                };
                 send_frame(&mut channel, &mut sent, FileMessage::Complete)?;
                 progress(100);
                 return Ok(Some(saved));

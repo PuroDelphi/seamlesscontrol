@@ -328,6 +328,7 @@ enum UiEvent {
     Tray(TrayIconEvent),
     Menu(MenuEvent),
     ClipboardDecision(String, bool),
+    CopiedBundle(u64, Result<PathBuf, String>),
 }
 
 struct Process {
@@ -372,6 +373,7 @@ struct Controller {
     clipboard: WindowsClipboard,
     clipboard_staging: PathBuf,
     copied_file: Option<PathBuf>,
+    copied_generation: u64,
     last_copied_send: Option<PathBuf>,
     copied_send_active: bool,
     clipboard_offer_since: Option<Instant>,
@@ -478,6 +480,7 @@ impl Controller {
             clipboard: WindowsClipboard::new(),
             clipboard_staging,
             copied_file: None,
+            copied_generation: 0,
             last_copied_send: None,
             copied_send_active: false,
             clipboard_offer_since: None,
@@ -720,15 +723,34 @@ impl Controller {
         }
         match self
             .clipboard
-            .copied_file(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
+            .copied_paths(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
         {
-            Ok(Some(path)) => {
+            Ok(Some(paths)) => {
+                self.copied_generation = self.copied_generation.wrapping_add(1);
                 if self.copied_send_active {
                     self.stop(Slot::SendFile);
                     self.log("Copied-file offer canceled because the clipboard changed.");
                 }
-                self.copied_file = path;
+                self.copied_file = None;
                 self.last_copied_send = None;
+                if let Some(paths) = paths {
+                    if paths.len() == 1 && paths[0].is_file() {
+                        self.copied_file = paths.into_iter().next();
+                    } else {
+                        let generation = self.copied_generation;
+                        let staging = self.clipboard_staging.clone();
+                        let limit = self.file_limit_mib * 1024 * 1024;
+                        let proxy = proxy.clone();
+                        thread::spawn(move || {
+                            let result = seamlesscontrol_core::file_bundle::create_bundle(
+                                &paths, limit, &staging,
+                            )
+                            .map_err(|error| error.to_string());
+                            let _ = proxy.send_event(UiEvent::CopiedBundle(generation, result));
+                        });
+                        self.log("Preparing copied files or folder for one approved transfer…");
+                    }
+                }
             }
             Ok(None) => {}
             Err(error) => self.log(format!("Could not inspect copied file: {error}")),
@@ -1789,6 +1811,21 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                     controller.clipboard_notification_open = false;
                 }
                 push_state(&webview, &controller);
+            }
+            Event::UserEvent(UiEvent::CopiedBundle(generation, result)) => {
+                if generation == controller.copied_generation {
+                    match result {
+                        Ok(path) => {
+                            controller.log("Copied group is ready to offer.");
+                            controller.copied_file = Some(path);
+                            controller.last_copied_send = None;
+                        }
+                        Err(error) => {
+                            controller.log(format!("Could not prepare copied group: {error}"))
+                        }
+                    }
+                    push_state(&webview, &controller);
+                }
             }
             Event::UserEvent(UiEvent::Discovery(items)) => {
                 controller.discovered = items;

@@ -84,7 +84,7 @@ Files require **paired computers with SeamlessControl running**, but **no mouse/
 ### Copy here, paste there · TCP 47834
 
 1. **Receiver:** allow TCP `47834` once through its LAN firewall. In Omarchy use **Home → Set up copied-file receiving · TCP 47834** or **Settings → Copied files · set up receiving**; preview and authorize the rule. Keep the Omarchy widget loaded (or the Windows app running).
-2. **Source:** copy **one regular local file** in your file manager. With exactly one paired computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
+2. **Source:** copy **one local file, several files, or a folder** in your file manager. With exactly one paired computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
 3. **Receiver:** if its approval mode requires a prompt, select **Accept file** or **Decline**. An actionable desktop notification appears even with the panel closed or on another workspace; the offer also appears at the top of every panel tab and in Files. Rejection prevents content transfer.
 4. Wait for transfer and verification to finish. Open the destination folder in the receiver's file manager and use **Paste**.
 
@@ -92,7 +92,9 @@ Files require **paired computers with SeamlessControl running**, but **no mouse/
 
 **Wait for a file does not turn on copied-file detection.** It is the other workflow below. Copied files are verified into a private staging folder before the clipboard points to them. Staging has a size quota; old staging sessions are cleaned up after seven days. Paste files you want to keep into your own folder rather than relying on staging as permanent storage.
 
-An unapproved offer expires after **two minutes**. Copy the file again or use the offer button to retry. GNOME Files supports copying from **Recent** as well as normal folders. Other file managers must expose a local file in supported clipboard formats; folders, remote files, symbolic links, multi-file selections and cut/move operations are not offered as ordinary copied files. Send files one at a time. Rename a file containing `:` before sending: that character is rejected for Windows-compatible safety.
+For several files or a folder, the receiver sees **one offer** with the number of included items and total size. Approve once and paste the verified **received group folder** in your file manager. The configured size limit covers the whole group.
+
+An unapproved offer expires after **two minutes**. Copy the file again or use the offer button to retry. GNOME Files supports copying from **Recent** as well as normal folders. Other file managers must expose a local file in supported clipboard formats; remote files, symbolic links and cut/move operations are not offered. A copied group is presented as one offer, with its item count and total size; after approval, paste the received folder to keep its contents together. Both computers need a version that supports groups. Up to 256 files and folders (including nested items) fit in one group and the configured size limit applies to the entire group. Rename a file containing `:` before sending: that character is rejected for Windows-compatible safety.
 
 ### Send directly to a folder · TCP 47833 by default
 

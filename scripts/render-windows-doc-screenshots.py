@@ -48,7 +48,7 @@ def fixture(language: str, view: str) -> dict:
         "receive": True, "connect": False, "fileReceive": False,
         "controlMode": "receive", "receivePort": 47832,
         "lastAddress": "192.0.2.20:47832", "lastEdge": "right",
-        "clipboardReady": True, "copiedFile": "example-notes.txt",
+        "clipboardReady": True, "copiedFile": "SeamlessControl 3 items.scbundle",
         "clipboardOffer": "", "clipboardProgress": None,
         "peers": [{"ip": "192.0.2.20", "fingerprint": FINGERPRINT,
                    "policy": {"control": True, "text": True, "files": True, "lastConnectedMs": 0},
@@ -69,7 +69,7 @@ def fixture(language: str, view: str) -> dict:
     if view == "offer":
         state.update(
             copiedFile=None,
-            clipboardOffer="OFFER\t192.0.2.20\texample-notes.txt\t2048\texample-digest",
+            clipboardOffer="OFFER\t192.0.2.20\tSeamlessControl 3 items.scbundle\t2048\texample-digest",
         )
     return state
 

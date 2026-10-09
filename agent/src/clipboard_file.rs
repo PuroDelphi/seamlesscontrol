@@ -145,6 +145,28 @@ pub fn parse_one_file_uri(bytes: &[u8]) -> io::Result<Option<PathBuf>> {
 }
 
 #[cfg(target_os = "linux")]
+pub fn parse_file_uris(bytes: &[u8]) -> io::Result<Option<Vec<PathBuf>>> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid URI list"))?;
+    let lines: Vec<_> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect();
+    if lines.is_empty() || lines.len() > 256 {
+        return Ok(None);
+    }
+    let mut paths = Vec::with_capacity(lines.len());
+    for line in lines {
+        let Some(path) = parse_one_file_uri(line.as_bytes())? else {
+            return Ok(None);
+        };
+        paths.push(path);
+    }
+    Ok(Some(paths))
+}
+
+#[cfg(target_os = "linux")]
 pub fn file_uri(path: &Path) -> io::Result<Vec<u8>> {
     use std::os::unix::ffi::OsStrExt;
 
@@ -218,5 +240,12 @@ mod tests {
             None
         );
         assert_eq!(parse_one_file_uri(b"file:///tmp/%00bad\r\n").unwrap(), None);
+        assert_eq!(
+            parse_file_uris(b"file:///tmp/a\r\nfile:///tmp/b\r\n")
+                .unwrap()
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

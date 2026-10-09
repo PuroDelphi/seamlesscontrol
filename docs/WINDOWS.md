@@ -122,11 +122,11 @@ While the control connection is running, copy text on one computer and paste it 
 | Copy in one file manager and paste in the other | Top **Files → Copy here, paste there** card | App/plugin running; TCP `47834`; no manual waiting or control connection. |
 | Choose a file and save it directly into a folder | **Files → Send a file / Wait for one file** | **Wait for a file** active; TCP `47833` by default. |
 
-Both workflows require pairing, follow the receiving computer's approval preference, and verify the transfer. Use **one file**, not a directory or selection of multiple files. Copied-file sharing supports **Copy**, not cross-computer Cut/move.
+Both workflows require pairing, follow the receiving computer's approval preference, and verify the transfer. Manual sending accepts one file. Copied-file sharing accepts one local file, multiple local files or a folder as one approved group; it supports **Copy**, not cross-computer Cut/move. Both computers need group-capable agents.
 
 #### Copy here, paste there
 
-1. Keep both apps/plugin running and the computers paired. Copy **one local file** in Explorer or the Omarchy file manager.
+1. Keep both apps/plugin running and the computers paired. Copy **one local file, several files or a folder** in Explorer or the Omarchy file manager.
 2. With exactly one paired computer, the file is offered automatically. With several, choose the destination under **Files → Copy here, paste there**. Expected result: the copied file is shown and an offer reaches the receiver.
 3. With the default approval mode, the receiver checks sender, filename and size, then chooses **Accept file** or **Decline**. Windows also shows a native approval dialog even when hidden in the tray; Omarchy uses an actionable desktop notification. The Files page has approval buttons too.
 4. Wait for verified completion in **Activity**. Then open the folder where you want the file and **Paste** in the receiver's file manager. Accepting prepares the local clipboard; it does not paste into your chosen folder for you.
@@ -136,6 +136,8 @@ Both workflows require pairing, follow the receiving computer's approval prefere
 ![Focused incoming copied-file offer and approval buttons in the Windows HTML interface](images/windows-offer-en.png)
 
 The offer image shows the **in-app** controls, not the native Windows dialog. An unanswered copied-file offer expires after **two minutes**. Changing the copied file cancels its outgoing offer. Allow TCP `47834` on the **receiver**; **Wait for a file** on `47833` is unrelated to this flow.
+
+For a selection of files or a folder, SeamlessControl shows **one offer** named with the number of included items and the total transfer size. Accept once, then paste the verified **received group folder** in the destination file manager. The configured file-size limit applies to the entire group; at most 256 entries, including items inside folders, are supported. Symbolic links and unsupported virtual files are rejected.
 
 #### Manual send: save directly into a folder
 
@@ -187,7 +189,7 @@ Do not open these ports to the Internet, add router forwarding or disable the fi
 | Row Connect only opens Overview | This prepares the address and edge. Choose **Connect in Overview** to start the session. |
 | CONNECTED but crossing does nothing | Wait for **Ready to control** in Activity. Check that the receiver is available and that you cross the selected **outer** edge. Return/Stop before changing the side. |
 | Cannot return by the screen edge | Press **Escape on the physical source keyboard**. Update both agents; direct sessions learn the entry/return edge without a receiver map. See Activity for errors. |
-| Copying a file produces no usable offer | Copy one local file, not Cut or a folder. Check pairing, size limits and TCP `47834` on the receiver. With several peers, choose the destination in the top Files card. |
+| Copying a file produces no usable offer | Copy local files or a folder, not Cut, unsupported virtual files or links. Check pairing, size limits and TCP `47834` on the receiver. With several peers, choose the destination in the top Files card. |
 | Accepted copied file is not in the desired folder | Wait for completion, then **Paste in the receiver's file manager**. Manual transfers instead save directly and do not need Paste. |
 | Manual sending fails although control works | Start **Wait for a file** on the destination and permit its file port (normally `47833`), not just the control port. |
 | App reconnects after reopening / cannot replace files | Use Stop to change the saved mode; to replace binaries, **exit from the tray**, not just close the window. |

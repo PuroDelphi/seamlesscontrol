@@ -137,12 +137,12 @@ impl WindowsClipboard {
         Ok(Some(event))
     }
 
-    /// None means unchanged; Some(None) means a changed clipboard without one supported file.
-    pub fn copied_file(
+    /// None means unchanged; Some(None) means a changed clipboard without local paths.
+    pub fn copied_paths(
         &mut self,
         limit: u64,
         staging: &Path,
-    ) -> io::Result<Option<Option<PathBuf>>> {
+    ) -> io::Result<Option<Option<Vec<PathBuf>>>> {
         let sequence = unsafe { GetClipboardSequenceNumber() };
         if sequence == 0 || sequence == self.last_sequence {
             return Ok(None);
@@ -159,35 +159,51 @@ impl WindowsClipboard {
             return Ok(None);
         }
         let count = unsafe { DragQueryFileW(drop, u32::MAX, ptr::null_mut(), 0) };
-        if count != 1 {
+        if count == 0 || count > 256 {
             self.last_sequence = sequence;
             return Ok(Some(None));
         }
-        let length = unsafe { DragQueryFileW(drop, 0, ptr::null_mut(), 0) } as usize;
-        if length == 0 || length > 32767 {
-            self.last_sequence = sequence;
-            return Ok(Some(None));
+        let mut paths = Vec::with_capacity(count as usize);
+        for index in 0..count {
+            let length = unsafe { DragQueryFileW(drop, index, ptr::null_mut(), 0) } as usize;
+            if length == 0 || length > 32767 {
+                self.last_sequence = sequence;
+                return Ok(Some(None));
+            }
+            let mut wide = vec![0u16; length + 1];
+            if unsafe { DragQueryFileW(drop, index, wide.as_mut_ptr(), wide.len() as u32) } as usize
+                != length
+            {
+                return Ok(None);
+            }
+            paths.push(PathBuf::from(std::ffi::OsString::from_wide(
+                &wide[..length],
+            )));
         }
-        let mut wide = vec![0u16; length + 1];
-        if unsafe { DragQueryFileW(drop, 0, wide.as_mut_ptr(), wide.len() as u32) } as usize
-            != length
-        {
-            return Ok(None);
-        }
-        let path = PathBuf::from(std::ffi::OsString::from_wide(&wide[..length]));
+        drop(_open);
         self.last_sequence = sequence;
-        let staged = path
-            .to_string_lossy()
-            .to_lowercase()
-            .starts_with(&staging.to_string_lossy().to_lowercase());
-        if staged || !local_regular_file(&path, limit).unwrap_or(false) {
+        if paths.iter().any(|path| {
+            path.to_string_lossy()
+                .to_lowercase()
+                .starts_with(&staging.to_string_lossy().to_lowercase())
+        }) {
             return Ok(Some(None));
         }
-        Ok(Some(Some(path)))
+        if paths.len() == 1
+            && paths[0].is_file()
+            && !local_regular_file(&paths[0], limit).unwrap_or(false)
+        {
+            return Ok(Some(None));
+        }
+        Ok(Some(Some(paths)))
     }
 
     pub fn publish_file(&mut self, path: &Path) -> io::Result<()> {
-        if !path.is_absolute() || !local_regular_file(path, u64::MAX)? {
+        let metadata = std::fs::symlink_metadata(path)?;
+        if !path.is_absolute()
+            || metadata.file_type().is_symlink()
+            || !(metadata.is_dir() || local_regular_file(path, u64::MAX)?)
+        {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "invalid local file",

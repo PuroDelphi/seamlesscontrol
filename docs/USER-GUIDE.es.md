@@ -84,7 +84,7 @@ Los archivos requieren **equipos emparejados con SeamlessControl abierto**, pero
 ### Copiar aquí, pegar allá · TCP 47834
 
 1. **Receptor:** permite TCP `47834` una vez en su firewall LAN. En Omarchy usa **Inicio → Preparar recepción de archivos copiados · TCP 47834** o **Ajustes → Archivos copiados · preparar recepción**; prepara y autoriza la regla. Mantén cargado el widget de Omarchy (o abierta la app Windows).
-2. **Origen:** copia **un archivo local normal** en el explorador. Con exactamente un equipo emparejado, se ofrece automáticamente. Con varios, elige **Archivos → Ofrecer archivo copiado a…**.
+2. **Origen:** copia **un archivo local, varios archivos o una carpeta** en el explorador. Con exactamente un equipo emparejado, se ofrece automáticamente. Con varios, elige **Archivos → Ofrecer archivo copiado a…**.
 3. **Receptor:** si su modo de aprobación requiere preguntar, pulsa **Aceptar archivo** o **Rechazar**. Aparece una notificación con acciones aunque el panel esté cerrado o estés en otro workspace; la oferta también aparece arriba de cualquier pestaña del panel y en Archivos. Rechazar impide transferir el contenido.
 4. Espera a que terminen la transferencia y verificación. Abre la carpeta de destino en el explorador del receptor y usa **Pegar**.
 
@@ -92,7 +92,9 @@ Los archivos requieren **equipos emparejados con SeamlessControl abierto**, pero
 
 **Esperar un archivo no activa la detección de archivos copiados.** Es el otro flujo de abajo. Los archivos copiados se verifican en una carpeta temporal privada antes de publicar su referencia en el portapapeles. Esa carpeta tiene una cuota de tamaño; las sesiones temporales antiguas se limpian después de siete días. Pega los archivos que quieras conservar en una carpeta propia en vez de depender de esa carpeta como almacenamiento permanente.
 
-Una oferta sin aprobar caduca a los **dos minutos**. Vuelve a copiar el archivo o usa el botón de oferta para reintentar. Archivos de GNOME permite copiar desde **Recientes** y desde carpetas normales. Otros exploradores deben publicar un archivo local en formatos de portapapeles compatibles; carpetas, archivos remotos, enlaces simbólicos, selecciones múltiples y operaciones de cortar/mover no se ofrecen como archivos copiados normales. Envía los archivos uno por uno. Cambia el nombre de un archivo que contenga `:` antes de enviarlo: ese carácter se rechaza por seguridad compatible con Windows.
+Con varios archivos o una carpeta, el receptor ve **una sola oferta** con la cantidad de elementos y el tamaño total. Aprueba una vez y pega la **carpeta del grupo recibido**, ya verificada, en tu explorador. El límite de tamaño configurado cubre el grupo completo.
+
+Una oferta sin aprobar caduca a los **dos minutos**. Vuelve a copiar el archivo o usa el botón de oferta para reintentar. Archivos de GNOME permite copiar desde **Recientes** y desde carpetas normales. Otros exploradores deben publicar un archivo local en formatos de portapapeles compatibles; archivos remotos, enlaces simbólicos y operaciones de cortar/mover no se ofrecen. Un grupo copiado se muestra como una sola oferta, con cantidad de elementos y tamaño total; después de aprobarlo, pega la carpeta recibida para conservar su contenido junto. Ambos equipos necesitan una versión compatible con grupos. Se admiten hasta 256 archivos y carpetas (incluidos los elementos internos) por grupo; el límite de tamaño configurado se aplica al grupo completo. Cambia el nombre de un archivo que contenga `:` antes de enviarlo: ese carácter se rechaza por seguridad compatible con Windows.
 
 ### Enviar directamente a una carpeta · TCP 47833 predeterminado
 

@@ -1787,7 +1787,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Copiar y pegar archivos")
-          description: root.t("Copie un archivo en el explorador. Con un solo equipo emparejado se ofrece automáticamente; con varios, elija el destino aquí. La aprobación depende del modo elegido en Ajustes del receptor. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
+          description: root.t("Copie un archivo, varios archivos o una carpeta en el explorador. Con un solo equipo emparejado se ofrecen automáticamente; con varios, elija el destino aquí. El receptor aprueba una sola oferta para todo el grupo. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -1795,8 +1795,8 @@ Panel {
         Text {
           Layout.fillWidth: true
           text: root.backend && root.backend.copiedFilePath !== ""
-            ? root.t("Archivo copiado: ") + root.backend.copiedFilePath
-            : root.t("Copie un archivo en el explorador para ofrecerlo.")
+            ? root.t("Selección copiada: ") + root.backend.copiedFilePath.split("/").pop()
+            : root.t("Copie archivos o una carpeta en el explorador para ofrecerlos.")
           textFormat: Text.PlainText
           wrapMode: Text.WrapAnywhere
           color: root.ink

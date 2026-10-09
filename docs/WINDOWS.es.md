@@ -122,11 +122,11 @@ Mientras la conexión de control esté en ejecución, copia texto en un equipo y
 | Copiar en un explorador y pegar en el otro | Tarjeta superior **Archivos → Copia aquí, pega allá** | App/plugin en ejecución; TCP `47834`; sin espera manual ni conexión de control. |
 | Elegir un archivo y guardarlo directamente en una carpeta | **Archivos → Enviar un archivo / Esperar un archivo** | **Esperar un archivo** activo; TCP `47833` por defecto. |
 
-Ambos flujos requieren emparejamiento, siguen la preferencia de aprobación del receptor y verifican la transferencia. Usa **un archivo**, no una carpeta ni una selección de varios archivos. Los archivos copiados admiten **Copiar**, no Cortar/mover entre equipos.
+Ambos flujos requieren emparejamiento, siguen la preferencia de aprobación del receptor y verifican la transferencia. El envío manual admite un archivo. La copia entre exploradores admite un archivo local, varios archivos o una carpeta como un solo grupo aprobado; admite **Copiar**, no Cortar/mover entre equipos. Ambos equipos deben tener agentes compatibles con grupos.
 
 #### Copia aquí, pega allá
 
-1. Mantén ambas apps/plugin en ejecución y los equipos emparejados. Copia **un archivo local** en el Explorador o en el explorador Omarchy.
+1. Mantén ambas apps/plugin en ejecución y los equipos emparejados. Copia **un archivo local, varios archivos o una carpeta** en el Explorador o en el explorador Omarchy.
 2. Con exactamente un equipo emparejado, se ofrece automáticamente. Con varios, elige el destino en **Archivos → Copia aquí, pega allá**. Resultado esperado: aparece el archivo copiado y llega una oferta al receptor.
 3. Con el modo predeterminado, el receptor revisa remitente, nombre y tamaño y pulsa **Aceptar archivo** o **Rechazar**. Windows también muestra un diálogo nativo aunque esté oculto en la bandeja; Omarchy usa una notificación de escritorio con botones. La página Archivos también tiene botones de aprobación.
 4. Espera la finalización verificada en **Actividad**. Abre entonces la carpeta donde quieres el archivo y **Pega** en el explorador del receptor. Aceptar prepara el portapapeles local; no pega por ti en la carpeta elegida.
@@ -136,6 +136,8 @@ Ambos flujos requieren emparejamiento, siguen la preferencia de aprobación del 
 ![Detalle de una oferta entrante de archivo copiado y sus botones en la interfaz HTML Windows](images/windows-offer-es.png)
 
 La imagen de la oferta muestra los controles **de la app**, no el diálogo nativo Windows. Una oferta de archivo copiado sin respuesta caduca a los **dos minutos**. Cambiar el archivo copiado cancela su oferta saliente. Permite TCP `47834` en el **receptor**; **Esperar un archivo** en `47833` no pertenece a este flujo.
+
+Para varios archivos o una carpeta, SeamlessControl muestra **una sola oferta** con la cantidad de elementos incluidos y el tamaño total. Acéptala una vez y pega la **carpeta del grupo recibido**, ya verificada, en el explorador de destino. El límite configurado se aplica al grupo completo; se admiten hasta 256 elementos, incluidos los de dentro de carpetas. Se rechazan enlaces simbólicos y archivos virtuales no compatibles.
 
 #### Envío manual: guardar directamente en una carpeta
 
@@ -187,7 +189,7 @@ No abras estos puertos a Internet, no añadas reenvío en el router ni desactive
 | Conectar en la fila solo abre Inicio | Prepara dirección y borde. Pulsa **Conectar en Inicio** para iniciar la sesión. |
 | CONECTADO pero cruzar no hace nada | Espera a **Ready to control** en Actividad. Comprueba que el receptor esté disponible y cruza el borde **exterior** elegido. Vuelve/Detén antes de cambiar el lado. |
 | No puedes volver por el borde | Pulsa **Escape en el teclado físico del origen**. Actualiza ambos agentes: las sesiones directas aprenden el borde de entrada/regreso sin mapa receptor. Revisa los errores en Actividad. |
-| Copiar un archivo no produce una oferta útil | Copia un archivo local, no Cortar ni una carpeta. Comprueba emparejamiento, límites y TCP `47834` en el receptor. Con varios pares, elige destino en la tarjeta superior de Archivos. |
+| Copiar un archivo no produce una oferta útil | Copia archivos locales o una carpeta; no uses Cortar, archivos virtuales no compatibles ni enlaces. Comprueba emparejamiento, límites y TCP `47834` en el receptor. Con varios pares, elige destino en la tarjeta superior de Archivos. |
 | El archivo copiado aceptado no está en la carpeta deseada | Espera a que termine y **Pega en el explorador del receptor**. Los envíos manuales guardan directamente y no necesitan Pegar. |
 | Falla el envío manual aunque funciona el control | Inicia **Esperar un archivo** en destino y permite su puerto de archivos (normalmente `47833`), no solo el de control. |
 | La app reconecta al abrirse / no puedes reemplazar archivos | Usa Detener para cambiar el modo guardado; para reemplazar ejecutables, **sal desde la bandeja**, no cierres solo la ventana. |
