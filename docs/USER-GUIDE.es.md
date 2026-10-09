@@ -164,6 +164,7 @@ El botón de reparar captura solo aparece en una **sesión de origen iniciada de
 Detén las sesiones activas antes de instalar, actualizar o retirar. **Inicio → Actualizar agente** abre una terminal de Omarchy para instalar el agente actual y las dependencias que falten. Actualiza el **plugin** por separado y reinicia el shell de Omarchy siguiendo el [README](../README.es.md#actualizar-o-retirar); vuelve a abrir el panel después. Si faltan las pestañas actuales o los ajustes de aprobación, el shell puede tener cargado un panel anterior.
 
 Inicio muestra las versiones del plugin y del agente instalado. Si son distintas, termina la sesión y pulsa **Actualizar agente**. Espera a que finalice la terminal de instalación; después vuelve a Inicio y comprueba que coincidan.
+El panel confirma la finalización solo cuando el instalador termina correctamente y el agente nuevo informa la versión del plugin. Si falla, lee el error en la terminal y vuelve a intentarlo; abrir la terminal no significa que la actualización haya concluido.
 
 **Ajustes → Retirar agente** pide confirmación y retira el agente administrado y solo los paquetes que SeamlessControl instaló para él. Conserva las claves emparejadas y el mapa. Retirar el agente no retira el plugin ni sus reglas de firewall; el README y la guía técnica explican esos pasos separados. Si el panel no puede abrir la terminal de instalación, usa la [instalación manual de la guía técnica](TECHNICAL.es.md#paquetes-y-actualizaciones).
 

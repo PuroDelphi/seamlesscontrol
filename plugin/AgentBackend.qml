@@ -149,6 +149,10 @@ Item {
   readonly property string firewallScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/firewall-lan.sh")).replace(/^file:\/\//, ""))
   readonly property string setupScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/setup-agent.sh")).replace(/^file:\/\//, ""))
   property bool setupBusy: false
+  property double setupAttemptMs: 0
+  property string setupReceiptStatus: ""
+  property string setupReceiptVersion: ""
+  property double setupReceiptMs: 0
   property string setupMessage: ""
   property string setupError: ""
   property bool firewallBusy: false
@@ -159,6 +163,42 @@ Item {
   property string firewallStep: ""
   property string firewallOutput: ""
   property string firewallStderr: ""
+
+  function checkSetupCompletion() {
+    if (setupAttemptMs <= 0 || setupReceiptMs < setupAttemptMs) return
+    if (setupReceiptStatus === "failed") {
+      setupError = root.t("La instalación o retirada falló. Revise la terminal de Omarchy y vuelva a intentarlo.")
+      setupAttemptMs = 0
+    } else if (setupReceiptStatus === "removed") {
+      if (!installed) {
+        setupMessage = root.t("Agente retirado correctamente.")
+        setupAttemptMs = 0
+      }
+    } else if (setupReceiptStatus === "installed" && setupReceiptVersion !== pluginVersion) {
+      setupError = root.t("La terminal terminó, pero las versiones del plugin y el agente no coinciden. Actualice el plugin y vuelva a instalar el agente.")
+      setupAttemptMs = 0
+    } else if (setupReceiptStatus === "installed" && agentVersion === pluginVersion) {
+      setupMessage = root.t("Agente actualizado y versión verificada: ") + agentVersion
+      setupError = ""
+      setupAttemptMs = 0
+    }
+  }
+
+  FileView {
+    id: setupResultFile
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
+      + "/seamlesscontrol/setup-result"
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      var fields = String(text() || "").trim().split("\t")
+      root.setupReceiptStatus = fields[0] || ""
+      root.setupReceiptVersion = fields[1] || ""
+      root.setupReceiptMs = Number(fields[2] || 0)
+      root.checkSetupCompletion()
+    }
+    onFileChanged: reload()
+  }
 
   FileView {
     id: manifestFile
@@ -237,6 +277,7 @@ Item {
       return
     }
     setupBusy = true
+    setupAttemptMs = Date.now()
     if (clipboardReceiveProcess.running) {
       stoppingClipboardReceiver = true
       clipboardReceiveProcess.running = false
@@ -253,8 +294,10 @@ Item {
     id: setupProcess
     onExited: function(code) {
       root.setupBusy = false
-      if (code !== 0)
+      if (code !== 0) {
         root.setupError = "No se pudo abrir la terminal de Omarchy. Use el comando manual de la guía."
+        root.setupAttemptMs = 0
+      }
       if (!executableProbe.running) executableProbe.running = true
     }
   }
@@ -577,7 +620,9 @@ Item {
       if (!root.installed) root.agentVersion = ""
       if (root.installed && !wasInstalled) {
         root.error = ""
-        root.setupMessage = "Agente instalado. Ya puede iniciar una sesión."
+        root.setupMessage = root.setupAttemptMs > 0
+          ? root.t("Agente detectado; comprobando versión y resultado de instalación.")
+          : root.t("Agente instalado. Ya puede iniciar una sesión.")
         root.refresh()
         root.refreshPeers()
         root.refreshDiscovery()
@@ -589,6 +634,7 @@ Item {
         root.discovered = []
         root.topology = []
       }
+      root.checkSetupCompletion()
     }
   }
 
@@ -597,7 +643,11 @@ Item {
     command: ["seamlesscontrold", "version"]
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: root.agentVersion = String(text || "").trim()
+      onStreamFinished: {
+        root.agentVersion = String(text || "").trim()
+        setupResultFile.reload()
+        root.checkSetupCompletion()
+      }
     }
     onExited: function(code) { if (code !== 0) root.agentVersion = "?" }
   }

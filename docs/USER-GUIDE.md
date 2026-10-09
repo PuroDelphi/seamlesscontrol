@@ -164,6 +164,7 @@ The capture repair button only appears for a **panel-started source session** af
 Stop active sessions before installation, updating or removal. **Home → Update agent** opens an Omarchy terminal to install the current agent and missing dependencies. Update the **plugin** separately and restart the Omarchy shell following the [README](../README.md#update-or-remove); reopen the panel afterward. If current tabs or approval settings are missing, the shell may still have an older panel loaded.
 
 Home shows the plugin and installed agent versions. If they differ, stop the session and select **Update agent**. Wait for the installation terminal to finish, then return to Home and check that both versions match.
+The panel confirms completion only after the setup script finishes successfully and the newly installed agent reports the plugin's version. If setup fails, read the terminal error and retry; opening the terminal alone does not mean the update succeeded.
 
 **Settings → Remove agent** asks for confirmation and removes the managed agent and only packages SeamlessControl installed for it. Saved paired keys and layout remain. Removing the agent is not removing the plugin or its firewall rules; the README and technical guide explain those separate steps. If the panel cannot open the setup terminal, use the [technical guide's manual installation](TECHNICAL.md#packaging-and-updates).
 

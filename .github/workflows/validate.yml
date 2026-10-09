@@ -25,6 +25,8 @@ jobs:
         run: cargo clippy --locked --manifest-path agent/Cargo.toml --all-targets -- -D warnings
       - name: Check shell syntax
         run: bash -n packaging/*.sh scripts/*.sh tests/*.sh
+      - name: Check setup completion receipt
+        run: bash tests/setup_result.sh
       - name: Publish marketplace commit SHA
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |

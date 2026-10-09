@@ -20,6 +20,7 @@ Status: **planned** → **in progress** → **implemented** → **verified**. An
 | 2026-10-09 | Baseline | `alpha` starts at `838d164`; current Linux and Windows x64 CI passed for v0.23.3. | Baseline established. |
 | 2026-10-09 | Diagnosis | Added a shared, read-only LAN port and local trust check, with an action in each interface. A reachable port is explicitly not treated as proof of identity. Linux: 77 core tests passed; direct CLI probe of the live receiver returned `CHECK … false true pair_first`; Omarchy preview loaded; Windows x64 CI passed at `eda1360`. | Implemented; physical Windows UI check pending. |
 | 2026-10-09 | Updates | Embedded manifest version in both agents. Omarchy compares plugin and agent; Windows compares app and agent. | Version check implemented; bundled updater pending. |
+| 2026-10-09 | Omarchy setup result | The setup wrapper now records success, failure or removal. The panel confirms installation only after that result and a matching agent version. Isolated shell integration test covers all three outcomes. | Implemented; live panel check pending. |
 
 ## Implementation notes
 
