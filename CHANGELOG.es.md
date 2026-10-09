@@ -4,8 +4,9 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
-## Sin publicar
+## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 
+- Actualiza las dependencias fijadas Tokio de 1.53.1 a 1.53.2 y `mdns-sd` de 0.21.4 a 0.21.5. La segunda corrige los temporizadores del descubrimiento tras cambios de hora o suspensión; no cambia el código de la aplicación ni el protocolo de emparejamiento.
 - Reorganiza README y guías Omarchy/Windows en español e inglés por tareas: instalación, primera conexión, regreso, archivos, permisos y resolución de problemas.
 - Renueva las imágenes explicativas desde las interfaces del proyecto, con datos ficticios y procedencia identificada. Separa las instrucciones actuales de las notas históricas de versiones.
 - Corrige la configuración innecesaria del mapa inverso en sesiones directas, explica los dos pasos de Conectar en Windows y distingue los puertos de copiar/pegar y envío manual. Retira el enlace al plan inexistente y actualiza la documentación técnica de retorno y parada.

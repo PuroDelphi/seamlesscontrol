@@ -4,8 +4,9 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
-## Unreleased
+## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 
+- Update the locked Tokio dependency from 1.53.1 to 1.53.2 and `mdns-sd` from 0.21.4 to 0.21.5. The latter fixes discovery timer behavior after clock changes or system sleep; application code and the pairing protocol are unchanged.
 - Reorganize English and Spanish README and Omarchy/Windows guides by task: installation, first connection, return, files, permissions and troubleshooting.
 - Refresh explanatory images from the project's interfaces, with fictional data and identified provenance. Separate current instructions from historical release notes.
 - Remove the unnecessary reverse-layout setup for direct sessions, explain the two Windows Connect steps, and distinguish copy/paste ports from manual file sends. Remove the missing roadmap link and update technical return and stop documentation.
