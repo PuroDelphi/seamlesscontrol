@@ -526,6 +526,74 @@ mod tests {
     }
 
     #[test]
+    fn paired_group_uses_one_approval_and_publishes_verified_folder() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-group-session-{}-{:?}",
+            std::process::id(),
+            thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("source/folder")).unwrap();
+        fs::write(dir.join("source/one.txt"), b"one").unwrap();
+        fs::write(dir.join("source/folder/two.txt"), b"two").unwrap();
+        let bundle = file_bundle::create_bundle(
+            &[dir.join("source/one.txt"), dir.join("source/folder")],
+            1024 * 1024,
+            &dir.join("staging"),
+        )
+        .unwrap();
+        let downloads = dir.join("downloads");
+        fs::create_dir(&downloads).unwrap();
+        let sender_peers = dir.join("sender-peers");
+        let receiver_peers = dir.join("receiver-peers");
+        let sender_id = Identity::generate().unwrap();
+        let receiver_id = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        for accepted in [false, true] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let address = listener.local_addr().unwrap();
+            let destination = downloads.clone();
+            let peers = receiver_peers.clone();
+            let identity = receiver_id.clone();
+            let worker = thread::spawn(move || {
+                let mut approvals = 0;
+                let result = receive_with_listener_progress(
+                    listener,
+                    &destination,
+                    &identity,
+                    &peers,
+                    1024 * 1024,
+                    &mut |offer, peer| {
+                        approvals += 1;
+                        assert_eq!(offer.name, "SeamlessControl 3 items.scbundle");
+                        assert_eq!(peer, ip);
+                        Ok(accepted)
+                    },
+                    &mut |_| {},
+                );
+                (result.map_err(|error| error.to_string()), approvals)
+            });
+            let sent = send_once(address, &bundle, &sender_id, &sender_peers, 1024 * 1024);
+            let (received, approvals) = worker.join().unwrap();
+            assert_eq!(approvals, 1);
+            if accepted {
+                sent.unwrap();
+                let folder = received.unwrap().unwrap();
+                assert_eq!(fs::read(folder.join("one.txt")).unwrap(), b"one");
+                assert_eq!(fs::read(folder.join("folder/two.txt")).unwrap(), b"two");
+                assert!(!folder.join("SeamlessControl 3 items.scbundle").exists());
+            } else {
+                assert!(sent.is_err());
+                assert!(received.unwrap().is_none());
+                assert_eq!(fs::read_dir(&downloads).unwrap().count(), 0);
+            }
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn unauthenticated_connection_does_not_consume_file_receiver() {
         let dir = std::env::temp_dir().join(format!(
             "seamlesscontrol-file-unauthenticated-{}",
