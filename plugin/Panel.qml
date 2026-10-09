@@ -455,6 +455,21 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          visible: root.activeTab === "home" && root.backend && root.backend.pluginVersion !== ""
+          text: root.backend
+            ? root.t("Plugin ") + root.backend.pluginVersion + root.t(" · Agente ")
+              + (root.backend.installed ? (root.backend.agentVersion || root.t("comprobando…")) : root.t("sin instalar"))
+              + (root.backend.agentVersionMismatch ? root.t(" · VERSIONES DISTINTAS: termine la sesión y actualice el agente.") : "")
+            : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.agentVersionMismatch ? Color.urgent : root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.activeTab === "settings" && root.confirmRemoveAgent
           text: root.t("Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.")
           textFormat: Text.PlainText
@@ -598,6 +613,35 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.pair(pairAddress.text.trim())
           }
+        }
+
+        StateButton {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.diagnosisBusy ? root.t("Comprobando conexión…") : root.t("Comprobar conexión antes de emparejar")
+          bordered: true
+          focusable: true
+          enabled: root.backend && root.backend.installed && !root.backend.diagnosisBusy
+            && pairAddress.text.trim() !== ""
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.diagnosePeer(pairAddress.text.trim())
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.diagnosisReason !== "" || root.backend.diagnosisError !== "")
+          text: root.backend ? (root.backend.diagnosisError !== "" ? root.backend.diagnosisError
+            : root.backend.diagnosisReason === "control_port_unreachable"
+              ? root.t("No responde el puerto de control. En el destino, active Recibir control y autorice el puerto TCP en su firewall; luego compruebe de nuevo.")
+            : root.backend.diagnosisReason === "pair_first"
+              ? root.t("El puerto responde. Ahora empareje y compare el código en ambos equipos. La respuesta del puerto todavía no verifica la identidad.")
+              : root.t("El puerto responde y hay una clave guardada. Puede conectar; la identidad se verificará al iniciar la sesión.")) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && (root.backend.diagnosisError !== "" || root.backend.diagnosisReason === "control_port_unreachable") ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         Text {

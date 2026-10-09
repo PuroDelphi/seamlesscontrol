@@ -1,6 +1,7 @@
 //! WebView2 window and tray shell over the existing seamlesscontrold.exe.
 //! No input, encryption, file or clipboard protocol is reimplemented here.
 
+use seamlesscontrol_core::diagnostics::{PeerDiagnosis, diagnose_peer};
 use seamlesscontrol_core::windows_clipboard::WindowsClipboard;
 use seamlesscontrol_core::windows_discovery::{DiscoveredServer, DiscoveryBrowser};
 use std::collections::{BTreeMap, VecDeque};
@@ -295,6 +296,8 @@ struct PairCode {
 struct Controller {
     cli: PathBuf,
     executable: PathBuf,
+    agent_version: String,
+    diagnosis: Option<PeerDiagnosis>,
     startup: &'static str,
     session_path: PathBuf,
     session: SessionPreferences,
@@ -333,6 +336,15 @@ struct Controller {
 
 impl Controller {
     fn new(cli: PathBuf, executable: PathBuf) -> Self {
+        let agent_version = Command::new(&cli)
+            .arg("version")
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+            .map(|version| version.trim().to_owned())
+            .unwrap_or_default();
         let startup = startup_status(&executable).unwrap_or("error");
         let layout_path = std::env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
@@ -388,6 +400,8 @@ impl Controller {
         Self {
             cli,
             executable,
+            agent_version,
+            diagnosis: None,
             startup,
             session_path,
             session,
@@ -990,6 +1004,14 @@ impl Controller {
             })
             .collect();
         serde_json::json!({
+            "appVersion": seamlesscontrol_core::PRODUCT_VERSION,
+            "agentVersion": self.agent_version,
+            "diagnosis": self.diagnosis.as_ref().map(|diagnosis| serde_json::json!({
+                "address": diagnosis.address.to_string(),
+                "paired": diagnosis.paired,
+                "reachable": diagnosis.reachable,
+                "reason": diagnosis.reason,
+            })),
             "receive": self.processes.contains_key(&Slot::Serve),
             "connect": self.processes.contains_key(&Slot::Connect),
             "controlMode": self.session.mode.as_str(),
@@ -1117,6 +1139,13 @@ impl Controller {
                     }
                 }
                 "refreshPeers" => self.refresh_peers(),
+                "diagnosePeer" => {
+                    let address = parse_address(string("address"))?;
+                    self.diagnosis = Some(diagnose_peer(
+                        address,
+                        &self.layout_path.with_file_name("peers"),
+                    )?);
+                }
                 "setFileLimit" => {
                     self.set_file_limit(string("value"))?;
                     if self.clipboard_offer.is_none() {

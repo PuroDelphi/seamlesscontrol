@@ -3,6 +3,7 @@
 
 pub mod clipboard;
 pub mod clipboard_file;
+pub mod diagnostics;
 pub mod file_session;
 pub mod file_transfer;
 pub mod handoff;
@@ -13,6 +14,8 @@ pub mod state;
 pub mod storage;
 pub mod topology;
 pub mod windows_keymap;
+
+pub const PRODUCT_VERSION: &str = env!("SEAMLESSCONTROL_PRODUCT_VERSION");
 
 #[cfg(target_os = "windows")]
 pub mod windows_agent;

@@ -2371,6 +2371,22 @@ mod linux {
             println!("LOCK\t{lock}");
             return Ok(());
         }
+        if args.len() == 2 && args[1] == "version" {
+            println!("{}", seamlesscontrol_core::PRODUCT_VERSION);
+            return Ok(());
+        }
+        if args.len() == 3 && args[1] == "diagnose-peer" {
+            let address: SocketAddr = args[2].parse()?;
+            let diagnosis = seamlesscontrol_core::diagnostics::diagnose_peer(
+                address,
+                &config_dir()?.join("peers"),
+            )?;
+            println!(
+                "CHECK\t{}\t{}\t{}\t{}",
+                diagnosis.address, diagnosis.paired, diagnosis.reachable, diagnosis.reason
+            );
+            return Ok(());
+        }
         if (args.len() == 2 && args[1] == "discover")
             || (args.len() == 3 && args[1] == "discover" && args[2] == "--include-local")
         {

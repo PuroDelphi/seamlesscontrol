@@ -78,6 +78,10 @@ Item {
     }
   }
   property bool installed: false
+  property string pluginVersion: ""
+  property string agentVersion: ""
+  readonly property bool agentVersionMismatch: installed && pluginVersion !== "" && agentVersion !== ""
+    && pluginVersion !== agentVersion
   property bool available: false
   property string role: ""
   property string phase: ""
@@ -108,6 +112,9 @@ Item {
   property var peers: []
   property var discovered: []
   property string discoveryError: ""
+  property bool diagnosisBusy: false
+  property string diagnosisReason: ""
+  property string diagnosisError: ""
   property var topology: []
   property bool receivingFile: false
   property bool fileListening: false
@@ -152,6 +159,16 @@ Item {
   property string firewallStep: ""
   property string firewallOutput: ""
   property string firewallStderr: ""
+
+  FileView {
+    id: manifestFile
+    path: decodeURIComponent(String(Qt.resolvedUrl("../manifest.json")).replace(/^file:\/\//, ""))
+    printErrors: false
+    onLoaded: {
+      try { root.pluginVersion = String(JSON.parse(text()).version || "") }
+      catch (error) { root.pluginVersion = "" }
+    }
+  }
 
   FileView {
     id: languageFile
@@ -415,6 +432,35 @@ Item {
     topologyProcess.running = true
   }
 
+  function diagnosePeer(address) {
+    if (!installed || diagnosisProcess.running || !address) return
+    diagnosisBusy = true
+    diagnosisReason = ""
+    diagnosisError = ""
+    diagnosisProcess.command = ["seamlesscontrold", "diagnose-peer", address]
+    diagnosisProcess.running = true
+  }
+
+  Process {
+    id: diagnosisProcess
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var fields = String(text || "").trim().split("\t")
+        if (fields.length === 5 && fields[0] === "CHECK")
+          root.diagnosisReason = fields[4]
+      }
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.diagnosisError = String(text || "").trim()
+    }
+    onExited: function(code) {
+      root.diagnosisBusy = false
+      if (code !== 0 && root.diagnosisError === "") root.diagnosisError = root.t("No se pudo comprobar la dirección.")
+    }
+  }
+
   function placeMachine(machine, column, row) {
     if (!installed || topologyAction.running || !machine) return
     error = ""
@@ -527,6 +573,8 @@ Item {
     onExited: function(code) {
       var wasInstalled = root.installed
       root.installed = code === 0
+      if (root.installed && !versionProcess.running) versionProcess.running = true
+      if (!root.installed) root.agentVersion = ""
       if (root.installed && !wasInstalled) {
         root.error = ""
         root.setupMessage = "Agente instalado. Ya puede iniciar una sesión."
@@ -542,6 +590,16 @@ Item {
         root.topology = []
       }
     }
+  }
+
+  Process {
+    id: versionProcess
+    command: ["seamlesscontrold", "version"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.agentVersion = String(text || "").trim()
+    }
+    onExited: function(code) { if (code !== 0) root.agentVersion = "" }
   }
 
   Process {

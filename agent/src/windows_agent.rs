@@ -663,7 +663,7 @@ fn connect_source(
 
 fn usage() {
     eprintln!(
-        "SeamlessControl for Windows (alpha)\n\
+        "SeamlessControl for Windows\n\
          seamlesscontrold.exe serve [BIND_IP:PORT]         Receive Omarchy input (default {DEFAULT_CONTROL_BIND})\n\
          seamlesscontrold.exe pair <OMARCHY_IP:PORT>      Pair with an Omarchy receiver\n\
          seamlesscontrold.exe connect <OMARCHY_IP:PORT> <left|right|top|bottom>\n\
@@ -679,6 +679,10 @@ fn usage() {
 pub fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().collect();
     match args.as_slice() {
+        [_, command] if command == "version" => {
+            println!("{}", crate::PRODUCT_VERSION);
+            return Ok(());
+        }
         [_, command, port] if command == "firewall-allow" => {
             return firewall_allow(port.parse()?, "TCP");
         }
@@ -698,6 +702,13 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             for (ip, key) in list_peer_keys(&peers)? {
                 println!("PEER\t{ip}\t{}", key_fingerprint(&key));
             }
+        }
+        [_, command, address] if command == "diagnose-peer" => {
+            let diagnosis = crate::diagnostics::diagnose_peer(address.parse()?, &peers)?;
+            println!(
+                "CHECK\t{}\t{}\t{}\t{}",
+                diagnosis.address, diagnosis.paired, diagnosis.reachable, diagnosis.reason
+            );
         }
         [_, command, ip] if command == "revoke" => {
             let ip: IpAddr = ip.parse()?;

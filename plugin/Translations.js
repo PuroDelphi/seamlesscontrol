@@ -2,6 +2,17 @@
 
 // Spanish source strings are kept here so both languages share the same UI layout.
 var english = {
+  "Plugin ": "Plugin ",
+  " · Agente ": " · Agent ",
+  "comprobando…": "checking…",
+  "sin instalar": "not installed",
+  " · VERSIONES DISTINTAS: termine la sesión y actualice el agente.": " · VERSION MISMATCH: end the session and update the agent.",
+  "Comprobando conexión…": "Checking connection…",
+  "Comprobar conexión antes de emparejar": "Check connection before pairing",
+  "No se pudo comprobar la dirección.": "Could not check this address.",
+  "No responde el puerto de control. En el destino, active Recibir control y autorice el puerto TCP en su firewall; luego compruebe de nuevo.": "The control port does not respond. On the destination, start Receive control and allow its TCP port in the firewall; then check again.",
+  "El puerto responde. Ahora empareje y compare el código en ambos equipos. La respuesta del puerto todavía no verifica la identidad.": "The port responds. Pair now and compare the code on both computers. A port response does not verify identity.",
+  "El puerto responde y hay una clave guardada. Puede conectar; la identidad se verificará al iniciar la sesión.": "The port responds and a key is saved. You can connect; identity will be verified when the session starts.",
   "IDIOMA": "LANGUAGE",
   "Principal": "Main",
   "Más": "More",
