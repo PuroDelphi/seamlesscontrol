@@ -934,6 +934,7 @@ mod linux {
             portal.disable(&session, Default::default()),
         )
         .await;
+        let _ = tokio::time::timeout(Duration::from_millis(500), session.close()).await;
         drop(clipboard_rx);
         if let Some(watch) = clipboard_watch {
             watch.stop();
@@ -1271,6 +1272,7 @@ mod linux {
             portal.disable(&session, Default::default()),
         )
         .await;
+        let _ = tokio::time::timeout(Duration::from_millis(500), session.close()).await;
         drop(clipboard_rx);
         if let Some(watch) = clipboard_watch {
             watch.stop();
