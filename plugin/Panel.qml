@@ -1805,6 +1805,17 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.clipboardFileResult !== "" || root.backend.clipboardFileError !== "")
+          text: root.backend ? (root.backend.clipboardFileError !== "" ? root.backend.clipboardFileError : root.backend.clipboardFileResult) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: root.backend && root.backend.clipboardFileError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
         Repeater {
           model: root.backend && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
           delegate: StateButton {
@@ -1860,17 +1871,6 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.decideClipboardFile(false)
           }
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && (root.backend.clipboardFileResult !== "" || root.backend.clipboardFileError !== "")
-          text: root.backend ? (root.backend.clipboardFileError !== "" ? root.backend.clipboardFileError : root.backend.clipboardFileResult) : ""
-          textFormat: Text.PlainText
-          wrapMode: Text.WrapAnywhere
-          color: root.backend && root.backend.clipboardFileError !== "" ? Color.urgent : Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
         }
 
         HelpDisclosure {
