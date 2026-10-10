@@ -12,6 +12,11 @@ Este archivo resume los cambios publicados y los cambios aún sin release. Consu
 - Añade cruce Fluido, Deliberado de dos intentos y Proteger pantalla completa en Omarchy y Windows. Conserva el regreso por el borde y Escape, y devuelve la entrada local tras bloqueo, suspensión, parada del receptor y reconexión.
 - Añade comprobaciones de conexión de solo lectura y mensajes de actualización más claros. Omarchy compara las versiones del plugin y del agente y permite terminar una sesión de origen desde cualquiera de sus barras. Windows puede actualizar juntos ambos ejecutables desde un ZIP de lanzamiento verificado con el SHA-256 contiguo.
 - Verifica control, cruce, permisos, grupos de archivos, intercambio limitado a la conexión y recuperación tras bloqueo/suspensión en una pareja física Omarchy ↔ Windows 11 x64. Consulta las [notas de lanzamiento](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows) y el [registro de pruebas](docs/TEST-RESULTS.es.md).
+## [0.23.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.4) — 2026-10-09
+
+- Vincula la aprobación temporal de archivos manuales y copiados a la identidad autenticada del remitente. Un equipo nuevo con la misma IP debe recibir su propia aprobación; revocar un par borra su permiso temporal.
+- Los modos de aceptación automática y de preguntar siempre conservan su funcionamiento. Hay que actualizar juntos el plugin y el agente en Omarchy, o ambos ejecutables en Windows, porque la línea interna de oferta ahora incluye la identidad. Los protocolos cifrados de transferencia y emparejamiento no cambian.
+- Añade una prueba cifrada local que revoca y vuelve a emparejar otra identidad en la misma IP, y actualiza las guías de usuario.
 
 ## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 

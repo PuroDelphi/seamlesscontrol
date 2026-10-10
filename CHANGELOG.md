@@ -12,6 +12,11 @@ This file summarizes published changes and changes not yet included in a release
 - Add Fluid, Deliberate double crossing and Protect full-screen crossing choices on Omarchy and Windows. Keep edge return and Escape, and restore local input after lock, sleep, receiver stop and reconnection.
 - Add read-only connection checks and clearer update feedback. Omarchy compares plugin and agent versions and lets either bar end an active source session. Windows can update both executables from a release ZIP verified against its adjacent SHA-256 file.
 - Verify control, crossing, permissions, grouped files, connection-bound sharing and lock/sleep recovery on a physical Omarchy ↔ Windows 11 x64 pair. See the [release notes](docs/RELEASE-0.24.0.md) and [test record](docs/TEST-RESULTS.md).
+## [0.23.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.4) — 2026-10-09
+
+- Bind temporary approval for manual and copied-file offers to the authenticated sender identity. A newly paired computer at the same IP must obtain its own approval; revoking a peer clears its temporary grant.
+- Keep automatic and ask-every-time modes unchanged. Update both the Omarchy plugin and agent, or both Windows executables, together because the internal file-offer line now includes the sender identity. The encrypted network transfer and pairing protocols are unchanged.
+- Add a local encrypted regression test for revocation and re-pairing at the same IP, and update both user guides.
 
 ## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 
