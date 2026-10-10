@@ -880,6 +880,7 @@ Panel {
                   text: (peerRow.policy[modelData] ? "● " : "○ ") + root.t(modelData === "control" ? "Control" : modelData === "text" ? "Texto" : "Archivos")
                   bordered: true
                   focusable: true
+                  enabled: root.backend && !root.backend.peerPolicyBusy
                   foreground: root.ink
                   accent: Color.accent
                   fontFamily: root.face

@@ -151,7 +151,7 @@ The helper adds a scoped **UFW** rule; it does not enable UFW or configure other
 | **Reconnecting** | Let the agent retry and read **Last attempt**. Do not start a second source session. If the receiver/address changed, make it available again, stop the source session, Scan and Connect again. |
 | Pointer stays on the receiver | Use physical Escape or **Return control to source**. If normal return fails, use the receiver's emergency cut and resume only when safe. |
 | **Locked** | Unlock locally. The app does not unlock computers remotely; an unknown lock state also blocks input. Move away from the source edge before crossing again. |
-| Copied-file offer never arrives | Keep both apps/widget active, check pairing and receiver TCP `47834`, and copy one supported local file. **Wait for a file** and opening only `47832` or `47833` do not enable this flow. |
+| Copied-file offer never arrives | Keep both apps/widget active, check pairing and receiver TCP `47834`, and copy supported local files or a folder. **Wait for a file** and opening only `47832` or `47833` do not enable this flow. |
 | Manual file send times out | Start **Wait for a file** again and match its announced address and file port; check the separate file firewall rule. |
 
 The capture repair button only appears for a **panel-started source session** after authenticated capture setup has remained pending for 15 seconds. If normal panel stop hangs, the panel escalates its stop signal after two seconds. For diagnostics and support without changing system settings, see the [technical guide](TECHNICAL.md) and [support guide](../SUPPORT.md).

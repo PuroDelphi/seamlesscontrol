@@ -127,6 +127,10 @@ Item {
   property var peers: []
   property var peerPolicies: ({})
   property string peerPolicyError: ""
+  property bool peerPolicyBusy: false
+  property string pendingPeerPolicyKey: ""
+  property string pendingPeerPolicyCapability: ""
+  property bool pendingPeerPolicyAllowed: false
   property var discovered: []
   property string discoveryError: ""
   property bool diagnosisBusy: false
@@ -501,10 +505,14 @@ Item {
   }
 
   function setPeerPermission(ip, fingerprint, capability, allowed) {
-    if (!installed || peerPolicyAction.running || !peers.some(function(peer) {
+    if (!installed || peerPolicyBusy || !peers.some(function(peer) {
       return peer.ip === ip && peer.key === fingerprint
     })) return
     peerPolicyError = ""
+    pendingPeerPolicyKey = fingerprint
+    pendingPeerPolicyCapability = capability
+    pendingPeerPolicyAllowed = allowed
+    peerPolicyBusy = true
     peerPolicyAction.command = ["seamlesscontrold", "peer-policy", "set", ip, capability, allowed ? "allow" : "deny"]
     peerPolicyAction.running = true
   }
@@ -829,6 +837,16 @@ Item {
     }
     onExited: function(code) {
       if (code !== 0 && root.peerPolicyError === "") root.peerPolicyError = root.t("No se pudo guardar el permiso.")
+      if (code === 0 && root.pendingPeerPolicyKey !== "") {
+        var next = Object.assign({}, root.peerPolicies)
+        var policy = Object.assign({}, next[root.pendingPeerPolicyKey] || {})
+        policy[root.pendingPeerPolicyCapability] = root.pendingPeerPolicyAllowed
+        next[root.pendingPeerPolicyKey] = policy
+        root.peerPolicies = next
+      }
+      root.pendingPeerPolicyKey = ""
+      root.pendingPeerPolicyCapability = ""
+      root.peerPolicyBusy = false
       root.refreshPolicies()
     }
   }
