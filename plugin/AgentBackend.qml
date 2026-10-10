@@ -1083,10 +1083,20 @@ Item {
           }
           if (root.sendingCopiedFile && root.copiedFilePath !== path && sendFileProcess.running)
             sendFileProcess.running = false
+          root.clipboardFileError = ""
           root.copiedFilePath = path
           root.lastClipboardSentPath = ""
           root.maybeSendCopiedFile()
         } catch (error) { root.clipboardFileError = root.t("No se pudo leer el archivo copiado.") }
+      }
+    }
+    stderr: SplitParser {
+      onRead: function(line) {
+        var message = String(line || "").trim()
+        if (message.indexOf("bundle contains a symlink") !== -1)
+          root.clipboardFileError = root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
+        else if (message !== "")
+          root.clipboardFileError = root.t("No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.")
       }
     }
   }

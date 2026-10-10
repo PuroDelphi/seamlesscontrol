@@ -84,6 +84,8 @@ var english = {
   "Preparando recepción de archivos copiados…": "Preparing to receive copied files…",
   "Preparar regla LAN para pegar archivos · 47834": "Preview LAN rule for pasted files · 47834",
   "No se pudo leer el archivo copiado.": "Could not read the copied file.",
+  "La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.": "The selection contains a symbolic link. Remove the link and copy again.",
+  "No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.": "Could not prepare the copied selection. Check the files and size limit, then copy again.",
   "Archivo copiado desde otro equipo": "Copied file from another computer",
   "Aceptar": "Accept",
   "Archivo listo para pegar: ": "File ready to paste: ",
