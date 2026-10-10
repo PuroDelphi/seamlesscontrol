@@ -51,22 +51,36 @@ pub fn staging_session_dir(root: &Path) -> io::Result<PathBuf> {
 
 pub fn staging_can_fit(root: &Path, next_size: u64, file_limit: u64) -> io::Result<bool> {
     let quota = file_limit.saturating_mul(4).max(1024 * 1024 * 1024);
+    Ok(staging_used(root)?.saturating_add(next_size) <= quota)
+}
+
+fn staging_used(root: &Path) -> io::Result<u64> {
     let mut used = 0u64;
     for session in std::fs::read_dir(root)? {
         let session = session?;
-        if !session.file_type()?.is_dir()
-            || !session.file_name().to_string_lossy().starts_with("offer-")
-        {
+        if !session.file_type()?.is_dir() || !managed_session(&session) {
             continue;
         }
-        for file in std::fs::read_dir(session.path())? {
-            let file = file?;
-            if file.file_type()?.is_file() {
-                used = used.saturating_add(file.metadata()?.len());
+        let mut pending = vec![session.path()];
+        while let Some(folder) = pending.pop() {
+            for item in std::fs::read_dir(folder)? {
+                let item = item?;
+                let kind = item.file_type()?;
+                if kind.is_dir() {
+                    pending.push(item.path());
+                } else if kind.is_file() {
+                    used = used.saturating_add(item.metadata()?.len());
+                }
             }
         }
     }
-    Ok(used.saturating_add(next_size) <= quota)
+    Ok(used)
+}
+
+fn managed_session(entry: &std::fs::DirEntry) -> bool {
+    let name = entry.file_name();
+    let name = name.to_string_lossy();
+    name.starts_with("offer-") || name.starts_with("bundle-")
 }
 
 fn prune_old_sessions(root: &Path) {
@@ -77,7 +91,7 @@ fn prune_old_sessions(root: &Path) {
         let Ok(kind) = entry.file_type() else {
             continue;
         };
-        if !kind.is_dir() || !entry.file_name().to_string_lossy().starts_with("offer-") {
+        if !kind.is_dir() || !managed_session(&entry) {
             continue;
         }
         let stale = entry
@@ -145,6 +159,28 @@ pub fn parse_one_file_uri(bytes: &[u8]) -> io::Result<Option<PathBuf>> {
 }
 
 #[cfg(target_os = "linux")]
+pub fn parse_file_uris(bytes: &[u8]) -> io::Result<Option<Vec<PathBuf>>> {
+    let text = std::str::from_utf8(bytes)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid URI list"))?;
+    let lines: Vec<_> = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect();
+    if lines.is_empty() || lines.len() > 256 {
+        return Ok(None);
+    }
+    let mut paths = Vec::with_capacity(lines.len());
+    for line in lines {
+        let Some(path) = parse_one_file_uri(line.as_bytes())? else {
+            return Ok(None);
+        };
+        paths.push(path);
+    }
+    Ok(Some(paths))
+}
+
+#[cfg(target_os = "linux")]
 pub fn file_uri(path: &Path) -> io::Result<Vec<u8>> {
     use std::os::unix::ffi::OsStrExt;
 
@@ -188,6 +224,10 @@ mod tests {
         std::fs::write(second.join("same.txt"), b"two").unwrap();
         assert!(staging_can_fit(&root, 32, 1024).unwrap());
         assert!(!staging_can_fit(&root, 1024 * 1024 * 1024, 1024).unwrap());
+        let bundle = root.join("bundle-test").join("nested");
+        std::fs::create_dir_all(&bundle).unwrap();
+        std::fs::write(bundle.join("group.scbundle"), b"package").unwrap();
+        assert_eq!(staging_used(&root).unwrap(), 3 + 3 + 7);
         std::fs::remove_dir_all(base).unwrap();
     }
 
@@ -218,5 +258,12 @@ mod tests {
             None
         );
         assert_eq!(parse_one_file_uri(b"file:///tmp/%00bad\r\n").unwrap(), None);
+        assert_eq!(
+            parse_file_uris(b"file:///tmp/a\r\nfile:///tmp/b\r\n")
+                .unwrap()
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

@@ -162,6 +162,7 @@ Panel {
 
   function open() {
     switchTab("main")
+    if (backend) backend.refresh()
     controller.show()
   }
   function close() {
@@ -455,6 +456,21 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          visible: root.activeTab === "home" && root.backend && root.backend.pluginVersion !== ""
+          text: root.backend
+            ? root.t("Plugin ") + root.backend.pluginVersion + root.t(" · Agente ")
+              + (root.backend.installed ? (root.backend.agentVersion || root.t("comprobando…")) : root.t("sin instalar"))
+              + (root.backend.agentVersionMismatch ? root.t(" · VERSIONES DISTINTAS: termine la sesión y actualice el agente.") : "")
+            : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && root.backend.agentVersionMismatch ? Color.urgent : root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.activeTab === "settings" && root.confirmRemoveAgent
           text: root.t("Se retirará el agente y solo los paquetes que instaló SeamlessControl. Las claves y equipos emparejados se conservarán. Después puede quitar el widget con omarchy plugin remove seamlesscontrol.control.")
           textFormat: Text.PlainText
@@ -577,6 +593,10 @@ Panel {
             id: pairAddress
             Layout.fillWidth: true
             enabled: root.backend && !root.backend.available
+            onTextChanged: if (root.backend) {
+              root.backend.diagnosisReason = ""
+              root.backend.diagnosisError = ""
+            }
             placeholderText: root.t("Dirección del receptor · IP:puerto")
             color: root.ink
             font.family: root.face
@@ -598,6 +618,35 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.pair(pairAddress.text.trim())
           }
+        }
+
+        StateButton {
+          Layout.fillWidth: true
+          text: root.backend && root.backend.diagnosisBusy ? root.t("Comprobando conexión…") : root.t("Comprobar conexión antes de emparejar")
+          bordered: true
+          focusable: true
+          enabled: root.backend && root.backend.installed && !root.backend.diagnosisBusy
+            && pairAddress.text.trim() !== ""
+          foreground: root.ink
+          accent: Color.accent
+          fontFamily: root.face
+          onClicked: if (root.backend) root.backend.diagnosePeer(pairAddress.text.trim())
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.diagnosisReason !== "" || root.backend.diagnosisError !== "")
+          text: root.backend ? (root.backend.diagnosisError !== "" ? root.backend.diagnosisError
+            : root.backend.diagnosisReason === "control_port_unreachable"
+              ? root.t("No responde el puerto de control. En el destino, active Recibir control y autorice el puerto TCP en su firewall; luego compruebe de nuevo.")
+            : root.backend.diagnosisReason === "pair_first"
+              ? root.t("El puerto responde. Ahora empareje y compare el código en ambos equipos. La respuesta del puerto todavía no verifica la identidad.")
+              : root.t("El puerto responde y hay una clave guardada. Puede conectar; la identidad se verificará al iniciar la sesión.")) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.backend && (root.backend.diagnosisError !== "" || root.backend.diagnosisReason === "control_port_unreachable") ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         Text {
@@ -772,6 +821,16 @@ Panel {
 
         Text {
           Layout.fillWidth: true
+          text: root.t("Elija qué puede hacer cada identidad emparejada. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
           visible: root.backend && root.backend.peers.length === 0
           text: root.t("Aquí aparecerán los equipos después de aprobar el mismo código en ambos lados.")
           textFormat: Text.PlainText
@@ -783,12 +842,16 @@ Panel {
 
         Repeater {
           model: root.backend ? root.backend.peers.length : 0
-          delegate: RowLayout {
+          delegate: ColumnLayout {
             id: peerRow
             required property int index
             Layout.fillWidth: true
             spacing: Style.space(8)
             readonly property var peer: root.backend.peers[peerRow.index]
+            readonly property var policy: root.backend.peerPolicies[peer.key] || ({ control: true, text: true, files: true, lastConnectedMs: 0 })
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.space(8)
             Text {
               Layout.fillWidth: true
               text: peerRow.peer.ip + " · " + peerRow.peer.key.slice(0, 12) + "…"
@@ -807,7 +870,43 @@ Panel {
               fontFamily: root.face
               onClicked: root.revokeCandidate = peerRow.peer.ip
             }
+            }
+            RowLayout {
+              Layout.fillWidth: true
+              spacing: Style.space(8)
+              Repeater {
+                model: ["control", "text", "files"]
+                delegate: StateButton {
+                  required property string modelData
+                  text: (peerRow.policy[modelData] ? "● " : "○ ") + root.t(modelData === "control" ? "Control" : modelData === "text" ? "Texto" : "Archivos")
+                  bordered: true
+                  focusable: true
+                  enabled: root.backend && !root.backend.peerPolicyBusy
+                  foreground: root.ink
+                  accent: Color.accent
+                  fontFamily: root.face
+                  onClicked: if (root.backend) root.backend.setPeerPermission(peerRow.peer.ip, peerRow.peer.key, modelData, !peerRow.policy[modelData])
+                }
+              }
+            }
+            Text {
+              Layout.fillWidth: true
+              text: peerRow.policy.lastConnectedMs ? root.t("Última conexión: ") + new Date(peerRow.policy.lastConnectedMs).toLocaleString() : root.t("Sin conexión registrada")
+              color: root.muted
+              font.family: root.face
+              font.pixelSize: Style.font.caption
+            }
           }
+        }
+
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.peerPolicyError !== ""
+          text: root.backend ? root.backend.peerPolicyError : ""
+          color: Color.urgent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
         }
 
         RowLayout {
@@ -1151,6 +1250,47 @@ Panel {
           Layout.fillWidth: true
           visible: root.activeTab === "settings"
           spacing: Style.space(12)
+
+        PanelSectionHeader {
+          Layout.fillWidth: true
+          text: root.t("CRUCE ENTRE PANTALLAS")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        HelpDisclosure {
+          Layout.fillWidth: true
+          title: root.t("Ayuda · Cruce entre pantallas")
+          description: root.t("Fluido cruza al llegar al borde. Deliberado requiere salir del borde y cruzarlo dos veces en 1,6 segundos. Protección a pantalla completa lo exige solo cuando hay una ventana a pantalla completa. Se aplica al iniciar la próxima conexión; Escape y el borde de regreso siguen disponibles.")
+          foreground: root.ink
+          fontFamily: root.face
+        }
+
+        StateButton {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.edgePolicy === "fluid" ? "● " : "○ ") + root.t("Cruce fluido")
+          bordered: true; focusable: true; foreground: root.ink; accent: Color.accent; fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setEdgePolicy("fluid")
+        }
+        StateButton {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.edgePolicy === "deliberate" ? "● " : "○ ") + root.t("Cruce deliberado")
+          bordered: true; focusable: true; foreground: root.ink; accent: Color.accent; fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setEdgePolicy("deliberate")
+        }
+        StateButton {
+          Layout.fillWidth: true
+          text: (root.backend && root.backend.edgePolicy === "fullscreen" ? "● " : "○ ") + root.t("Proteger pantalla completa")
+          bordered: true; focusable: true; foreground: root.ink; accent: Color.accent; fontFamily: root.face
+          onClicked: if (root.backend) root.backend.setEdgePolicy("fullscreen")
+        }
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && root.backend.edgePolicyFeedback !== ""
+          text: root.backend && root.backend.edgePolicyFeedback === "saved" ? root.t("Cruce guardado para la próxima conexión.") : root.t("No se pudo guardar el cruce.")
+          color: root.backend && root.backend.edgePolicyFeedback === "error" ? Color.urgent : Color.accent
+          font.family: root.face; font.pixelSize: Style.font.caption; wrapMode: Text.WordWrap
+        }
 
         PanelSectionHeader {
           Layout.fillWidth: true
@@ -1537,10 +1677,13 @@ Panel {
 
         StateButton {
           Layout.fillWidth: true
-          visible: root.backend && root.backend.managedAgentRunning && root.backend.role !== "serve"
-          text: root.t("Terminar sesión iniciada desde el panel")
+          visible: root.backend && (root.backend.managedAgentRunning && root.backend.role !== "serve"
+            || root.backend.available && root.backend.role === "connect")
+          text: root.backend && root.backend.stoppingManagedAgent
+            ? root.t("Terminando sesión…") : root.t("Terminar sesión activa")
           bordered: true
           focusable: true
+          enabled: root.backend && !root.backend.actionRunning && !root.backend.stoppingManagedAgent
           foreground: root.ink
           accent: Color.accent
           fontFamily: root.face
@@ -1641,7 +1784,7 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: root.t("ARCHIVOS · ENTRE EQUIPOS EMPAREJADOS")
+          text: root.t("ARCHIVOS · ENTRE EQUIPOS CONECTADOS")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -1649,16 +1792,28 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Copiar y pegar archivos")
-          description: root.t("Copie un archivo en el explorador. Con un solo equipo emparejado se ofrece automáticamente; con varios, elija el destino aquí. La aprobación depende del modo elegido en Ajustes del receptor. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
+          description: root.t("Conecte primero los equipos. Copie un archivo, varios archivos o una carpeta en el explorador. Con un solo equipo conectado se ofrecen automáticamente; con varios, elija el destino aquí. El receptor aprueba una sola oferta para todo el grupo. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
           foreground: root.ink
           fontFamily: root.face
         }
 
         Text {
           Layout.fillWidth: true
-          text: root.backend && root.backend.copiedFilePath !== ""
-            ? root.t("Archivo copiado: ") + root.backend.copiedFilePath
-            : root.t("Copie un archivo en el explorador para ofrecerlo.")
+          text: root.t("Emparejar solo guarda la confianza. Inicie una conexión de control para compartir archivos. Al detenerla cesan las ofertas; la aprobación entrante decide si se pregunta durante la conexión.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.backend && !root.backend.fileSessionActive
+            ? root.t("Conecte con un equipo emparejado antes de copiar archivos.")
+            : root.backend && root.backend.copiedFilePath !== ""
+            ? root.t("Selección copiada: ") + root.backend.copiedFilePath.split("/").pop()
+            : root.t("Copie archivos o una carpeta en el explorador para ofrecerlos.")
           textFormat: Text.PlainText
           wrapMode: Text.WrapAnywhere
           color: root.ink
@@ -1666,15 +1821,26 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
+        Text {
+          Layout.fillWidth: true
+          visible: root.backend && (root.backend.clipboardFileResult !== "" || root.backend.clipboardFileError !== "")
+          text: root.backend ? (root.backend.clipboardFileError !== "" ? root.backend.clipboardFileError : root.backend.clipboardFileResult) : ""
+          textFormat: Text.PlainText
+          wrapMode: Text.WrapAnywhere
+          color: root.backend && root.backend.clipboardFileError !== "" ? Color.urgent : Color.accent
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
         Repeater {
-          model: root.backend && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
+          model: root.backend && root.backend.fileSessionActive && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
           delegate: StateButton {
             required property int index
             Layout.fillWidth: true
             text: root.t("Ofrecer archivo copiado a ") + root.backend.peers[index].ip
             bordered: true
             focusable: true
-            enabled: !root.backend.sendingFile
+            enabled: !root.backend.sendingFile && root.backend.peers[index].ip === root.backend.peer
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
@@ -1687,6 +1853,8 @@ Panel {
           text: root.backend && root.backend.clipboardOffer
             ? root.t("Archivo entrante de ") + root.backend.clipboardOffer.peer + ": "
               + root.backend.clipboardOffer.name + " (" + root.backend.clipboardOffer.size + root.t(" bytes)")
+            : root.backend && !root.backend.fileSessionActive
+              ? root.t("Esperando conexión de control para compartir archivos.")
             : root.backend && root.backend.clipboardFileListening
               ? root.t("Disponible para archivos copiados · TCP 47834")
               : root.t("Preparando recepción de archivos copiados…")
@@ -1721,17 +1889,6 @@ Panel {
             fontFamily: root.face
             onClicked: if (root.backend) root.backend.decideClipboardFile(false)
           }
-        }
-
-        Text {
-          Layout.fillWidth: true
-          visible: root.backend && (root.backend.clipboardFileResult !== "" || root.backend.clipboardFileError !== "")
-          text: root.backend ? (root.backend.clipboardFileError !== "" ? root.backend.clipboardFileError : root.backend.clipboardFileResult) : ""
-          textFormat: Text.PlainText
-          wrapMode: Text.WrapAnywhere
-          color: root.backend && root.backend.clipboardFileError !== "" ? Color.urgent : Color.accent
-          font.family: root.face
-          font.pixelSize: Style.font.caption
         }
 
         HelpDisclosure {
@@ -1968,7 +2125,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Enviar archivos")
-          description: root.t("En el origen, elija un equipo emparejado y un archivo local.")
+          description: root.t("En el origen, conecte primero con el equipo emparejado y elija un archivo local.")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -2026,6 +2183,7 @@ Panel {
           bordered: true
           focusable: true
           enabled: root.backend && root.backend.installed && !root.backend.sendingFile
+            && root.backend.canShareWith(fileSendAddress.text.trim())
             && fileSendAddress.text.trim() !== "" && fileSourcePath.text.trim() !== ""
           foreground: root.ink
           accent: Color.accent

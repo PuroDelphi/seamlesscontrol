@@ -2,6 +2,7 @@
 //! Hook callbacks only enqueue bounded events; network and clipboard work stay
 //! off the hook thread so Windows does not silently remove a slow hook.
 
+use crate::edge_policy::{EdgeGate, EdgePolicy};
 use crate::state::InputEvent;
 use crate::topology::{Edge, Rect, edge_fraction};
 use crate::windows_keymap::set1_to_evdev;
@@ -13,17 +14,21 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{SyncSender, sync_channel};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
-use windows_sys::Win32::Foundation::{LPARAM, LRESULT, POINT, WPARAM};
+use windows_sys::Win32::Foundation::{LPARAM, LRESULT, POINT, RECT, WPARAM};
+use windows_sys::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
+};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, GetCursorPos, GetMessageW, GetSystemMetrics, KBDLLHOOKSTRUCT, LLKHF_EXTENDED,
-    LLKHF_INJECTED, LLMHF_INJECTED, MSG, MSLLHOOKSTRUCT, PostThreadMessageW, SM_CXVIRTUALSCREEN,
-    SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SetCursorPos, SetWindowsHookExW,
-    UnhookWindowsHookEx, WH_KEYBOARD_LL, WH_MOUSE_LL, WM_APP, WM_KEYDOWN, WM_KEYUP,
-    WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDBLCLK, WM_MBUTTONDOWN, WM_MBUTTONUP,
-    WM_MOUSEHWHEEL, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_QUIT, WM_RBUTTONDBLCLK, WM_RBUTTONDOWN,
-    WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WM_XBUTTONDBLCLK, WM_XBUTTONDOWN, WM_XBUTTONUP,
+    CallNextHookEx, GetCursorPos, GetForegroundWindow, GetMessageW, GetSystemMetrics,
+    GetWindowRect, KBDLLHOOKSTRUCT, LLKHF_EXTENDED, LLKHF_INJECTED, LLMHF_INJECTED, MSG,
+    MSLLHOOKSTRUCT, PostThreadMessageW, SM_CXVIRTUALSCREEN, SM_CYVIRTUALSCREEN, SM_XVIRTUALSCREEN,
+    SM_YVIRTUALSCREEN, SetCursorPos, SetWindowsHookExW, UnhookWindowsHookEx, WH_KEYBOARD_LL,
+    WH_MOUSE_LL, WM_APP, WM_KEYDOWN, WM_KEYUP, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP,
+    WM_MBUTTONDBLCLK, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEHWHEEL, WM_MOUSEMOVE, WM_MOUSEWHEEL,
+    WM_QUIT, WM_RBUTTONDBLCLK, WM_RBUTTONDOWN, WM_RBUTTONUP, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    WM_XBUTTONDBLCLK, WM_XBUTTONDOWN, WM_XBUTTONUP,
 };
 
 const RELEASE_MESSAGE: u32 = WM_APP + 73;
@@ -45,8 +50,35 @@ fn screen_rect() -> io::Result<Rect> {
     .ok_or_else(|| io::Error::other("Windows virtual screen geometry is invalid"))
 }
 
+fn foreground_fullscreen() -> bool {
+    let window = unsafe { GetForegroundWindow() };
+    if window.is_null() {
+        return false;
+    }
+    let monitor = unsafe { MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST) };
+    if monitor.is_null() {
+        return false;
+    }
+    let mut bounds = RECT::default();
+    let mut info = MONITORINFO {
+        cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+        ..Default::default()
+    };
+    if unsafe { GetWindowRect(window, &mut bounds) } == 0
+        || unsafe { GetMonitorInfoW(monitor, &mut info) } == 0
+    {
+        return true;
+    }
+    bounds.left <= info.rcMonitor.left + 2
+        && bounds.top <= info.rcMonitor.top + 2
+        && bounds.right >= info.rcMonitor.right - 2
+        && bounds.bottom >= info.rcMonitor.bottom - 2
+}
+
 struct HookState {
     edge: Edge,
+    policy: EdgePolicy,
+    gate: EdgeGate,
     screen: Rect,
     sender: SyncSender<CaptureEvent>,
     failed: Arc<AtomicBool>,
@@ -105,6 +137,12 @@ impl HookState {
                 let crossed = !self.at_edge(self.previous) && self.at_edge(event.pt);
                 self.previous = event.pt;
                 if crossed && Instant::now() >= self.rearm_at {
+                    if !self
+                        .gate
+                        .allow(self.policy, foreground_fullscreen(), Instant::now())
+                    {
+                        return false;
+                    }
                     let fraction = edge_fraction(&[self.screen], self.edge, event.pt.x, event.pt.y)
                         .unwrap_or(u16::MAX / 2);
                     let center = POINT {
@@ -242,7 +280,11 @@ pub struct CaptureHandle {
 }
 
 impl CaptureHandle {
-    pub fn start(edge: Edge, sender: SyncSender<CaptureEvent>) -> io::Result<Self> {
+    pub fn start(
+        edge: Edge,
+        policy: EdgePolicy,
+        sender: SyncSender<CaptureEvent>,
+    ) -> io::Result<Self> {
         let failed = Arc::new(AtomicBool::new(false));
         let thread_failed = Arc::clone(&failed);
         let (ready_tx, ready_rx) = sync_channel(1);
@@ -256,6 +298,8 @@ impl CaptureHandle {
                 STATE.with(|state| {
                     *state.borrow_mut() = Some(HookState {
                         edge,
+                        policy,
+                        gate: EdgeGate::default(),
                         screen,
                         sender,
                         failed: Arc::clone(&thread_failed),

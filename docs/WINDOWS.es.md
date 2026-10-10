@@ -19,17 +19,6 @@ Esta guía describe la interfaz actual del repositorio. Un release con tag puede
 3. Extrae el ZIP en una carpeta que vayas a conservar, por ejemplo dentro de Documentos. **`seamlesscontrol.exe` y `seamlesscontrold.exe` deben permanecer juntos.** No hay un instalador que ejecutar.
 4. Haz doble clic en **`seamlesscontrol.exe`** tras extraerlo; no lo abras dentro del ZIP. Continúa con el [primer inicio](#primer-inicio-y-bandeja-del-sistema).
 
-### Probar la alpha actual
-
-Usa esta vía solo si quieres la compilación de desarrollo en lugar de un release con tag.
-
-1. Abre [Actions → Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Inicia sesión en GitHub si la descarga de artefactos lo requiere.
-2. Elige una **ejecución satisfactoria de la rama `alpha`** y comprueba su commit. El mismo workflow compila `main`; no supongas que todas sus ejecuciones son alpha.
-3. Descarga el artefacto **`seamlesscontrol-windows-x64`**. GitHub entrega un ZIP con ambos ejecutables y **`SHA256SUMS.txt`**.
-4. Extráelo y conserva los ejecutables juntos. La comprobación SHA-256 opcional compara **cada `.exe` extraído** con `SHA256SUMS.txt`, no el ZIP del artefacto. Abre `seamlesscontrol.exe`.
-
-Los releases con tag publican en cambio un checksum del **ZIP completo** como asset separado. No mezcles ejecutables de compilaciones distintas. Si ya está instalado, usa [Actualizar](#actualizar-o-desinstalar) para no dejar la app anterior en ejecución.
-
 ### Primer inicio y bandeja del sistema
 
 1. En una LAN doméstica/laboral de confianza, usa el perfil de red **Privada** de Windows. Si aparece una petición del firewall, permite el acceso en **Redes privadas**, no en redes públicas.
@@ -55,6 +44,8 @@ Emparejar establece confianza; **no** inicia la entrada remota. Necesitas acceso
    - **1 Emparejar por dirección:** introduce la `IP:puerto` privada real del receptor (normalmente `47832`) y pulsa **Emparejar**. No hace falta autodescubrimiento.
 3. Compara las **seis cifras de ambas pantallas**. Si no coinciden o no esperabas la solicitud, pulsa **Rechazar**. En Windows, escribe las cifras mostradas y pulsa **Coinciden · aprobar**; aprueba también en el otro equipo. La huella de identidad larga no es el código de emparejamiento.
 4. Resultado esperado: **Equipo emparejado correctamente** y una fila en **3 Equipos emparejados**. Solo después sitúalo en el mapa o conecta.
+
+Si falla el emparejamiento con una dirección escrita manualmente, pulsa **Comprobar conexión**. Distingue un puerto inaccesible de un equipo accesible que aún necesita emparejarse. Un puerto abierto no demuestra la identidad: compara el código de seis cifras.
 
 ![Aprobación de emparejamiento: compara el código ficticio de seis cifras en ambos equipos antes de aprobar](images/windows-pairing-es.png)
 
@@ -91,6 +82,10 @@ Sigue estos pasos cuando tu **teclado y ratón físicos están en Windows**.
 
 La app recuerda el destino y el borde. Si dejaste habilitado el control saliente, reconecta al abrirse y reintenta mientras el receptor no esté disponible. Un indicador **CONECTADO/ACTIVO** por sí solo no demuestra que la captura de entrada esté lista; mira Actividad antes de cruzar.
 
+**Preferencia de cruce:** En **Ajustes → Cruce entre pantallas**, elige **Fluido** (un cruce), **Deliberado** (sal del borde y crúzalo dos veces en 1,6 segundos) o **Proteger pantalla completa** (dos cruces solo cuando la ventana activa llena su monitor). Se aplica en la siguiente conexión. Escape y el borde de regreso siguen devolviendo el control.
+
+En **Equipos → Equipos emparejados**, cada identidad guardada tiene permisos separados de **Control**, **Texto** y **Archivos**, y muestra la última conexión. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. **Revocar** elimina la confianza de inmediato.
+
 ## Volver o detener el uso compartido
 
 | Qué quieres | Qué hacer | Resultado esperado |
@@ -101,7 +96,7 @@ La app recuerda el destino y el borde. Si dejaste habilitado el control saliente
 | Detener completamente esta app | **Ajustes → Salir de la app** o **Exit SeamlessControl** en la bandeja | Terminan las sesiones iniciadas por esta app y sale el proceso. |
 | Retirar la confianza de un equipo | **Equipos → Equipos emparejados → Revocar → Sí, revocar** | Bloquea su identidad, elimina su posición del mapa y cierra el control afectado. Volver a emparejar exige aprobar un código nuevo en ambos equipos. |
 
-Detener solo el control **no** desactiva la recepción de archivos copiados mientras la app siga abierta. Sal de la app si quieres detener tanto control como archivos. Cerrar su ventana nunca es una parada de emergencia.
+Detener el control termina el intercambio de archivos con ese equipo aunque el receptor de archivos siga abierto. Emparejar por sí solo no permite enviar ni recibir archivos. Cerrar la ventana solo oculta la app en la bandeja; usa **Detener** para terminar la sesión.
 
 ## Compartir texto y archivos
 
@@ -113,15 +108,17 @@ Mientras la conexión de control esté en ejecución, copia texto en un equipo y
 
 | Tarea | Usa | Qué necesita el receptor |
 | --- | --- | --- |
-| Copiar en un explorador y pegar en el otro | Tarjeta superior **Archivos → Copia aquí, pega allá** | App/plugin en ejecución; TCP `47834`; sin espera manual ni conexión de control. |
+| Copiar en un explorador y pegar en el otro | Tarjeta superior **Archivos → Copia aquí, pega allá** | Conexión de control activa; app/plugin en ejecución; TCP `47834`; sin espera manual. |
 | Elegir un archivo y guardarlo directamente en una carpeta | **Archivos → Enviar un archivo / Esperar un archivo** | **Esperar un archivo** activo; TCP `47833` por defecto. |
 
-Ambos flujos requieren emparejamiento, siguen la preferencia de aprobación del receptor y verifican la transferencia. Usa **un archivo**, no una carpeta ni una selección de varios archivos. Los archivos copiados admiten **Copiar**, no Cortar/mover entre equipos.
+Ambos flujos requieren emparejamiento y conexión de control activa, siguen la preferencia de aprobación del receptor y verifican la transferencia. El envío manual admite un archivo. La copia entre exploradores admite un archivo local, varios archivos o una carpeta como un solo grupo aprobado; admite **Copiar**, no Cortar/mover entre equipos. Ambos equipos deben tener agentes compatibles con grupos.
+
+**Detener Controlar otro equipo detiene las ofertas y transferencias de archivos con ese equipo.** Emparejar por sí solo no inicia el intercambio. Durante una conexión, **Aceptar automáticamente** omite el aviso; elige **Ajustes → Aprobación de archivos entrantes → Preguntar siempre** para exigir una decisión, o desactiva **Archivos** para ese equipo en **Equipos** para bloquear sus ofertas.
 
 #### Copia aquí, pega allá
 
-1. Mantén ambas apps/plugin en ejecución y los equipos emparejados. Copia **un archivo local** en el Explorador o en el explorador Omarchy.
-2. Con exactamente un equipo emparejado, se ofrece automáticamente. Con varios, elige el destino en **Archivos → Copia aquí, pega allá**. Resultado esperado: aparece el archivo copiado y llega una oferta al receptor.
+1. Mantén ambas apps/plugin en ejecución y conecta los equipos emparejados. Copia **un archivo local, varios archivos o una carpeta** en el Explorador o en el explorador Omarchy.
+2. Con exactamente un equipo conectado, se ofrece automáticamente. Con varios, elige el destino en **Archivos → Copia aquí, pega allá**. Resultado esperado: aparece el archivo copiado y llega una oferta al receptor.
 3. Con el modo predeterminado, el receptor revisa remitente, nombre y tamaño y pulsa **Aceptar archivo** o **Rechazar**. Windows también muestra un diálogo nativo aunque esté oculto en la bandeja; Omarchy usa una notificación de escritorio con botones. La página Archivos también tiene botones de aprobación.
 4. Espera la finalización verificada en **Actividad**. Abre entonces la carpeta donde quieres el archivo y **Pega** en el explorador del receptor. Aceptar prepara el portapapeles local; no pega por ti en la carpeta elegida.
 
@@ -130,6 +127,8 @@ Ambos flujos requieren emparejamiento, siguen la preferencia de aprobación del 
 ![Detalle de una oferta entrante de archivo copiado y sus botones en la interfaz HTML Windows](images/windows-offer-es.png)
 
 La imagen de la oferta muestra los controles **de la app**, no el diálogo nativo Windows. Una oferta de archivo copiado sin respuesta caduca a los **dos minutos**. Cambiar el archivo copiado cancela su oferta saliente. Permite TCP `47834` en el **receptor**; **Esperar un archivo** en `47833` no pertenece a este flujo.
+
+Para varios archivos o una carpeta, SeamlessControl muestra **una sola oferta** con la cantidad de elementos incluidos y el tamaño total. Acéptala una vez y pega la **carpeta del grupo recibido**, ya verificada, en el explorador de destino. El límite configurado se aplica al grupo completo; se admiten hasta 256 elementos, incluidos los de dentro de carpetas. Se rechazan enlaces simbólicos y archivos virtuales no compatibles.
 
 #### Envío manual: guardar directamente en una carpeta
 
@@ -183,21 +182,22 @@ No abras estos puertos a Internet, no añadas reenvío en el router ni desactive
 | Conectar en la fila solo abre Inicio | Prepara dirección y borde. Pulsa **Conectar en Inicio** para iniciar la sesión. |
 | CONECTADO pero cruzar no hace nada | Espera a **Ready to control** en Actividad. Comprueba que el receptor esté disponible y cruza el borde **exterior** elegido. Vuelve/Detén antes de cambiar el lado. |
 | No puedes volver por el borde | Pulsa **Escape en el teclado físico del origen**. Actualiza ambos agentes: las sesiones directas aprenden el borde de entrada/regreso sin mapa receptor. Revisa los errores en Actividad. |
-| Copiar un archivo no produce una oferta útil | Copia un archivo local, no Cortar ni una carpeta. Comprueba emparejamiento, límites y TCP `47834` en el receptor. Con varios pares, elige destino en la tarjeta superior de Archivos. |
+| Copiar un archivo no produce una oferta útil | Primero conecta los equipos emparejados y espera Listo; emparejar o solo Recibir control no activa el intercambio. Copia archivos locales o una carpeta; no uses Cortar, archivos virtuales no compatibles ni enlaces. Comprueba los límites y TCP `47834` en el receptor. Con varios pares conectados, elige destino en la tarjeta superior de Archivos. |
 | El archivo copiado aceptado no está en la carpeta deseada | Espera a que termine y **Pega en el explorador del receptor**. Los envíos manuales guardan directamente y no necesitan Pegar. |
 | Falla el envío manual aunque funciona el control | Inicia **Esperar un archivo** en destino y permite su puerto de archivos (normalmente `47833`), no solo el de control. |
 | La app reconecta al abrirse / no puedes reemplazar archivos | Usa Detener para cambiar el modo guardado; para reemplazar ejecutables, **sal desde la bandeja**, no cierres solo la ventana. |
 
-Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa los controles locales; el acceso remoto a escritorios protegidos no es una función admitida. El [registro de pruebas](TEST-RESULTS.es.md) enumera comprobaciones físicas pendientes, como otras teclas/distribuciones, disposiciones de monitores, bloqueo/suspensión/pérdida de red y algunos casos de archivos. Las ilustraciones HTML no validan esos comportamientos.
+Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa los controles locales; el acceso remoto a escritorios protegidos no es una función admitida. El [registro de pruebas](TEST-RESULTS.es.md) incluye comprobaciones físicas satisfactorias de bloqueo, suspensión e interrupción del receptor en ambos sentidos y delimita el alcance de otras disposiciones y casos de archivos. Las ilustraciones HTML no validan esos comportamientos.
 
 ## Actualizar o desinstalar
 
 ### Actualizar
 
-1. Elige **Exit SeamlessControl** en la bandeja (o **Ajustes → Salir de la app**). Cierra también cualquier agente de consola iniciado por separado.
-2. Descarga el **release con tag** o **artefacto alpha satisfactorio** que quieras siguiendo la vía correspondiente de instalación.
-3. Extráelo y sustituye **ambos `.exe` juntos** en la carpeta de la app. Abre de nuevo `seamlesscontrol.exe`. Resultado esperado: se conservan el modo de control y los datos locales de emparejamiento.
-4. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde su ubicación nueva.
+1. Descarga **`seamlesscontrol-windows-x64.zip`** y **`seamlesscontrol-windows-x64.zip.sha256`** del [último lanzamiento con tag](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) en la misma carpeta.
+2. En la app pulsa **Ajustes → Actualizar desde el ZIP de lanzamiento…** y elige el ZIP. La app comprueba su SHA256, cierra sus sesiones, sustituye ambos ejecutables juntos y vuelve a abrirse. El resultado aparece en **Actividad**. Conserva identidad, emparejamientos, preferencias y último modo de control.
+3. Revisa **Ajustes → Acerca de SeamlessControl**: las versiones de la app y el agente deben coincidir. Si aparece un fallo, se intenta restaurar los ejecutables anteriores; consulta Actividad antes de reintentar.
+
+Si la actualización desde la app no puede ejecutarse, sal desde la bandeja y cierra cualquier agente de consola iniciado por separado. Extrae el ZIP del lanzamiento con tag y reemplaza manualmente los dos `.exe` juntos. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde la nueva ubicación.
 
 Los datos de **`%LOCALAPPDATA%\SeamlessControl`** están separados de los ejecutables. No los borres como paso de una actualización normal.
 

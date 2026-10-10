@@ -44,19 +44,23 @@ FOCUS_CSS = {
 def fixture(language: str, view: str) -> dict:
     """Supply the UI's normal state shape, never a successful live operation."""
     state = {
+        "appVersion": "0.24.0", "agentVersion": "0.24.0", "diagnosis": None,
         "receive": True, "connect": False, "fileReceive": False,
         "controlMode": "receive", "receivePort": 47832,
         "lastAddress": "192.0.2.20:47832", "lastEdge": "right",
-        "clipboardReady": True, "copiedFile": "example-notes.txt",
+        "clipboardReady": True, "copiedFile": "SeamlessControl 3 items.scbundle",
         "clipboardOffer": "", "clipboardProgress": None,
-        "peers": [{"ip": "192.0.2.20", "fingerprint": FINGERPRINT}],
+        "peers": [{"ip": "192.0.2.20", "fingerprint": FINGERPRINT,
+                   "fileSession": view in ("files", "offer"),
+                   "policy": {"control": True, "text": True, "files": True, "lastConnectedMs": 0},
+                   "policyError": False}],
         "discovered": [{
             "name": "Omarchy (example)" if language == "en" else "Omarchy (ejemplo)",
             "address": "192.0.2.42:47832",
             "fingerprint": "fedcba9876543210fedcba9876543210", "trust": "new",
         }],
         "layout": {FINGERPRINT: "right"}, "logs": [],
-        "fileLimitMiB": 100, "approvalMode": "always", "approvalMinutes": 15,
+        "fileLimitMiB": 100, "edgePolicy": "fluid", "approvalMode": "always", "approvalMinutes": 15,
         "approvalFeedback": "", "approvalSecondsRemaining": 0, "startup": "off",
         "defaultDownload": r"C:\Users\Example\Downloads",
         "message": "",
@@ -66,7 +70,7 @@ def fixture(language: str, view: str) -> dict:
     if view == "offer":
         state.update(
             copiedFile=None,
-            clipboardOffer="OFFER\t192.0.2.20\texample-notes.txt\t2048\texample-digest",
+            clipboardOffer="OFFER\t192.0.2.20\tSeamlessControl 3 items.scbundle\t2048\texample-digest",
         )
     return state
 

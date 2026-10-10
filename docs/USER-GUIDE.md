@@ -24,6 +24,8 @@ The default control port is TCP `47832`. If pairing times out, allow that port o
 
 Open **Computers → 2 · Nearby computers**, select **Scan**, then **Pair** beside the receiver. If discovery misses it, use **1 · Pair by address** with the receiver's actual LAN `IP:port` instead. These are **two alternatives**, not two required steps.
 
+For a manual address, select **Check connection before pairing**. If the control port does not respond, start **Receive control** on the destination and allow its TCP control port in that computer's firewall. If it responds, proceed with pairing. The port check does not establish trust: the matching six-digit code still does that.
+
 A **six-digit code** appears on both computers. Compare the two screens and select **Codes match · approve here** on **each** only if they agree. Otherwise select **Codes differ · reject**. Pairing saves trust; it does not start mouse and keyboard control. A long identity fingerprint is not this comparison code.
 
 ![Current Computers panel: pairing address, six-digit confirmation and nearby computers](images/omarchy-peers-en.png)
@@ -50,7 +52,7 @@ Wait for **Ready**. The **Computers** tab tells you which edge to cross. Move th
 
 Cross the receiver's **entry edge toward the source**, or press **Escape on the source's physical keyboard**. Returning keeps the connection ready for another crossing. Move the pointer inward before crossing again.
 
-If edge return fails, use **Home → Return control to source** on the receiver. When finished, select **Home → Stop session started here** on the source; use **Stop receiving** on the receiver if you no longer want it available.
+If edge return fails, use **Home → Return control to source** on the receiver. When finished, select **Home → End active session** on the source; use **Stop receiving** on the receiver if you no longer want it available.
 
 ## Addresses and layout
 
@@ -59,6 +61,8 @@ If edge return fails, use **Home → Return control to source** on the receiver.
 - **Pair** authorizes a computer. **Place** selects its layout position. **Connect** actually starts the source session. **Connect by IP** also starts control; it is not the manual pairing field.
 - A paired computer must be adjacent horizontally or vertically to **This computer** for the normal Connect button; diagonal placement is not an exit edge. The layout has four cells, not one cell per monitor of the same computer.
 - **Keyboard placement:** in the Computers tab, Tab reaches and cycles through layout cells. Enter selects a tile; arrows move to the destination; Enter places it. Escape cancels the selection. **Help · Layout and keyboard** expands the explanation. Other Help rows also expand with a click or keyboard activation.
+- **Screen crossing:** in Settings choose **Fluid crossing**, **Deliberate crossing** (move away and cross twice within 1.6 seconds), or **Protect full-screen apps** (two crossings only while the active window fills its monitor). This applies on the next connection; Escape and the receiver's return edge still work.
+- **Per-computer permissions:** under **Computers → Paired computers**, allow or deny **Control**, **Text** and **Files** for each pinned identity. The last authenticated control connection is shown below its choices. Control and text choices apply on the next connection; file choices apply to the next offer. **Revoke** removes trust and closes affected control immediately.
 - Discovery is only a hint. A new IP is checked against the saved key; the row can show **Actualizar IP** (currently this label is Spanish in both languages). **Key changed** means stop and check which computer owns that address. Do not revoke a still-valid identity merely because DHCP gave its address to another system. See [troubleshooting](#if-the-connection-does-not-progress).
 
 ## Return, pause and stop
@@ -69,18 +73,20 @@ If edge return fails, use **Home → Return control to source** on the receiver.
 | --- | --- |
 | Cross back / physical Escape / **Return control to source** | Returns input to the source without ending the session. The receiver's normal-return button appears while it is being controlled. |
 | **Pause capture / Resume capture** on the source | Temporarily disables/re-enables edge capture while keeping the session available. |
-| **Stop session started here** on the source | Ends the source process started by this panel. A session started from a terminal or service must be stopped where it was started. |
+| **End active session** on the source | Ends the source session, including one started from another Omarchy bar or monitor. The panel confirms the agent has stopped before showing it as disconnected. |
 | **Stop receiving** on the receiver | Ends receiving normally, including a paused receiver. Use this to change roles or start pairing from that computer. |
 | **Cut remote input · emergency** on the receiver | Disconnects remote input and leaves the receiver paused. New remote input stays blocked until **Resume receiving**. This is not a normal return or full shutdown. |
 
 ## Files: two separate workflows
 
-Files require **paired computers with SeamlessControl running**, but **no mouse/keyboard control session**. Receiving a file does not open or execute it. Both flows authenticate the sender, apply size checks and verify SHA-256 before publishing a completed file.
+Files require paired computers **and an active control connection between them**. Receiving a file does not open or execute it. Both flows authenticate the sender, apply size checks and verify SHA-256 before publishing a completed file.
+
+**Stopping control stops file offers and transfers.** Pairing only saves trust; it does not allow background file sharing. While connected, choose **Settings → Incoming file approval → Ask every time** to require approval, or turn off **Files** for that computer in **Computers** to reject its offers.
 
 ### Copy here, paste there · TCP 47834
 
-1. **Receiver:** allow TCP `47834` once through its LAN firewall. In Omarchy use **Home → Set up copied-file receiving · TCP 47834** or **Settings → Copied files · set up receiving**; preview and authorize the rule. Keep the Omarchy widget loaded (or the Windows app running).
-2. **Source:** copy **one regular local file** in your file manager. With exactly one paired computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
+1. **Connect the paired computers.** Then, on the receiver, allow TCP `47834` once through its LAN firewall. In Omarchy use **Home → Set up copied-file receiving · TCP 47834** or **Settings → Copied files · set up receiving**; preview and authorize the rule. Keep the Omarchy widget loaded (or the Windows app running).
+2. **Source:** copy **one local file, several files, or a folder** in your file manager. With exactly one connected computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
 3. **Receiver:** if its approval mode requires a prompt, select **Accept file** or **Decline**. An actionable desktop notification appears even with the panel closed or on another workspace; the offer also appears at the top of every panel tab and in Files. Rejection prevents content transfer.
 4. Wait for transfer and verification to finish. Open the destination folder in the receiver's file manager and use **Paste**.
 
@@ -88,14 +94,16 @@ Files require **paired computers with SeamlessControl running**, but **no mouse/
 
 **Wait for a file does not turn on copied-file detection.** It is the other workflow below. Copied files are verified into a private staging folder before the clipboard points to them. Staging has a size quota; old staging sessions are cleaned up after seven days. Paste files you want to keep into your own folder rather than relying on staging as permanent storage.
 
-An unapproved offer expires after **two minutes**. Copy the file again or use the offer button to retry. GNOME Files supports copying from **Recent** as well as normal folders. Other file managers must expose a local file in supported clipboard formats; folders, remote files, symbolic links, multi-file selections and cut/move operations are not offered as ordinary copied files. Send files one at a time. Rename a file containing `:` before sending: that character is rejected for Windows-compatible safety.
+For several files or a folder, the receiver sees **one offer** with the number of included items and total size. Approve once and paste the verified **received group folder** in your file manager. The configured size limit covers the whole group.
+
+An unapproved offer expires after **two minutes**. Copy the file again or use the offer button to retry. GNOME Files supports copying from **Recent** as well as normal folders. Other file managers must expose a local file in supported clipboard formats; remote files, symbolic links and cut/move operations are not offered. A copied group is presented as one offer, with its item count and total size; after approval, paste the received folder to keep its contents together. Both computers need a version that supports groups. Up to 256 files and folders (including nested items) fit in one group and the configured size limit applies to the entire group. Rename a file containing `:` before sending: that character is rejected for Windows-compatible safety.
 
 ### Send directly to a folder · TCP 47833 by default
 
 1. **Receiver → Files:** choose a **Destination folder** with **Choose**. Leave the receiving address on Automatic, or enter a local `IP:port`.
 2. Select **Preview file LAN rule**, review the file port and LAN scope, then **Authorize this rule** if the firewall needs it.
 3. Select **Wait for a file** and wait for **Waiting for a file on** with the receiver address.
-4. **Source → Files:** select **Send to…** for the paired receiver, or enter its actual `IP:47833`; if it uses another file port, enter that port. Choose the local file and select **Send file**.
+4. **Connect the paired computers.** On the source in Files, select **Send to…** for the paired receiver, or enter its actual `IP:47833`; if it uses another file port, enter that port. Choose the local file and select **Send file**.
 5. **Receiver:** approve the offer when required. The verified file is saved directly in the chosen folder; no Paste step is needed. Select **Wait for a file** again for the next transfer.
 
 ![Current Files panel: manual receive and send controls](images/omarchy-files-send-en.png)
@@ -145,7 +153,7 @@ The helper adds a scoped **UFW** rule; it does not enable UFW or configure other
 | **Reconnecting** | Let the agent retry and read **Last attempt**. Do not start a second source session. If the receiver/address changed, make it available again, stop the source session, Scan and Connect again. |
 | Pointer stays on the receiver | Use physical Escape or **Return control to source**. If normal return fails, use the receiver's emergency cut and resume only when safe. |
 | **Locked** | Unlock locally. The app does not unlock computers remotely; an unknown lock state also blocks input. Move away from the source edge before crossing again. |
-| Copied-file offer never arrives | Keep both apps/widget active, check pairing and receiver TCP `47834`, and copy one supported local file. **Wait for a file** and opening only `47832` or `47833` do not enable this flow. |
+| Copied-file offer never arrives | Keep both apps/widget active, start their control connection, check pairing and receiver TCP `47834`, and copy supported local files or a folder. **Wait for a file** and opening only `47832` or `47833` do not enable this flow. |
 | Manual file send times out | Start **Wait for a file** again and match its announced address and file port; check the separate file firewall rule. |
 
 The capture repair button only appears for a **panel-started source session** after authenticated capture setup has remained pending for 15 seconds. If normal panel stop hangs, the panel escalates its stop signal after two seconds. For diagnostics and support without changing system settings, see the [technical guide](TECHNICAL.md) and [support guide](../SUPPORT.md).
@@ -153,15 +161,18 @@ The capture repair button only appears for a **panel-started source session** af
 ## Safety and current limits
 
 - Use a **private LAN and trusted computers**. Network sessions are encrypted/authenticated with Noise XX and pinned keys. Compare pairing codes on both physical screens; discovery and IP addresses alone do not establish trust. **Revoke** blocks that saved key and closes its session; reconnecting requires explicit fresh pairing.
-- Locking the Omarchy source disables capture; locking the receiver, or being unable to determine its lock state, cuts remote input. Held keys/buttons are released when input ends. This is **normal signed-in desktop control**, not remote login, remote unlock or access to Windows UAC/secure desktops. Consult the Windows guide for its permission limits. Manual locking during remote control still needs physical verification; **return and stop control before locking manually**.
+- Locking the Omarchy source disables capture; locking the receiver, or being unable to determine its lock state, cuts remote input. Held keys/buttons are released when input ends. This is **normal signed-in desktop control**, not remote login, remote unlock or access to Windows UAC/secure desktops. Consult the Windows guide for its permission limits. Physical lock and wake tests passed on the Omarchy/Windows pair: local input returned, and remote control required a fresh crossing after unlock. Unlock the source locally; the app cannot enter a locked desktop.
 - While an Omarchy source actively controls a peer, the loaded bar widget inhibits Omarchy's inhibitor-aware **automatic idle lock**. Manual locking still works; the inhibitor ends on return or widget unload. Keep this in mind on an unattended source.
-- These lock safeguards concern **input control**, not a promise to stop every file listener or erase the clipboard. Stop the app/widget or change file approval separately when you no longer want file offers. Sensitive Wayland clipboard selections are excluded where marked by the application; do not assume every password manager or copied secret is marked.
-- During a control connection, **text clipboard** synchronization is automatic (UTF-8, up to 256 KiB). Images are not synchronized. File copying is the separate approved flow above; it can operate without control.
+- These lock safeguards concern input control. File listeners may remain open, but they reject offers without a current authenticated control session. Stopping control does not erase a file already received into the local clipboard. Sensitive Wayland clipboard selections are excluded where marked by the application; do not assume every password manager or copied secret is marked.
+- During a control connection, **text clipboard** synchronization is automatic (UTF-8, up to 256 KiB). Images are not synchronized. File copying uses a separate approved transfer while that control connection remains active.
 - **Settings → Connect several computers** is experimental: one source plus **two or three receivers** in a connected 2 × 2 layout. Pair and place the computers on the participating layouts, keep every receiver active on the same control port, then start mesh from the source. Clipboard updates are shared across connected receivers. For two computers total use normal **Connect**. Physical multi-machine mesh, rapid handoffs and network recovery are not fully validated; see the [test record](TEST-RESULTS.md), not the documentation renders, for observed results.
 
 ## Update and remove
 
 Stop active sessions before installation, updating or removal. **Home → Update agent** opens an Omarchy terminal to install the current agent and missing dependencies. Update the **plugin** separately and restart the Omarchy shell following the [README](../README.md#update-or-remove); reopen the panel afterward. If current tabs or approval settings are missing, the shell may still have an older panel loaded.
+
+Home shows the plugin and installed agent versions. If they differ, stop the session and select **Update agent**. Wait for the installation terminal to finish, then return to Home and check that both versions match.
+The panel confirms completion only after the setup script finishes successfully and the newly installed agent reports the plugin's version. If setup fails, read the terminal error and retry; opening the terminal alone does not mean the update succeeded.
 
 **Settings → Remove agent** asks for confirmation and removes the managed agent and only packages SeamlessControl installed for it. Saved paired keys and layout remain. Removing the agent is not removing the plugin or its firewall rules; the README and technical guide explain those separate steps. If the panel cannot open the setup terminal, use the [technical guide's manual installation](TECHNICAL.md#packaging-and-updates).
 

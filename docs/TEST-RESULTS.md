@@ -2,6 +2,19 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.24.0 physical verification · 2026-10-10
+
+One physical Omarchy computer and one Windows 11 x64 computer ran 0.24.0 on the same LAN. Windows discovery, identity-change warning after an IP was reused, fresh pairing, screen placement, mouse, click, keyboard, text clipboard and return across the receiver edge worked. Both computers acted as source and receiver.
+
+- **Crossing:** Fluid return, Deliberate double crossing and Protect full-screen behaved as selected from each source. The first deliberate crossing stayed local; the second within 1.6 seconds entered the peer. Full-screen protection required the second crossing only with a full-screen source window.
+- **Permissions:** Each receiver displayed Control, Text, Files and the last connection time. Turning off each permission blocked its corresponding operation without revoking pairing; restoring it worked.
+- **Files:** A folder with a nested file and a selection of multiple files were copied and pasted in both directions with one offer and intact contents. Rejecting an offer transferred nothing. The Windows receiver's 1 MiB limit rejected a 2 MiB file. An Omarchy folder containing a symbolic link was rejected with a visible explanation and no new Windows offer.
+- **Connection boundary:** With control stopped, copying a new file in either file manager produced no offer despite saved pairing and an available receiver. A live connection enabled transfers in either direction; ending it stopped later offers. A session started from one Omarchy bar could be ended from the other bar, and both panels then showed no session.
+- **Recovery:** With either computer as physical source, stopping and restarting the other receiver returned local input, reconnected to Ready and required a fresh edge crossing. Lock/unlock and sleep/wake on each source also preserved local mouse and keyboard access and required a new crossing. The Omarchy sleep test was recorded in the system journal. A briefly persistent receiver TCP connection after one Windows Stop was observed once but not reproduced; no broader result is inferred from that observation.
+- **Diagnosis and updates:** The reachable, already-paired control-port check was confirmed in both interfaces. The physical Omarchy and Windows agents reported 0.24.0. The Windows bundled update path passed CI tests including checksum rejection; an in-app update from a tagged 0.24.0 ZIP had not been available during these pre-release physical tests.
+
+Older dated entries below describe the state at the time of each test. A pending check mentioned in an older entry may have been completed in the 0.24.0 verification above.
+
 ## Physical results at a glance
 
 | Feature | Observed result |
@@ -65,7 +78,7 @@ Local loopback and integrated tests cover pairing, Noise XX, discovery, simulate
 
 For 0.19.7, a local encrypted loopback test keeps two mesh links open, revokes an idle peer, verifies its socket closes while the other link remains usable, then revokes the active peer and verifies that the mesh loop receives the error that triggers capture release. The complete Rust test suite (72 tests) and Clippy passed locally. This does not replace a physical multi-computer mesh test.
 
-The following still need physical verification: other keyboard shortcuts and layouts, wheel and dragging between the two Omarchy computers; copied-file transfers between two Omarchy or two Windows computers, larger files and interrupted transfers; multiple receiver mesh; other screen edges and monitor arrangements; locking, sleep and network loss. Windows still needs Start with Windows at a new sign-in, untested keys and layouts, wheel, drag, manual Send file to Omarchy, lock, and other screen layouts.
+Outside the Omarchy ↔ Windows pair verified above, physical coverage has not yet included other keyboard layouts, wheel and dragging between the two Omarchy computers; copied-file groups between two Omarchy or two Windows computers; large or interrupted transfers; multiple-receiver mesh; other monitor arrangements; or network loss during a transfer. Start with Windows at a new sign-in and additional keyboard layouts also remain outside the observed scope.
 
 ### Remaining copied-file checks
 

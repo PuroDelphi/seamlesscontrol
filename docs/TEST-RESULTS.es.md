@@ -2,6 +2,19 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Verificación física de 0.24.0 · 2026-10-10
+
+Un Omarchy físico y un Windows 11 x64 ejecutaron 0.24.0 en la misma LAN. Funcionaron el descubrimiento Windows, el aviso de clave cambiada tras reutilizar una IP, el emparejamiento nuevo, el mapa de pantallas, ratón, clic, teclado, portapapeles de texto y regreso por el borde receptor. Ambos equipos actuaron como origen y receptor.
+
+- **Cruce:** El regreso fluido, el doble cruce Deliberado y Proteger pantalla completa funcionaron según el ajuste desde cada origen. El primer cruce deliberado permaneció local; el segundo dentro de 1,6 segundos entró al otro equipo. La protección a pantalla completa exigió el segundo cruce solo con una ventana de origen a pantalla completa.
+- **Permisos:** Cada receptor mostró Control, Texto, Archivos y fecha de última conexión. Desactivar cada permiso bloqueó su operación correspondiente sin revocar el emparejamiento; restaurarlo funcionó.
+- **Archivos:** Una carpeta con un archivo anidado y una selección de varios archivos se copiaron y pegaron en ambos sentidos con una oferta y contenido íntegro. Rechazar una oferta no transfirió nada. El límite de 1 MiB del receptor Windows rechazó un archivo de 2 MiB. Una carpeta Omarchy con enlace simbólico se rechazó con una explicación visible y sin oferta nueva en Windows.
+- **Límite de conexión:** Con el control detenido, copiar un archivo nuevo en cualquiera de los dos exploradores no produjo oferta pese al emparejamiento y a que el receptor estaba disponible. Una conexión activa permitió transferir en ambos sentidos; terminarla impidió ofertas posteriores. Una sesión iniciada desde una barra Omarchy se pudo terminar desde la otra; después ambos paneles mostraron que no había sesión.
+- **Recuperación:** Con cualquiera de los equipos como origen físico, detener y reactivar el otro receptor devolvió la entrada local, reconectó a Listo y exigió un cruce nuevo. El bloqueo/desbloqueo y la suspensión/reanudación de cada origen también conservaron el ratón y teclado locales y exigieron cruzar otra vez. La suspensión Omarchy quedó registrada en el diario del sistema. Una conexión TCP del receptor permaneció brevemente tras pulsar Detener una vez en Windows, pero no se reprodujo; no se infiere un resultado más amplio de esa observación.
+- **Diagnóstico y actualizaciones:** La comprobación de puerto de control accesible y equipo ya emparejado se confirmó en ambas interfaces. Los agentes físicos de Omarchy y Windows mostraron 0.24.0. El actualizador conjunto Windows pasó pruebas CI, incluido rechazo de checksum erróneo; la actualización desde la app con un ZIP etiquetado 0.24.0 aún no existía durante estas pruebas previas al lanzamiento.
+
+Las entradas antiguas fechadas a continuación describen el estado en el momento de cada prueba. Una comprobación pendiente allí puede haberse completado en la verificación de 0.24.0 anterior.
+
 ## Resultados físicos principales
 
 | Función | Resultado observado |
@@ -65,7 +78,7 @@ Las pruebas locales de loopback e integración cubren emparejamiento, Noise XX, 
 
 En 0.19.7, una prueba local cifrada de loopback mantiene abiertos dos vínculos de malla, revoca un equipo inactivo y comprueba que su socket se cierra mientras el otro sigue operativo; luego revoca el equipo activo y comprueba que el bucle de malla recibe el error que provoca la liberación de la captura. Pasaron las 72 pruebas Rust y Clippy localmente. Esto no sustituye una prueba física de malla con varios equipos.
 
-Siguen pendientes de verificación física: otros atajos y mapas de teclado, rueda y arrastre entre los dos Omarchy; archivos copiados entre dos Omarchy o entre dos Windows, archivos grandes y transferencias interrumpidas; malla de varios receptores; otros bordes y disposiciones de monitores; bloqueo, suspensión y pérdida de red. En Windows aún faltan el inicio automático tras entrar en una nueva sesión, teclas y distribuciones no probadas, rueda, arrastre, envío manual de archivos a Omarchy, bloqueo y otras disposiciones de pantallas.
+Fuera de la pareja Omarchy ↔ Windows verificada arriba, aún no se han observado físicamente otras distribuciones de teclado, rueda y arrastre entre los dos Omarchy; grupos de archivos entre dos Omarchy o dos Windows; transferencias grandes o interrumpidas; malla de varios receptores; otras disposiciones de monitores; ni pérdida de red durante una transferencia. El inicio automático de Windows en una nueva sesión y otras distribuciones de teclado también quedan fuera del alcance observado.
 
 ### Comprobaciones pendientes de archivos copiados
 

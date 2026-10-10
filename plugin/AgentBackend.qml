@@ -7,6 +7,8 @@ Item {
   id: root
   property string language: "en"
   property int fileLimitMiB: 100
+  property string edgePolicy: "fluid"
+  property string edgePolicyFeedback: ""
   property string approvalMode: "always"
   property int approvalMinutes: 15
   property var approvalUntil: ({})
@@ -33,6 +35,18 @@ Item {
       clipboardReceiveProcess.running = false
     }
     return true
+  }
+  function setEdgePolicy(mode) {
+    if (!["fluid", "deliberate", "fullscreen"].includes(mode)) return false
+    try {
+      edgePolicyFile.setText(mode + "\n")
+      edgePolicy = mode
+      edgePolicyFeedback = "saved"
+      return true
+    } catch (error) {
+      edgePolicyFeedback = "error"
+      return false
+    }
   }
   function fileCommand(args) {
     return ["env", "SEAMLESSCONTROL_MAX_FILE_BYTES=" + String(fileLimitMiB * 1048576), "seamlesscontrold"].concat(args)
@@ -79,6 +93,10 @@ Item {
     }
   }
   property bool installed: false
+  property string pluginVersion: ""
+  property string agentVersion: ""
+  readonly property bool agentVersionMismatch: installed && pluginVersion !== "" && agentVersion !== ""
+    && pluginVersion !== agentVersion
   property bool available: false
   property string role: ""
   property string phase: ""
@@ -97,6 +115,15 @@ Item {
     disconnected: root.t("desconectado")
   })[phase] || phase
   property string peer: ""
+  readonly property bool fileSessionActive: available && peer !== "" && !paused
+    && (phase === "ready" || phase === "rearming" || phase === "controlling"
+        || phase === "connected" || phase === "handoff" || phase === "cross_again")
+  onFileSessionActiveChanged: if (!fileSessionActive) {
+    copiedFilePath = ""
+    lastClipboardSentPath = ""
+    if (sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+    if (clipboardOffer) decideClipboardFile(false)
+  }
   property bool paused: false
   readonly property bool actionRunning: actionProcess.running
   property bool receiverStopRequested: false
@@ -107,8 +134,17 @@ Item {
   property string pairError: ""
   property string actionName: ""
   property var peers: []
+  property var peerPolicies: ({})
+  property string peerPolicyError: ""
+  property bool peerPolicyBusy: false
+  property string pendingPeerPolicyKey: ""
+  property string pendingPeerPolicyCapability: ""
+  property bool pendingPeerPolicyAllowed: false
   property var discovered: []
   property string discoveryError: ""
+  property bool diagnosisBusy: false
+  property string diagnosisReason: ""
+  property string diagnosisError: ""
   property var topology: []
   property bool receivingFile: false
   property bool fileListening: false
@@ -133,6 +169,7 @@ Item {
   property bool stoppingFileReceiver: false
   property bool managedAgentRunning: false
   property bool stoppingManagedAgent: false
+  property string sessionStopError: ""
   property string lastAgentError: ""
   readonly property string reconnectReason: lastAgentError.replace(/^Conexión interrumpida: /, "")
     .replace(/\. Reintentando en [0-9]+ s\.$/, "")
@@ -143,6 +180,10 @@ Item {
   readonly property string firewallScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/firewall-lan.sh")).replace(/^file:\/\//, ""))
   readonly property string setupScript: decodeURIComponent(String(Qt.resolvedUrl("../packaging/setup-agent.sh")).replace(/^file:\/\//, ""))
   property bool setupBusy: false
+  property double setupAttemptMs: 0
+  property string setupReceiptStatus: ""
+  property string setupReceiptVersion: ""
+  property double setupReceiptMs: 0
   property string setupMessage: ""
   property string setupError: ""
   property bool firewallBusy: false
@@ -153,6 +194,52 @@ Item {
   property string firewallStep: ""
   property string firewallOutput: ""
   property string firewallStderr: ""
+
+  function checkSetupCompletion() {
+    if (setupAttemptMs <= 0 || setupReceiptMs < setupAttemptMs) return
+    if (setupReceiptStatus === "failed") {
+      setupError = root.t("La instalación o retirada falló. Revise la terminal de Omarchy y vuelva a intentarlo.")
+      setupAttemptMs = 0
+    } else if (setupReceiptStatus === "removed") {
+      if (!installed) {
+        setupMessage = root.t("Agente retirado correctamente.")
+        setupAttemptMs = 0
+      }
+    } else if (setupReceiptStatus === "installed" && setupReceiptVersion !== pluginVersion) {
+      setupError = root.t("La terminal terminó, pero las versiones del plugin y el agente no coinciden. Actualice el plugin y vuelva a instalar el agente.")
+      setupAttemptMs = 0
+    } else if (setupReceiptStatus === "installed" && agentVersion === pluginVersion) {
+      setupMessage = root.t("Agente actualizado y versión verificada: ") + agentVersion
+      setupError = ""
+      setupAttemptMs = 0
+    }
+  }
+
+  FileView {
+    id: setupResultFile
+    path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")
+      + "/seamlesscontrol/setup-result"
+    watchChanges: true
+    printErrors: false
+    onLoaded: {
+      var fields = String(text() || "").trim().split("\t")
+      root.setupReceiptStatus = fields[0] || ""
+      root.setupReceiptVersion = fields[1] || ""
+      root.setupReceiptMs = Number(fields[2] || 0)
+      root.checkSetupCompletion()
+    }
+    onFileChanged: reload()
+  }
+
+  FileView {
+    id: manifestFile
+    path: decodeURIComponent(String(Qt.resolvedUrl("../manifest.json")).replace(/^file:\/\//, ""))
+    printErrors: false
+    onLoaded: {
+      try { root.pluginVersion = String(JSON.parse(text()).version || "") }
+      catch (error) { root.pluginVersion = "" }
+    }
+  }
 
   FileView {
     id: languageFile
@@ -173,6 +260,19 @@ Item {
     onLoaded: {
       var value = Number(String(text() || "").trim())
       root.fileLimitMiB = Number.isInteger(value) && value >= 1 && value <= 10240 ? value : 100
+    }
+    onFileChanged: reload()
+  }
+
+  FileView {
+    id: edgePolicyFile
+    path: (Quickshell.env("XDG_CONFIG_HOME") || Quickshell.env("HOME") + "/.config") + "/seamlesscontrol/edge-policy"
+    watchChanges: true
+    atomicWrites: true
+    printErrors: false
+    onLoaded: {
+      var value = String(text() || "").trim()
+      root.edgePolicy = ["fluid", "deliberate", "fullscreen"].includes(value) ? value : "fluid"
     }
     onFileChanged: reload()
   }
@@ -221,6 +321,7 @@ Item {
       return
     }
     setupBusy = true
+    setupAttemptMs = Date.now()
     if (clipboardReceiveProcess.running) {
       stoppingClipboardReceiver = true
       clipboardReceiveProcess.running = false
@@ -237,8 +338,10 @@ Item {
     id: setupProcess
     onExited: function(code) {
       root.setupBusy = false
-      if (code !== 0)
+      if (code !== 0) {
         root.setupError = "No se pudo abrir la terminal de Omarchy. Use el comando manual de la guía."
+        root.setupAttemptMs = 0
+      }
       if (!executableProbe.running) executableProbe.running = true
     }
   }
@@ -290,6 +393,13 @@ Item {
   }
 
   function stopManagedAgent() {
+    if (stoppingManagedAgent || sessionStopProcess.running) return
+    if (available && role === "connect") {
+      stoppingManagedAgent = true
+      sessionStopError = ""
+      sessionStopProcess.running = true
+      return
+    }
     if (!agentProcess.running) return
     stoppingManagedAgent = true
     agentProcess.signal(2)
@@ -356,6 +466,10 @@ Item {
 
   function sendFile(address, path, copied) {
     if (!installed || sendFileProcess.running || !address || !path) return
+    if (!canShareWith(address)) {
+      fileError = root.t("Conecte con ese equipo antes de compartir archivos.")
+      return
+    }
     error = ""
     fileResult = root.t("Preparando archivo…")
     fileError = ""
@@ -366,15 +480,19 @@ Item {
     sendingFile = true
   }
 
+  function canShareWith(address) {
+    return fileSessionActive && String(address).split(":")[0] === peer
+  }
+
   function sendCopiedFile(address) {
-    if (!copiedFilePath || !address || sendFileProcess.running) return
+    if (!fileSessionActive || !copiedFilePath || !address || sendFileProcess.running) return
     lastClipboardSentPath = copiedFilePath
     sendFile(address, copiedFilePath, true)
   }
 
   function maybeSendCopiedFile() {
-    if (copiedFilePath && copiedFilePath !== lastClipboardSentPath
-        && peers.length === 1 && !sendFileProcess.running)
+    if (fileSessionActive && copiedFilePath && copiedFilePath !== lastClipboardSentPath
+        && peers.length === 1 && peers[0].ip === peer && !sendFileProcess.running)
       sendCopiedFile(peers[0].ip + ":47834")
   }
 
@@ -406,6 +524,24 @@ Item {
     peersProcess.running = true
   }
 
+  function refreshPolicies() {
+    if (!installed || peerPoliciesProcess.running) return
+    peerPoliciesProcess.running = true
+  }
+
+  function setPeerPermission(ip, fingerprint, capability, allowed) {
+    if (!installed || peerPolicyBusy || !peers.some(function(peer) {
+      return peer.ip === ip && peer.key === fingerprint
+    })) return
+    peerPolicyError = ""
+    pendingPeerPolicyKey = fingerprint
+    pendingPeerPolicyCapability = capability
+    pendingPeerPolicyAllowed = allowed
+    peerPolicyBusy = true
+    peerPolicyAction.command = ["seamlesscontrold", "peer-policy", "set", ip, capability, allowed ? "allow" : "deny"]
+    peerPolicyAction.running = true
+  }
+
   function refreshDiscovery() {
     if (!installed || discoveryProcess.running) return
     discoveryProcess.running = true
@@ -414,6 +550,35 @@ Item {
   function refreshTopology() {
     if (!installed || topologyProcess.running) return
     topologyProcess.running = true
+  }
+
+  function diagnosePeer(address) {
+    if (!installed || diagnosisProcess.running || !address) return
+    diagnosisBusy = true
+    diagnosisReason = ""
+    diagnosisError = ""
+    diagnosisProcess.command = ["seamlesscontrold", "diagnose-peer", address]
+    diagnosisProcess.running = true
+  }
+
+  Process {
+    id: diagnosisProcess
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var fields = String(text || "").trim().split("\t")
+        if (fields.length === 5 && fields[0] === "CHECK")
+          root.diagnosisReason = fields[4]
+      }
+    }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.diagnosisError = String(text || "").trim()
+    }
+    onExited: function(code) {
+      root.diagnosisBusy = false
+      if (code !== 0 && root.diagnosisError === "") root.diagnosisError = root.t("No se pudo comprobar la dirección.")
+    }
   }
 
   function placeMachine(machine, column, row) {
@@ -533,9 +698,13 @@ Item {
     onExited: function(code) {
       var wasInstalled = root.installed
       root.installed = code === 0
+      if (root.installed && !versionProcess.running) versionProcess.running = true
+      if (!root.installed) root.agentVersion = ""
       if (root.installed && !wasInstalled) {
         root.error = ""
-        root.setupMessage = "Agente instalado. Ya puede iniciar una sesión."
+        root.setupMessage = root.setupAttemptMs > 0
+          ? root.t("Agente detectado; comprobando versión y resultado de instalación.")
+          : root.t("Agente instalado. Ya puede iniciar una sesión.")
         root.refresh()
         root.refreshPeers()
         root.refreshDiscovery()
@@ -547,7 +716,22 @@ Item {
         root.discovered = []
         root.topology = []
       }
+      root.checkSetupCompletion()
     }
+  }
+
+  Process {
+    id: versionProcess
+    command: ["seamlesscontrold", "version"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        root.agentVersion = String(text || "").trim()
+        setupResultFile.reload()
+        root.checkSetupCompletion()
+      }
+    }
+    onExited: function(code) { if (code !== 0) root.agentVersion = "?" }
   }
 
   Process {
@@ -571,6 +755,10 @@ Item {
         root.pairSas = fields[5]
         root.pairKey = fields[6]
         root.available = true
+        if (root.stoppingManagedAgent && root.role !== "connect") {
+          root.stoppingManagedAgent = false
+          stopTimeout.stop()
+        }
       }
     }
     onExited: function(code) {
@@ -583,6 +771,10 @@ Item {
         root.paused = false
         root.pairSas = ""
         root.pairKey = ""
+        if (root.stoppingManagedAgent && !agentProcess.running) {
+          root.stoppingManagedAgent = false
+          stopTimeout.stop()
+        }
       }
     }
   }
@@ -643,8 +835,52 @@ Item {
         })
         root.approvalUntil = grants
         root.peers = next
+        root.refreshPolicies()
         root.maybeSendCopiedFile()
       }
+    }
+  }
+
+  Process {
+    id: peerPoliciesProcess
+    command: ["seamlesscontrold", "peer-policies"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var next = ({})
+        String(text || "").split("\n").forEach(function(line) {
+          var fields = line.split("\t")
+          if (fields.length === 7 && fields[0] === "POLICY")
+            next[fields[2]] = { control: fields[3] === "true", text: fields[4] === "true",
+              files: fields[5] === "true", lastConnectedMs: Number(fields[6]) || 0 }
+        })
+        root.peerPolicies = next
+      }
+    }
+    onExited: function(code) {
+      if (code !== 0) root.peerPolicyError = root.t("No se pudieron leer los permisos de los equipos.")
+    }
+  }
+
+  Process {
+    id: peerPolicyAction
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: root.peerPolicyError = String(text || "").trim()
+    }
+    onExited: function(code) {
+      if (code !== 0 && root.peerPolicyError === "") root.peerPolicyError = root.t("No se pudo guardar el permiso.")
+      if (code === 0 && root.pendingPeerPolicyKey !== "") {
+        var next = Object.assign({}, root.peerPolicies)
+        var policy = Object.assign({}, next[root.pendingPeerPolicyKey] || {})
+        policy[root.pendingPeerPolicyCapability] = root.pendingPeerPolicyAllowed
+        next[root.pendingPeerPolicyKey] = policy
+        root.peerPolicies = next
+      }
+      root.pendingPeerPolicyKey = ""
+      root.pendingPeerPolicyCapability = ""
+      root.peerPolicyBusy = false
+      root.refreshPolicies()
     }
   }
 
@@ -721,6 +957,24 @@ Item {
   }
 
   Process {
+    id: sessionStopProcess
+    command: ["seamlesscontrold", "stop"]
+    stderr: SplitParser {
+      onRead: function(line) { root.sessionStopError = String(line).trim() }
+    }
+    onExited: function(code) {
+      if (code !== 0) {
+        root.stoppingManagedAgent = false
+        root.error = root.sessionStopError !== "" ? root.sessionStopError
+          : root.t("No se pudo terminar la sesión. Inténtelo de nuevo.")
+      } else {
+        stopTimeout.restart()
+        root.refresh()
+      }
+    }
+  }
+
+  Process {
     id: agentProcess
     stdout: SplitParser { onRead: function(line) {} }
     stderr: SplitParser {
@@ -760,8 +1014,16 @@ Item {
 
   Timer {
     id: stopTimeout
-    interval: 2000
-    onTriggered: if (agentProcess.running && root.stoppingManagedAgent) agentProcess.signal(15)
+    interval: 3000
+    onTriggered: {
+      if (!root.stoppingManagedAgent) return
+      if (agentProcess.running) agentProcess.signal(15)
+      else if (root.available && root.role === "connect") {
+        root.error = root.t("La sesión sigue activa. Vuelva a intentar Terminar sesión.")
+        root.stoppingManagedAgent = false
+      }
+      root.refresh()
+    }
   }
 
   Timer {
@@ -872,18 +1134,45 @@ Item {
       onRead: function(line) {
         try {
           var path = JSON.parse(String(line).trim())
+          if (path && typeof path === "object" && typeof path.error === "string") {
+            if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+            root.copiedFilePath = ""
+            root.lastClipboardSentPath = ""
+            root.clipboardFileError = path.error.indexOf("bundle contains a symlink") !== -1
+              ? root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
+              : root.t("No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.")
+            return
+          }
           if (typeof path !== "string" || path.charAt(0) !== "/") {
             if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
             root.copiedFilePath = ""
             root.lastClipboardSentPath = ""
             return
           }
+          if (!root.fileSessionActive) {
+            root.copiedFilePath = ""
+            root.lastClipboardSentPath = ""
+            return
+          }
           if (root.sendingCopiedFile && root.copiedFilePath !== path && sendFileProcess.running)
             sendFileProcess.running = false
+          root.clipboardFileError = ""
           root.copiedFilePath = path
           root.lastClipboardSentPath = ""
           root.maybeSendCopiedFile()
         } catch (error) { root.clipboardFileError = root.t("No se pudo leer el archivo copiado.") }
+      }
+    }
+    stderr: SplitParser {
+      onRead: function(line) {
+        var message = String(line || "").trim()
+        if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+        root.copiedFilePath = ""
+        root.lastClipboardSentPath = ""
+        if (message.indexOf("bundle contains a symlink") !== -1)
+          root.clipboardFileError = root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
+        else if (message !== "")
+          root.clipboardFileError = root.t("No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.")
       }
     }
   }

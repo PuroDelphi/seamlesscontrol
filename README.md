@@ -2,9 +2,19 @@
 
 [![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Download Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Español](README.es.md) · [MIT](LICENSE)
 
+[See what's new in 0.24.0](docs/RELEASE-0.24.0.md)
+
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
-You can also share text during a connection and copy **one local file at a time** between paired computers. The receiver chooses how to approve files; they become available only after verification.
+You can also share text during a connection and copy **files and folders** between connected computers. The receiver chooses how to approve files; they become available only after verification.
+
+![SeamlessControl: mouse, keyboard, clipboard and files across Omarchy and Windows](preview.png)
+
+- **Move naturally:** cross the screen edge and return the same way. Choose fluid crossing, a deliberate double crossing, or protection while a window is full-screen.
+- **Keep control of trust:** compare a six-digit pairing code on both computers, then set Control, Text and Files permissions for each paired computer.
+- **Copy a whole group:** select several files or a folder with nested files, approve one offer on the receiver, and paste the verified group there.
+- **Share only while connected:** a saved pairing never starts file sharing by itself. Ending the control session ends new file offers and transfers.
+- **Recover smoothly:** local input returns after a lock, sleep or stopped receiver; a fresh edge crossing resumes remote control.
 
 ## Choose where to start
 
@@ -14,6 +24,7 @@ You can also share text during a connection and copy **one local file at a time*
 | Install the app, receive or control from Windows | [Illustrated Windows guide](docs/WINDOWS.md) |
 | Copy and paste files or send to a chosen folder | [Omarchy guide](docs/USER-GUIDE.md) / [Windows guide](docs/WINDOWS.md), Files section |
 | Resolve a connection problem | Troubleshooting in each guide; [get support](SUPPORT.md) |
+| See all changes and physical verification for 0.24.0 | [Release notes](docs/RELEASE-0.24.0.md) / [test record](docs/TEST-RESULTS.md) |
 | Use commands or understand permissions and limits | [Technical guide](docs/TECHNICAL.md) |
 
 The **source** is the computer with the physical mouse and keyboard you will use. The **receiver** is the computer you want to control. Roles can change for another session; reversing them does not require pairing again.
@@ -39,7 +50,7 @@ Open **SeamlessControl** from the bar and select **Home → Set up this computer
 
 Closing the window **does not** exit the app: it stays in the tray. To exit, choose **Exit SeamlessControl** in its tray menu. Automatic startup is optional under **Settings → Start with Windows**.
 
-The [Windows guide](docs/WINDOWS.md) covers SHA-256 verification, firewall setup and **alpha** build downloads. An Actions test build is not the latest published release.
+The [Windows guide](docs/WINDOWS.md) covers SHA-256 verification, firewall setup and installation from a tagged release. Development builds remain available through Actions.
 
 ## 2. Pair, place and connect
 
@@ -61,11 +72,11 @@ Images show interfaces with fictional documentation data; each platform guide ex
 | Feature | What you need | Port on the receiver |
 |---|---|---|
 | Mouse, keyboard and text clipboard | Pair + Receive control + Connect | TCP `47832` by default |
-| Copy in one file manager and paste in the other | Apps open + pairing; approve the offer when required and wait for verification before Paste | TCP `47834` |
-| Send to a chosen folder | Pairing + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
+| Copy in one file manager and paste in the other | Apps open + pairing + active control connection; approve the offer when required and wait for verification before Paste | TCP `47834` |
+| Send to a chosen folder | Active control connection + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
 | Find nearby receivers | Active receiving and discovery allowed on the LAN | UDP `5353` (mDNS) |
 
-**Neither file flow requires a control session.** **Wait for a file** does not enable copy and paste: it is the manual send flow, one offer at a time. Opening the control port does not open the file ports.
+**Both file flows require an active control connection.** Pairing saves trust; stopping control ends sharing. **Wait for a file** does not enable copy and paste: it is the manual send flow, one offer at a time. Opening the control port does not open the file ports.
 
 Under **Settings → Incoming file approval**, you can ask for every offer (default), accept automatically from paired computers, or approve for a while. Temporary mode asks for the first file from each computer and returns to **Ask every time** on expiry or restart. The [illustrated guides](docs/USER-GUIDE.md) explain size limits, destination selection and missing offers.
 
@@ -88,13 +99,13 @@ To remove it, use **Settings → Remove agent**, then `omarchy plugin remove sea
 
 ### Windows
 
-To update, exit from the tray, extract the new ZIP, replace **both executables** and reopen the app. Data in `%LOCALAPPDATA%\SeamlessControl` is preserved.
+To update, download the release ZIP and its adjacent `.sha256` file into the same folder. Choose **Settings → Update from release ZIP…**; the app checks the checksum, replaces **both executables** and reopens. Data in `%LOCALAPPDATA%\SeamlessControl` is preserved.
 
 To uninstall, first disable **Settings → Start with Windows**, exit from the tray and delete the executable folder. Remove any authorized `SeamlessControl TCP … Private LAN` and `SeamlessControl UDP 5353 Private LAN` rules. Delete the data folder **only** if you want a new identity: you will have to pair again.
 
 ## Scope and project documentation
 
-The [test record](docs/TEST-RESULTS.md) records control, return, text and file copying in both directions on physical Omarchy and Windows 11 x64 computers. This is not a guarantee for all combinations: multi-computer mesh is experimental, and other layouts, sleep and network faults have pending scenarios. Manual locking during remote control on Omarchy still needs physical verification; return and stop control before locking manually.
+The [test record](docs/TEST-RESULTS.md) covers physical Omarchy ↔ Windows 11 x64 control, return, clipboard and grouped files in both directions, plus lock, sleep and receiver interruption. Multi-computer mesh remains experimental; see the test record for the scope of other layouts and network conditions.
 
 The guides above describe current use. The `docs/RELEASE-*.md` notes, changelog and feasibility log preserve **version history**, not current installation instructions.
 

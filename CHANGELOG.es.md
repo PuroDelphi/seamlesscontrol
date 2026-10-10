@@ -4,6 +4,14 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.24.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.0) — 2026-10-10
+
+- Copia una carpeta, archivos anidados o varios archivos seleccionados mediante una oferta autenticada y pega el grupo verificado en el otro equipo. Se conservan la copia individual, el límite de tamaño configurable y la aprobación del receptor.
+- Exige una conexión de control activa en **ambos** equipos para copiar o enviar archivos manualmente. El emparejamiento guardado por sí solo ya no permite ofertas en segundo plano; terminar el control detiene las ofertas y transferencias nuevas.
+- Permite o deniega por separado Control, Texto y Archivos a cada equipo emparejado, con fecha de última conexión en las dos interfaces.
+- Añade cruce Fluido, Deliberado de dos intentos y Proteger pantalla completa en Omarchy y Windows. Conserva el regreso por el borde y Escape, y devuelve la entrada local tras bloqueo, suspensión, parada del receptor y reconexión.
+- Añade comprobaciones de conexión de solo lectura y mensajes de actualización más claros. Omarchy compara las versiones del plugin y del agente y permite terminar una sesión de origen desde cualquiera de sus barras. Windows puede actualizar juntos ambos ejecutables desde un ZIP de lanzamiento verificado con el SHA-256 contiguo.
+- Verifica control, cruce, permisos, grupos de archivos, intercambio limitado a la conexión y recuperación tras bloqueo/suspensión en una pareja física Omarchy ↔ Windows 11 x64. Consulta las [notas de lanzamiento](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows) y el [registro de pruebas](docs/TEST-RESULTS.es.md).
 ## [0.23.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.4) — 2026-10-09
 
 - Vincula la aprobación temporal de archivos manuales y copiados a la identidad autenticada del remitente. Un equipo nuevo con la misma IP debe recibir su propia aprobación; revocar un par borra su permiso temporal.

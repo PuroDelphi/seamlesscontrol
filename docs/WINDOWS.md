@@ -19,17 +19,6 @@ This guide describes the repository's current interface. A tagged release can be
 3. Extract the ZIP into a folder you will keep, such as a folder inside Documents. **`seamlesscontrol.exe` and `seamlesscontrold.exe` must stay together.** There is no installer to run.
 4. Double-click **`seamlesscontrol.exe`** after extraction; do not launch it inside the ZIP. Continue with [first launch](#first-launch-and-the-system-tray).
 
-### Testing the current alpha
-
-Use this route only when you want the development build rather than a tagged release.
-
-1. Open [Actions → Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Sign in to GitHub if artifact downloading requires it.
-2. Choose a **successful run for the `alpha` branch** and check its commit. The same workflow also builds `main`; do not assume every run is alpha.
-3. Download the **`seamlesscontrol-windows-x64`** artifact. GitHub supplies one ZIP containing both executables and **`SHA256SUMS.txt`**.
-4. Extract it and keep the executables together. The optional SHA-256 check is for **each extracted `.exe`** against `SHA256SUMS.txt`, not for the artifact ZIP. Open `seamlesscontrol.exe`.
-
-Tagged releases instead publish a checksum for the **complete ZIP** as a separate asset. Do not mix executables from different builds. For an existing installation, use [Update](#update-or-remove) so the old app is not still running.
-
 ### First launch and the system tray
 
 1. On a trusted home/work LAN, use Windows' **Private** network profile. If a firewall prompt appears, allow access on **Private networks**, not Public networks.
@@ -55,6 +44,8 @@ Pairing establishes trust; it does **not** start remote input. You need access t
    - **1 Pair by address:** enter the receiver's real private `IP:port` (normally `47832`) and choose **Pair**. Discovery is not required.
 3. Compare the **six digits on both screens**. If they differ, or the request is unexpected, choose **Decline**. In Windows, type the displayed digits and choose **Codes match · approve**; approve on the other computer too. The long identity fingerprint is not the pairing code.
 4. Expected result: **Computer paired successfully** and a row in **3 Paired computers**. Only then place it on the map or connect.
+
+If pairing failed with an address you entered manually, select **Check connection**. It distinguishes an unreachable port from a reachable computer that still needs pairing. An open port does not prove identity; compare the six-digit code.
 
 ![Pairing approval: compare the example six-digit code on both computers before approving](images/windows-pairing-en.png)
 
@@ -91,6 +82,10 @@ Use these steps when your **physical keyboard and mouse are on Windows**.
 
 The app remembers the destination and edge. If outgoing control was left enabled, it reconnects on the next launch and retries while the receiver is unavailable. A **CONNECTED/ACTIVE** badge alone is not proof that input capture is ready; use the Activity message before crossing.
 
+**Crossing preference:** In **Settings → Screen crossing**, choose **Fluid** (one edge crossing), **Deliberate** (move away and cross twice within 1.6 seconds), or **Protect full-screen apps** (two crossings only while the foreground window fills its monitor). The choice takes effect with the next connection. Escape and the receiver's return edge still return your input.
+
+In **Computers → Paired computers**, each saved identity has separate **Control**, **Text** and **Files** choices and a last connection time. Control and text changes take effect on the next connection; files on the next offer. **Revoke** still removes trust immediately.
+
 ## Return or stop sharing
 
 | What you want | What to do | Expected result |
@@ -101,7 +96,7 @@ The app remembers the destination and edge. If outgoing control was left enabled
 | Stop this app completely | **Settings → Exit app** or tray **Exit SeamlessControl** | Sessions started by this app end; the process exits. |
 | Remove a computer's trust | **Computers → Paired computers → Revoke → Yes, revoke** | Its identity is blocked, its map position is removed and affected control is closed. Re-pairing needs a new code approved on both computers. |
 
-Stopping control alone does **not** turn off copied-file receiving while the app remains open. Exit the app if you want to stop both control and file sharing. Closing its window is never an emergency stop.
+Stopping control ends file exchange with that computer, even if the copied-file listener remains open. Pairing alone cannot send or receive files. Closing the window only hides the app in the tray; use **Stop** to end the session.
 
 ## Share text and files
 
@@ -113,15 +108,17 @@ While the control connection is running, copy text on one computer and paste it 
 
 | Task | Use | Needed on the receiver |
 | --- | --- | --- |
-| Copy in one file manager and paste in the other | Top **Files → Copy here, paste there** card | App/plugin running; TCP `47834`; no manual waiting or control connection. |
+| Copy in one file manager and paste in the other | Top **Files → Copy here, paste there** card | Active control connection; app/plugin running; TCP `47834`; no manual waiting. |
 | Choose a file and save it directly into a folder | **Files → Send a file / Wait for one file** | **Wait for a file** active; TCP `47833` by default. |
 
-Both workflows require pairing, follow the receiving computer's approval preference, and verify the transfer. Use **one file**, not a directory or selection of multiple files. Copied-file sharing supports **Copy**, not cross-computer Cut/move.
+Both workflows require pairing and an active control connection, follow the receiving computer's approval preference, and verify the transfer. Manual sending accepts one file. Copied-file sharing accepts one local file, multiple local files or a folder as one approved group; it supports **Copy**, not cross-computer Cut/move. Both computers need group-capable agents.
+
+**Stopping Control another computer stops file offers and transfers with that computer.** Pairing alone never starts sharing. While connected, **Accept automatically** skips the prompt; choose **Settings → Incoming file approval → Ask every time** to require a decision, or turn off that peer's **Files** permission in **Computers** to block its offers.
 
 #### Copy here, paste there
 
-1. Keep both apps/plugin running and the computers paired. Copy **one local file** in Explorer or the Omarchy file manager.
-2. With exactly one paired computer, the file is offered automatically. With several, choose the destination under **Files → Copy here, paste there**. Expected result: the copied file is shown and an offer reaches the receiver.
+1. Keep both apps/plugin running and connect the paired computers. Copy **one local file, several files or a folder** in Explorer or the Omarchy file manager.
+2. With exactly one connected computer, the file is offered automatically. With several, choose the destination under **Files → Copy here, paste there**. Expected result: the copied file is shown and an offer reaches the receiver.
 3. With the default approval mode, the receiver checks sender, filename and size, then chooses **Accept file** or **Decline**. Windows also shows a native approval dialog even when hidden in the tray; Omarchy uses an actionable desktop notification. The Files page has approval buttons too.
 4. Wait for verified completion in **Activity**. Then open the folder where you want the file and **Paste** in the receiver's file manager. Accepting prepares the local clipboard; it does not paste into your chosen folder for you.
 
@@ -130,6 +127,8 @@ Both workflows require pairing, follow the receiving computer's approval prefere
 ![Focused incoming copied-file offer and approval buttons in the Windows HTML interface](images/windows-offer-en.png)
 
 The offer image shows the **in-app** controls, not the native Windows dialog. An unanswered copied-file offer expires after **two minutes**. Changing the copied file cancels its outgoing offer. Allow TCP `47834` on the **receiver**; **Wait for a file** on `47833` is unrelated to this flow.
+
+For a selection of files or a folder, SeamlessControl shows **one offer** named with the number of included items and the total transfer size. Accept once, then paste the verified **received group folder** in the destination file manager. The configured file-size limit applies to the entire group; at most 256 entries, including items inside folders, are supported. Symbolic links and unsupported virtual files are rejected.
 
 #### Manual send: save directly into a folder
 
@@ -183,21 +182,22 @@ Do not open these ports to the Internet, add router forwarding or disable the fi
 | Row Connect only opens Overview | This prepares the address and edge. Choose **Connect in Overview** to start the session. |
 | CONNECTED but crossing does nothing | Wait for **Ready to control** in Activity. Check that the receiver is available and that you cross the selected **outer** edge. Return/Stop before changing the side. |
 | Cannot return by the screen edge | Press **Escape on the physical source keyboard**. Update both agents; direct sessions learn the entry/return edge without a receiver map. See Activity for errors. |
-| Copying a file produces no usable offer | Copy one local file, not Cut or a folder. Check pairing, size limits and TCP `47834` on the receiver. With several peers, choose the destination in the top Files card. |
+| Copying a file produces no usable offer | First connect the paired computers and wait for Ready; pairing or Receive control alone does not enable file exchange. Copy local files or a folder, not Cut, unsupported virtual files or links. Check the size limits and TCP `47834` on the receiver. With several connected peers, choose the destination in the top Files card. |
 | Accepted copied file is not in the desired folder | Wait for completion, then **Paste in the receiver's file manager**. Manual transfers instead save directly and do not need Paste. |
 | Manual sending fails although control works | Start **Wait for a file** on the destination and permit its file port (normally `47833`), not just the control port. |
 | App reconnects after reopening / cannot replace files | Use Stop to change the saved mode; to replace binaries, **exit from the tray**, not just close the window. |
 
-If a Windows lock/UAC prompt or an elevated application blocks input, use the local controls; do not treat remote access to protected desktops as supported. The [test record](TEST-RESULTS.md) lists pending physical checks, including other keys/layouts, monitor arrangements, lock/sleep/network loss and some file-transfer cases. HTML illustrations do not validate those behaviors.
+If a Windows lock/UAC prompt or an elevated application blocks input, use the local controls; do not treat remote access to protected desktops as supported. The [test record](TEST-RESULTS.md) includes successful physical lock, sleep and receiver-interruption checks in both directions and specifies the scope of other layouts and file-transfer cases. HTML illustrations do not validate those behaviors.
 
 ## Update or remove
 
 ### Update
 
-1. Choose **Exit SeamlessControl** from the tray (or **Settings → Exit app**). Close any separately started console agent too.
-2. Download the desired **tagged release** or **successful alpha artifact**, following the matching installation route above.
-3. Extract it and replace **both `.exe` files together** in your app folder. Open `seamlesscontrol.exe` again. Expected result: the saved control mode and local pairing data are retained.
-4. If you moved the app folder, update **Start with Windows** from its new location.
+1. From the [latest tagged release](https://github.com/PuroDelphi/seamlesscontrol/releases/latest), download **`seamlesscontrol-windows-x64.zip`** and **`seamlesscontrol-windows-x64.zip.sha256`** into the same folder.
+2. In the app choose **Settings → Update from release ZIP…** and select the ZIP. The app verifies the ZIP's SHA256 against its sidecar, closes its sessions, replaces both executables together and opens again. The result appears in **Activity**. Your pairing identity, preferences and saved control mode remain in place.
+3. Check **Settings → About SeamlessControl**: the app and agent versions should match. If the update reports a failure, the previous executables are restored when possible; read Activity before retrying.
+
+If the in-app update cannot run, exit the tray app and any separately started console agent, extract the tagged release ZIP and replace both `.exe` files together manually. If you moved the app folder, update **Start with Windows** from its new location.
 
 The data in **`%LOCALAPPDATA%\SeamlessControl`** is separate from the executables. Do not delete it as an ordinary update step.
 

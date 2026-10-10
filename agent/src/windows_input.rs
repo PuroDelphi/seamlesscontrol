@@ -155,6 +155,7 @@ pub struct WindowsInjector {
     writer: SecureWriter<TcpStream>,
     clipboard: WindowsClipboard,
     clipboard_sync: ClipboardSync,
+    text_enabled: bool,
     epoch: Option<u64>,
     sequence: u64,
     return_sent: bool,
@@ -170,11 +171,13 @@ impl WindowsInjector {
         writer: SecureWriter<TcpStream>,
         local_id: [u8; 32],
         peer_id: [u8; 32],
+        text_enabled: bool,
     ) -> io::Result<Self> {
         Ok(Self {
             writer,
             clipboard: WindowsClipboard::new(),
             clipboard_sync: ClipboardSync::new(local_id, peer_id),
+            text_enabled,
             epoch: None,
             sequence: 0,
             return_sent: false,
@@ -311,6 +314,9 @@ impl Injector for WindowsInjector {
     }
 
     fn clipboard_received(&mut self, packet: ClipboardPacket) -> io::Result<()> {
+        if !self.text_enabled {
+            return Ok(());
+        }
         if !self.clipboard_sync.remote_needs_apply(&packet)? {
             return Ok(());
         }
@@ -325,7 +331,7 @@ impl Injector for WindowsInjector {
     }
 
     fn heartbeat(&mut self) -> io::Result<()> {
-        if !interactive_desktop().unwrap_or(false) {
+        if !self.text_enabled || !interactive_desktop().unwrap_or(false) {
             return Ok(());
         }
         match self.clipboard.changed() {

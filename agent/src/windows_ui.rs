@@ -1,6 +1,11 @@
 //! WebView2 window and tray shell over the existing seamlesscontrold.exe.
 //! No input, encryption, file or clipboard protocol is reimplemented here.
 
+use seamlesscontrol_core::active_session;
+use seamlesscontrol_core::diagnostics::{PeerDiagnosis, diagnose_peer};
+use seamlesscontrol_core::edge_policy::EdgePolicy;
+use seamlesscontrol_core::peer_policy::{Capability, PeerPolicy};
+use seamlesscontrol_core::storage::load_peer_key;
 use seamlesscontrol_core::windows_clipboard::WindowsClipboard;
 use seamlesscontrol_core::windows_discovery::{DiscoveredServer, DiscoveryBrowser};
 use std::collections::{BTreeMap, VecDeque};
@@ -40,6 +45,50 @@ const MAX_FILE_LIMIT_MIB: u64 = 10240;
 const STARTUP_KEY: &str = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 const STARTUP_VALUE: &str = "SeamlessControl";
 const CONTROL_RETRY_DELAY: Duration = Duration::from_secs(5);
+const WINDOWS_UPDATE_SCRIPT: &str = include_str!("../../packaging/windows-update.ps1");
+
+fn start_windows_update(archive: &Path, executable: &Path) -> Result<(), Box<dyn Error>> {
+    if archive.file_name().and_then(|name| name.to_str()) != Some("seamlesscontrol-windows-x64.zip")
+    {
+        return Err("choose the official seamlesscontrol-windows-x64.zip release asset".into());
+    }
+    if !archive.with_extension("zip.sha256").is_file() {
+        return Err("download the matching .zip.sha256 asset into the same folder".into());
+    }
+    let data_dir = std::env::var_os("LOCALAPPDATA")
+        .map(PathBuf::from)
+        .ok_or("LOCALAPPDATA is unavailable")?
+        .join("SeamlessControl");
+    std::fs::create_dir_all(&data_dir)?;
+    let script = data_dir.join("windows-update.ps1");
+    std::fs::write(&script, WINDOWS_UPDATE_SCRIPT)?;
+    let result = data_dir.join("update-result.txt");
+    let _ = std::fs::remove_file(&result);
+    Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+        ])
+        .arg(&script)
+        .arg("-Archive")
+        .arg(archive)
+        .arg("-InstallDir")
+        .arg(
+            executable
+                .parent()
+                .ok_or("application folder is unavailable")?,
+        )
+        .arg("-ParentPid")
+        .arg(std::process::id().to_string())
+        .arg("-ResultFile")
+        .arg(result)
+        .creation_flags(CREATE_NO_WINDOW)
+        .spawn()?;
+    Ok(())
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ControlMode {
@@ -280,6 +329,7 @@ enum UiEvent {
     Tray(TrayIconEvent),
     Menu(MenuEvent),
     ClipboardDecision(String, bool),
+    CopiedBundle(u64, Result<PathBuf, String>),
 }
 
 struct Process {
@@ -295,6 +345,8 @@ struct PairCode {
 struct Controller {
     cli: PathBuf,
     executable: PathBuf,
+    agent_version: String,
+    diagnosis: Option<PeerDiagnosis>,
     startup: &'static str,
     session_path: PathBuf,
     session: SessionPreferences,
@@ -322,17 +374,28 @@ struct Controller {
     clipboard: WindowsClipboard,
     clipboard_staging: PathBuf,
     copied_file: Option<PathBuf>,
+    copied_generation: u64,
     last_copied_send: Option<PathBuf>,
     copied_send_active: bool,
     clipboard_offer_since: Option<Instant>,
     clipboard_progress: Option<u8>,
     clipboard_receiver_attempt: Instant,
     file_path: Option<PathBuf>,
+    edge_policy: EdgePolicy,
     state_message: String,
 }
 
 impl Controller {
     fn new(cli: PathBuf, executable: PathBuf) -> Self {
+        let agent_version = Command::new(&cli)
+            .arg("version")
+            .creation_flags(CREATE_NO_WINDOW)
+            .output()
+            .ok()
+            .filter(|output| output.status.success())
+            .and_then(|output| String::from_utf8(output.stdout).ok())
+            .map(|version| version.trim().to_owned())
+            .unwrap_or_default();
         let startup = startup_status(&executable).unwrap_or("error");
         let layout_path = std::env::var_os("LOCALAPPDATA")
             .map(PathBuf::from)
@@ -375,7 +438,10 @@ impl Controller {
         } else {
             ""
         };
-        let clipboard_staging = layout_path.with_file_name("clipboard-files");
+        let clipboard_staging = seamlesscontrol_core::clipboard_file::staging_dir(
+            layout_path.parent().unwrap_or(Path::new(".")),
+        )
+        .unwrap_or_else(|_| layout_path.with_file_name("clipboard-files"));
         let file_limit_mib = std::fs::read_to_string(&file_limit_path)
             .ok()
             .and_then(|value| value.trim().parse::<u64>().ok())
@@ -385,9 +451,12 @@ impl Controller {
             .ok()
             .and_then(|bytes| serde_json::from_slice(&bytes).ok())
             .unwrap_or_default();
-        Self {
+        let edge_policy = EdgePolicy::load(layout_path.parent().unwrap_or(Path::new(".")));
+        let mut controller = Self {
             cli,
             executable,
+            agent_version,
+            diagnosis: None,
             startup,
             session_path,
             session,
@@ -415,14 +484,22 @@ impl Controller {
             clipboard: WindowsClipboard::new(),
             clipboard_staging,
             copied_file: None,
+            copied_generation: 0,
             last_copied_send: None,
             copied_send_active: false,
             clipboard_offer_since: None,
             clipboard_progress: None,
             clipboard_receiver_attempt: Instant::now() - Duration::from_secs(5),
             file_path: None,
+            edge_policy,
             state_message: "Ready. Start receiving or select a nearby computer.".into(),
+        };
+        let result_file = controller.layout_path.with_file_name("update-result.txt");
+        if let Ok(result) = std::fs::read_to_string(&result_file) {
+            controller.log(result.trim().to_owned());
+            let _ = std::fs::remove_file(result_file);
         }
+        controller
     }
 
     fn log(&mut self, message: impl Into<String>) {
@@ -442,6 +519,14 @@ impl Controller {
     }
 
     fn start_desired_control(&mut self, proxy: &EventLoopProxy<UiEvent>) -> io::Result<()> {
+        if self.session.mode != ControlMode::Idle
+            && self.agent_version != seamlesscontrol_core::PRODUCT_VERSION
+        {
+            self.retry_control_after = None;
+            return Err(io::Error::other(
+                "app and agent versions differ; exit from the tray and replace both executables from the same ZIP",
+            ));
+        }
         let receive_port = self.session.receive_port;
         let address = self.session.address.map(|address| address.to_string());
         let edge = self.session.edge.clone();
@@ -640,17 +725,48 @@ impl Controller {
                 self.log(format!("Could not wait for copied files: {error}"));
             }
         }
+        let sharing_active = self.peers.keys().any(|ip| self.active_file_peer(*ip));
+        if !sharing_active {
+            if self.copied_send_active {
+                self.stop(Slot::SendFile);
+            }
+            if self.clipboard_offer.is_some() {
+                let _ = self.decide_copied_file(false);
+            }
+            self.copied_file = None;
+        }
         match self
             .clipboard
-            .copied_file(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
+            .copied_paths(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
         {
-            Ok(Some(path)) => {
+            Ok(Some(paths)) => {
+                self.copied_generation = self.copied_generation.wrapping_add(1);
                 if self.copied_send_active {
                     self.stop(Slot::SendFile);
                     self.log("Copied-file offer canceled because the clipboard changed.");
                 }
-                self.copied_file = path;
+                self.copied_file = None;
                 self.last_copied_send = None;
+                if !sharing_active {
+                    self.log("Connect to a paired computer before copying files across.");
+                } else if let Some(paths) = paths {
+                    if paths.len() == 1 && paths[0].is_file() {
+                        self.copied_file = paths.into_iter().next();
+                    } else {
+                        let generation = self.copied_generation;
+                        let staging = self.clipboard_staging.clone();
+                        let limit = self.file_limit_mib * 1024 * 1024;
+                        let proxy = proxy.clone();
+                        thread::spawn(move || {
+                            let result = seamlesscontrol_core::file_bundle::create_bundle(
+                                &paths, limit, &staging,
+                            )
+                            .map_err(|error| error.to_string());
+                            let _ = proxy.send_event(UiEvent::CopiedBundle(generation, result));
+                        });
+                        self.log("Preparing copied files or folder for one approved transfer…");
+                    }
+                }
             }
             Ok(None) => {}
             Err(error) => self.log(format!("Could not inspect copied file: {error}")),
@@ -816,6 +932,9 @@ impl Controller {
         if !self.peers.contains_key(&ip) {
             return Err("pair this computer before sending a copied file".into());
         }
+        if !self.active_file_peer(ip) {
+            return Err("connect to this computer before sharing copied files".into());
+        }
         let path = self
             .copied_file
             .clone()
@@ -854,6 +973,14 @@ impl Controller {
         self.clipboard_offer = None;
         self.clipboard_offer_since = None;
         Ok(())
+    }
+
+    fn active_file_peer(&self, ip: IpAddr) -> bool {
+        let config = self.layout_path.parent().unwrap_or(Path::new("."));
+        load_peer_key(&config.join("peers"), ip)
+            .ok()
+            .flatten()
+            .is_some_and(|key| active_session::is_active(config, ip, &key).unwrap_or(false))
     }
 
     fn decide_manual_file(&mut self, accept: bool) -> io::Result<()> {
@@ -983,12 +1110,31 @@ impl Controller {
             .peers
             .iter()
             .map(|(ip, fingerprint)| {
+                let policy = load_peer_key(&self.layout_path.with_file_name("peers"), *ip)
+                    .and_then(|key| key.ok_or_else(|| io::Error::other("pairing missing")))
+                    .and_then(|key| {
+                        PeerPolicy::load(self.layout_path.parent().unwrap_or(Path::new(".")), &key)
+                    });
                 serde_json::json!({
                     "ip": ip.to_string(), "fingerprint": fingerprint,
+                    "fileSession": self.active_file_peer(*ip),
+                    "policy": policy.as_ref().ok().map(|policy| serde_json::json!({
+                        "control": policy.control, "text": policy.text, "files": policy.files,
+                        "lastConnectedMs": policy.last_connected_ms,
+                    })),
+                    "policyError": policy.is_err(),
                 })
             })
             .collect();
         serde_json::json!({
+            "appVersion": seamlesscontrol_core::PRODUCT_VERSION,
+            "agentVersion": self.agent_version,
+            "diagnosis": self.diagnosis.as_ref().map(|diagnosis| serde_json::json!({
+                "address": diagnosis.address.to_string(),
+                "paired": diagnosis.paired,
+                "reachable": diagnosis.reachable,
+                "reason": diagnosis.reason,
+            })),
             "receive": self.processes.contains_key(&Slot::Serve),
             "connect": self.processes.contains_key(&Slot::Connect),
             "controlMode": self.session.mode.as_str(),
@@ -1000,6 +1146,7 @@ impl Controller {
             "fileReceive": self.processes.contains_key(&Slot::ReceiveFile),
             "fileSend": self.processes.contains_key(&Slot::SendFile),
             "fileLimitMiB": self.file_limit_mib,
+            "edgePolicy": self.edge_policy.as_str(),
             "startup": self.startup,
             "approvalMode": self.approval_mode,
             "approvalMinutes": self.approval_minutes,
@@ -1038,6 +1185,7 @@ impl Controller {
                 .trim()
         };
         let action = string("action");
+        let mut exit_for_update = false;
         let result: Result<(), Box<dyn Error>> = (|| {
             match action {
                 "startReceive" => {
@@ -1116,12 +1264,31 @@ impl Controller {
                     }
                 }
                 "refreshPeers" => self.refresh_peers(),
+                "diagnosePeer" => {
+                    self.diagnosis = None;
+                    let address = parse_address(string("address"))?;
+                    self.diagnosis = Some(diagnose_peer(
+                        address,
+                        &self.layout_path.with_file_name("peers"),
+                    )?);
+                }
                 "setFileLimit" => {
                     self.set_file_limit(string("value"))?;
                     if self.clipboard_offer.is_none() {
                         self.stop(Slot::ReceiveClipboard);
                         self.clipboard_receiver_attempt = Instant::now() - Duration::from_secs(5);
                     }
+                }
+                "setEdgePolicy" => {
+                    let policy = EdgePolicy::parse(string("policy"))
+                        .ok_or("choose a valid crossing preference")?;
+                    policy.save(
+                        self.layout_path
+                            .parent()
+                            .ok_or("app data folder unavailable")?,
+                    )?;
+                    self.edge_policy = policy;
+                    self.log("Crossing preference saved for the next connection.");
                 }
                 "setFileApproval" => self.set_file_approval(string("mode"), string("minutes"))?,
                 "enableStartup" | "disableStartup" => {
@@ -1133,6 +1300,13 @@ impl Controller {
                     } else {
                         "Start with Windows turned off."
                     });
+                }
+                "updatePackage" => {
+                    if let Some(archive) = choose_file(window) {
+                        start_windows_update(&archive, &self.executable)?;
+                        self.shutdown();
+                        exit_for_update = true;
+                    }
                 }
                 "setLanguage" => {
                     if !matches!(string("language"), "en" | "es") {
@@ -1248,6 +1422,40 @@ impl Controller {
                 "setLayout" => {
                     self.set_layout(string("fingerprint"), Some(string("edge")))?;
                 }
+                "setPeerPermission" => {
+                    let ip = string("ip").parse::<IpAddr>()?;
+                    let fingerprint = string("fingerprint");
+                    if self.peers.get(&ip).is_none_or(|saved| saved != fingerprint) {
+                        return Err(
+                            "the selected pairing changed; refresh the computer list".into()
+                        );
+                    }
+                    let key = load_peer_key(&self.layout_path.with_file_name("peers"), ip)?
+                        .ok_or("computer is no longer paired")?;
+                    let capability = Capability::parse(string("capability"))
+                        .ok_or("choose control, text or files")?;
+                    let allowed = match string("allowed") {
+                        "allow" => true,
+                        "deny" => false,
+                        _ => return Err("choose allow or deny".into()),
+                    };
+                    let mut policy = PeerPolicy::load(
+                        self.layout_path
+                            .parent()
+                            .ok_or("app data folder unavailable")?,
+                        &key,
+                    )?;
+                    policy.set(capability, allowed);
+                    policy.save(
+                        self.layout_path
+                            .parent()
+                            .ok_or("app data folder unavailable")?,
+                        &key,
+                    )?;
+                    self.log(format!(
+                        "Permission saved for {ip}; active control updates on the next connection."
+                    ));
+                }
                 "clearLayout" => {
                     self.set_layout(string("fingerprint"), None)?;
                 }
@@ -1266,7 +1474,7 @@ impl Controller {
             }
             self.log(error.to_string());
         }
-        action == "quit"
+        action == "quit" || exit_for_update
     }
 }
 
@@ -1657,6 +1865,28 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                     controller.clipboard_notification_open = false;
                 }
                 push_state(&webview, &controller);
+            }
+            Event::UserEvent(UiEvent::CopiedBundle(generation, result)) => {
+                if generation == controller.copied_generation {
+                    match result {
+                        Ok(path)
+                            if controller
+                                .peers
+                                .keys()
+                                .any(|ip| controller.active_file_peer(*ip)) =>
+                        {
+                            controller.log("Copied group is ready to offer.");
+                            controller.copied_file = Some(path);
+                            controller.last_copied_send = None;
+                        }
+                        Ok(_) => controller
+                            .log("Copied group ignored because no control session is active."),
+                        Err(error) => {
+                            controller.log(format!("Could not prepare copied group: {error}"))
+                        }
+                    }
+                    push_state(&webview, &controller);
+                }
             }
             Event::UserEvent(UiEvent::Discovery(items)) => {
                 controller.discovered = items;

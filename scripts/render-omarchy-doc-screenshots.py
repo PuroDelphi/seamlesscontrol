@@ -89,13 +89,14 @@ ShellRoot {
       fixture.receivingFile = false
       fixture.fileListening = false
       fixture.copiedFilePath = ""
+      fixture.fileSessionActive = scene.tab === "files" || scene.state === "ready" || scene.state === "receiver"
       if (scene.state === "pair") fixture.pairSas = "123456"
-      if (scene.state === "ready" || scene.state === "receiver") {
+      if (scene.state === "ready" || scene.state === "receiver" || scene.tab === "files") {
         fixture.available = true
         fixture.managedAgentRunning = true
         fixture.role = scene.state === "ready" ? "connect" : "serve"
-        fixture.phase = scene.state === "ready" ? "ready" : "controlling"
-        fixture.phaseText = scene.state === "ready" ? (LANG === "es" ? "listo" : "ready") : (LANG === "es" ? "control remoto" : "controlling")
+        fixture.phase = scene.state === "ready" ? "ready" : scene.tab === "files" ? "connected" : "controlling"
+        fixture.phaseText = scene.state === "ready" ? (LANG === "es" ? "listo" : "ready") : scene.tab === "files" ? (LANG === "es" ? "conectado" : "connected") : (LANG === "es" ? "control remoto" : "controlling")
       }
       if (scene.state === "firewall") {
         fixture.firewallPort = "47832"
@@ -146,14 +147,17 @@ def fixture_qml(language):
     defaults = {"string": '""', "bool": "false", "int": "0", "var": "null"}
     properties = re.findall(r"^  (?:readonly )?property (string|bool|int|var) (\w+):", source, re.M)
     values = {
-        "language": language, "installed": True, "peers": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4}],
+        "language": language, "installed": True, "pluginVersion": "0.24.0", "agentVersion": "0.24.0",
+        "peers": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4}],
+        "peerPolicies": {"abcdef0123456789" * 4: {"control": True, "text": True, "files": True, "lastConnectedMs": 0}},
+        "edgePolicy": "fluid",
         "discovered": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4, "name": "Demo receiver", "address": "192.0.2.20:47832"}],
         "topology": [{"id": "local", "column": 0, "row": 0}, {"id": "192.0.2.20", "column": 1, "row": 0}],
         "peer": "192.0.2.20", "fileLimitMiB": 100, "approvalMode": "always", "approvalMinutes": 15,
         "approvalUntil": {}, "clipboardFileListening": True, "fileListenEndpoint": "192.0.2.20:47833",
     }
     declarations = [f"property {kind} {name}: {json.dumps(values[name]) if name in values else defaults[kind]}" for kind, name in properties]
-    return "QtObject { id: fixture\n" + "\n".join(declarations) + "\nsignal pathChosen(string kind, string path)\nfunction cancelFirewall() {}\n}"
+    return "QtObject { id: fixture\n" + "\n".join(declarations) + "\nsignal pathChosen(string kind, string path)\nfunction cancelFirewall() {}\nfunction canShareWith(address) { return fileSessionActive && String(address).indexOf(peer + ':') === 0 }\n}"
 
 
 def main():

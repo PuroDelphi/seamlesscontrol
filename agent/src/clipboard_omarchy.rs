@@ -1,7 +1,8 @@
 //! Omarchy clipboard adapter using wl-clipboard's selection notifications.
 
 use crate::clipboard::{ClipboardEvent, ClipboardPacket, ClipboardSync, MAX_TEXT_BYTES};
-use crate::clipboard_file::{file_uri, local_regular_file, parse_one_file_uri};
+use crate::clipboard_file::{file_uri, local_regular_file, parse_file_uris, parse_one_file_uri};
+use crate::file_bundle;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -106,10 +107,9 @@ pub fn copied_file(limit: u64, staging: &Path) -> io::Result<Option<PathBuf>> {
         if let Some(uri_list) = output
             .strip_prefix(b"copy\n")
             .or_else(|| output.strip_prefix(b"copy\r\n"))
-            && let Some(path) = resolve_uri_list(uri_list)?
-            && valid_copied_file(&path, limit, staging)
+            && let Some(paths) = resolve_uri_list(uri_list)?
         {
-            return Ok(Some(path));
+            return prepare_copied_paths(paths, limit, staging);
         }
     }
     if !types.iter().any(|mime| mime == "text/uri-list") {
@@ -119,22 +119,45 @@ pub fn copied_file(limit: u64, staging: &Path) -> io::Result<Option<PathBuf>> {
     else {
         return Ok(None);
     };
-    let Some(path) = resolve_uri_list(&output)? else {
+    let Some(paths) = resolve_uri_list(&output)? else {
         return Ok(None);
     };
-    Ok(valid_copied_file(&path, limit, staging).then_some(path))
+    prepare_copied_paths(paths, limit, staging)
+}
+
+fn prepare_copied_paths(
+    paths: Vec<PathBuf>,
+    limit: u64,
+    staging: &Path,
+) -> io::Result<Option<PathBuf>> {
+    if paths.iter().any(|path| path.starts_with(staging)) {
+        return Ok(None);
+    }
+    if paths.len() == 1 {
+        let metadata = std::fs::symlink_metadata(&paths[0])?;
+        if metadata.file_type().is_symlink() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "bundle contains a symlink",
+            ));
+        }
+        if metadata.is_file() {
+            return Ok(valid_copied_file(&paths[0], limit, staging).then(|| paths[0].clone()));
+        }
+    }
+    file_bundle::create_bundle(&paths, limit, staging).map(Some)
 }
 
 fn valid_copied_file(path: &Path, limit: u64, staging: &Path) -> bool {
     !path.starts_with(staging) && local_regular_file(path, limit).unwrap_or(false)
 }
 
-fn resolve_uri_list(output: &[u8]) -> io::Result<Option<PathBuf>> {
-    let path = match parse_one_file_uri(output)? {
-        Some(path) => Some(path),
-        None => resolve_virtual_uri(output)?,
+fn resolve_uri_list(output: &[u8]) -> io::Result<Option<Vec<PathBuf>>> {
+    let paths = match parse_file_uris(output)? {
+        Some(paths) => Some(paths),
+        None => resolve_virtual_uri(output)?.map(|path| vec![path]),
     };
-    Ok(path)
+    Ok(paths)
 }
 
 fn resolve_virtual_uri(bytes: &[u8]) -> io::Result<Option<PathBuf>> {
@@ -341,5 +364,32 @@ impl ClipboardWatch {
         {
             let _ = worker.join();
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::prepare_copied_paths;
+
+    #[test]
+    fn copied_symlink_reports_rejection_instead_of_reusing_previous_selection() {
+        let base = std::env::temp_dir().join(format!(
+            "seamlesscontrol-clipboard-link-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&base).unwrap();
+        let regular = base.join("regular.txt");
+        let link = base.join("link.txt");
+        std::fs::write(&regular, b"safe test file").unwrap();
+        std::os::unix::fs::symlink(&regular, &link).unwrap();
+        let staging = base.join("staging");
+        assert!(
+            prepare_copied_paths(vec![regular.clone()], 1024, &staging)
+                .unwrap()
+                .is_some()
+        );
+        let error = prepare_copied_paths(vec![link], 1024, &staging).unwrap_err();
+        assert!(error.to_string().contains("symlink"));
+        std::fs::remove_dir_all(base).unwrap();
     }
 }

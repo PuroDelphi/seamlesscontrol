@@ -65,6 +65,15 @@ impl HyprIpc {
     pub fn session_lock_state(&self) -> io::Result<SessionLockState> {
         parse_session_lock(&self.query(b"j/monitors")?)
     }
+
+    pub fn active_window_fullscreen(&self) -> io::Result<bool> {
+        let value: Value =
+            serde_json::from_slice(&self.query(b"j/activewindow")?).map_err(io::Error::other)?;
+        Ok(value
+            .get("fullscreen")
+            .and_then(|value| value.as_i64().or_else(|| value.as_bool().map(i64::from)))
+            .is_some_and(|mode| mode > 0))
+    }
 }
 
 /// Mirror Omarchy's ext-session-lock probe. A monitor without a workspace

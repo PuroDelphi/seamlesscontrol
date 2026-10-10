@@ -23,6 +23,9 @@ jobs:
         run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --lib
       - name: Test Windows app session preferences
         run: cargo test --locked --manifest-path agent/Cargo.toml --target x86_64-pc-windows-msvc --bin seamlesscontrol
+      - name: Test bundled Windows updater
+        shell: pwsh
+        run: ./tests/windows-update.Tests.ps1
       - name: Build Windows x64 app and agent
         env:
           RUSTFLAGS: -C target-feature=+crt-static
