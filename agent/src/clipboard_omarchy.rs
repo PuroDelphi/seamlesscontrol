@@ -133,8 +133,17 @@ fn prepare_copied_paths(
     if paths.iter().any(|path| path.starts_with(staging)) {
         return Ok(None);
     }
-    if paths.len() == 1 && paths[0].is_file() {
-        return Ok(valid_copied_file(&paths[0], limit, staging).then(|| paths[0].clone()));
+    if paths.len() == 1 {
+        let metadata = std::fs::symlink_metadata(&paths[0])?;
+        if metadata.file_type().is_symlink() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "bundle contains a symlink",
+            ));
+        }
+        if metadata.is_file() {
+            return Ok(valid_copied_file(&paths[0], limit, staging).then(|| paths[0].clone()));
+        }
     }
     file_bundle::create_bundle(&paths, limit, staging).map(Some)
 }
@@ -355,5 +364,32 @@ impl ClipboardWatch {
         {
             let _ = worker.join();
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::prepare_copied_paths;
+
+    #[test]
+    fn copied_symlink_reports_rejection_instead_of_reusing_previous_selection() {
+        let base = std::env::temp_dir().join(format!(
+            "seamlesscontrol-clipboard-link-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&base).unwrap();
+        let regular = base.join("regular.txt");
+        let link = base.join("link.txt");
+        std::fs::write(&regular, b"safe test file").unwrap();
+        std::os::unix::fs::symlink(&regular, &link).unwrap();
+        let staging = base.join("staging");
+        assert!(
+            prepare_copied_paths(vec![regular.clone()], 1024, &staging)
+                .unwrap()
+                .is_some()
+        );
+        let error = prepare_copied_paths(vec![link], 1024, &staging).unwrap_err();
+        assert!(error.to_string().contains("symlink"));
+        std::fs::remove_dir_all(base).unwrap();
     }
 }

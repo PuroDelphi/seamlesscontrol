@@ -1093,6 +1093,9 @@ Item {
     stderr: SplitParser {
       onRead: function(line) {
         var message = String(line || "").trim()
+        if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+        root.copiedFilePath = ""
+        root.lastClipboardSentPath = ""
         if (message.indexOf("bundle contains a symlink") !== -1)
           root.clipboardFileError = root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
         else if (message !== "")

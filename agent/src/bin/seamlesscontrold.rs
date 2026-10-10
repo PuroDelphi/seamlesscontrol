@@ -2452,8 +2452,16 @@ mod linux {
                 return Ok(());
             }
             let staging = clipboard_staging_dir()?;
-            let path = clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging)?
-                .and_then(|path| path.to_str().map(str::to_owned));
+            let path =
+                match clipboard_omarchy::copied_file(file_session::configured_limit()?, &staging) {
+                    Ok(path) => path.and_then(|path| path.to_str().map(str::to_owned)),
+                    Err(error) => {
+                        if args[1] == "clipboard-file-event" {
+                            println!("null");
+                        }
+                        return Err(error.into());
+                    }
+                };
             if path.is_some() || args[1] == "clipboard-file-event" {
                 println!("{}", serde_json::to_string(&path)?);
             }
