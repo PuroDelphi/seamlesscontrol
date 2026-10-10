@@ -34,3 +34,6 @@ if-addrs = "0.15"
 tao = "0.37.1"
 tray-icon = "0.26.0"
 wry = "0.57.0"
+
+[patch.crates-io]
+mdns-sd = { path = "vendor/mdns-sd" }

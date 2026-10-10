@@ -16,12 +16,29 @@ use std::time::{Duration, Instant};
 
 pub const SERVICE_TYPE: &str = "_seamlesscontrol._tcp.local.";
 const PROTOCOL: &str = "5";
+const MAX_NEARBY_COMPUTERS: usize = 64;
+const DISCOVERY_PUBLISH_INTERVAL: Duration = Duration::from_millis(500);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiscoveredServer {
     pub name: String,
     pub address: SocketAddr,
     pub fingerprint: String,
+}
+
+fn insert_bounded(
+    found: &mut BTreeMap<String, DiscoveredServer>,
+    fullname: String,
+    server: DiscoveredServer,
+) -> bool {
+    if !found.contains_key(&fullname) && found.len() >= MAX_NEARBY_COMPUTERS {
+        return false;
+    }
+    if found.get(&fullname) == Some(&server) {
+        return false;
+    }
+    found.insert(fullname, server);
+    true
 }
 
 fn lan_ipv4(ip: Ipv4Addr) -> bool {
@@ -189,8 +206,10 @@ impl DiscoveryBrowser {
         let flag = Arc::clone(&running);
         let thread = thread::spawn(move || {
             let mut found = BTreeMap::<String, DiscoveredServer>::new();
+            let mut changed = false;
+            let mut last_publish = Instant::now() - DISCOVERY_PUBLISH_INTERVAL;
             while flag.load(Ordering::Acquire) {
-                match receiver.recv_timeout(Duration::from_secs(1)) {
+                match receiver.recv_timeout(Duration::from_millis(100)) {
                     Ok(ServiceEvent::ServiceResolved(info)) => {
                         if info.get_property_val_str("protocol") != Some(PROTOCOL) {
                             continue;
@@ -228,22 +247,24 @@ impl DiscoveryBrowser {
                         {
                             continue;
                         }
-                        found.insert(
-                            fullname,
-                            DiscoveredServer {
-                                name,
-                                address: SocketAddr::new(IpAddr::V4(ip), info.get_port()),
-                                fingerprint: fingerprint.to_owned(),
-                            },
-                        );
-                        on_change(found.values().cloned().collect());
+                        let server = DiscoveredServer {
+                            name,
+                            address: SocketAddr::new(IpAddr::V4(ip), info.get_port()),
+                            fingerprint: fingerprint.to_owned(),
+                        };
+                        changed |= insert_bounded(&mut found, fullname, server);
                     }
                     Ok(ServiceEvent::ServiceRemoved(_, fullname)) => {
                         if found.remove(&fullname).is_some() {
-                            on_change(found.values().cloned().collect());
+                            changed = true;
                         }
                     }
                     Ok(_) | Err(_) => {}
+                }
+                if changed && last_publish.elapsed() >= DISCOVERY_PUBLISH_INTERVAL {
+                    on_change(found.values().cloned().collect());
+                    changed = false;
+                    last_publish = Instant::now();
                 }
             }
             let _ = daemon.shutdown();
@@ -261,5 +282,27 @@ impl Drop for DiscoveryBrowser {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nearby_list_stays_bounded_and_ignores_identical_refreshes() {
+        let mut found = BTreeMap::new();
+        for index in 0..10_000 {
+            let server = DiscoveredServer {
+                name: format!("Computer {index}"),
+                address: SocketAddr::from(([192, 168, 1, 10], 47832)),
+                fingerprint: "a".repeat(64),
+            };
+            let key = format!("{index}.{SERVICE_TYPE}");
+            let inserted = insert_bounded(&mut found, key.clone(), server.clone());
+            assert_eq!(inserted, index < MAX_NEARBY_COMPUTERS);
+            assert!(!insert_bounded(&mut found, key, server));
+        }
+        assert_eq!(found.len(), MAX_NEARBY_COMPUTERS);
     }
 }

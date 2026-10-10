@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.24.2 Windows discovery security check · 2026-10-10
+
+Marketplace review confirmed the 0.24.1 Qt clipboard fix and identified unbounded unauthenticated discovery in the Windows app and its locked mDNS dependency. The new cache test feeds 5,000 distinct PTR advertisements with maximum DNS TTL and verifies the 1,024-unit storage limit and 120-second received TTL cap. A Windows-only test feeds 10,000 nearby entries and verifies the 64-computer panel limit and no-change behavior on repeat announcements. Discovery snapshots are published at most twice per second. These are code and CI checks; no new physical Windows session is claimed for 0.24.2.
+
 ## 0.24.1 Omarchy panel security check · 2026-10-10
 
 The marketplace review identified Qt 6.12's unbounded synchronous read of a foreign Wayland text selection from writable panel fields. Every panel input now uses `SafeTextField`, whose native Qt editor stays read-only; Qt 6.12's `canPaste` path skips clipboard MIME access for read-only fields. A local Qt QML test confirmed keyboard entry, deletion and selection replacement still work. The separate paste helper passed five isolated tests: Unicode text, oversize rejection, two-second stall cutoff, multiline rejection and invalid UTF-8 rejection. The real Omarchy panel rendered offscreen in both languages, and plugin validation, Rust formatting, Clippy, 91 core tests and 5 Linux agent tests passed. These are local checks, not a claim of a new physical cross-computer test.

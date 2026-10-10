@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.24.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.2) — 2026-10-10
+
+- Bound the Windows app's unauthenticated nearby-computer list, mDNS record cache and received DNS TTLs. Batch nearby-list updates to avoid repeatedly serializing and rendering the entire list for every advertisement.
+- Preserve automatic discovery and pairing requirements. Add an adversarial 5,000-record cache test and a 10,000-entry Windows list test. See the [release notes](docs/RELEASE-0.24.2.md).
+
 ## [0.24.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.1) — 2026-10-10
 
 - Keep every Omarchy panel input natively read-only to prevent Qt 6.12 from synchronously reading an unbounded foreign Wayland text selection when the clipboard changes. Keyboard editing remains available; explicit paste runs in a separate process with a 4 KiB byte limit, two-second deadline and memory cap.

@@ -85,6 +85,8 @@ bash ~/.config/omarchy/plugins/seamlesscontrol.control/packaging/firewall-lan.sh
 | File copy and paste | TCP `47834` | Windows app or Omarchy widget active |
 | mDNS discovery | UDP `5353` | Receiver advertised on the LAN |
 
+The Windows discovery browser retains at most 64 nearby computers and publishes a changed snapshot at most twice per second. A local patch to the locked `mdns-sd` 0.21.5 source caps its internal received-record cache at 1,024 storage units and received DNS TTLs at 120 seconds; see [`agent/vendor/mdns-sd/SEAMLESSCONTROL-PATCH.md`](../agent/vendor/mdns-sd/SEAMLESSCONTROL-PATCH.md). This prevents unauthenticated LAN advertisements from accumulating indefinitely inside the dependency before the UI sees them. Discovery remains untrusted until the normal pairing approval.
+
 Each TCP port needs its own rule if blocked. File approval does not open ports or start the manual receiver.
 
 ## Protocol and other features

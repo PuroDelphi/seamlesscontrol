@@ -44,7 +44,7 @@ FOCUS_CSS = {
 def fixture(language: str, view: str) -> dict:
     """Supply the UI's normal state shape, never a successful live operation."""
     state = {
-        "appVersion": "0.24.1", "agentVersion": "0.24.1", "diagnosis": None,
+        "appVersion": "0.24.2", "agentVersion": "0.24.2", "diagnosis": None,
         "receive": True, "connect": False, "fileReceive": False,
         "controlMode": "receive", "receivePort": 47832,
         "lastAddress": "192.0.2.20:47832", "lastEdge": "right",

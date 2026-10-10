@@ -21,6 +21,8 @@ jobs:
         run: cargo fmt --manifest-path agent/Cargo.toml --check
       - name: Test agent and protocol
         run: cargo test --locked --manifest-path agent/Cargo.toml --all-targets
+      - name: Test bounded mDNS cache against hostile advertisements
+        run: cargo test --manifest-path agent/vendor/mdns-sd/Cargo.toml --lib hostile_unique_advertisements_have_bounded_cache_and_ttl
       - name: Lint agent
         run: cargo clippy --locked --manifest-path agent/Cargo.toml --all-targets -- -D warnings
       - name: Check shell syntax

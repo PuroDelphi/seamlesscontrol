@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.24.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.2) — 2026-10-10
+
+- Limita la lista de equipos cercanos sin autenticar, la caché mDNS y los TTL de registros recibidos en Windows. Agrupa las actualizaciones para no serializar ni redibujar toda la lista por cada anuncio.
+- Conserva el autodescubrimiento y el emparejamiento seguro. Añade pruebas adversariales con 5.000 registros de caché y 10.000 entradas para la lista Windows. Véanse las [notas de lanzamiento](docs/RELEASE-0.24.2.md).
+
 ## [0.24.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.1) — 2026-10-10
 
 - Los campos del panel Omarchy permanecen internamente en solo lectura para impedir que Qt 6.12 lea sin límites una selección de texto Wayland ajena al cambiar el portapapeles. Se conserva la edición con teclado; el pegado explícito usa un proceso separado con límite de 4 KiB, plazo de dos segundos y límite de memoria.
