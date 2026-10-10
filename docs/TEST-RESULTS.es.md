@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Comprobación de seguridad del panel Omarchy 0.24.1 · 2026-10-10
+
+La revisión del marketplace identificó en Qt 6.12 una lectura síncrona sin límite de una selección de texto Wayland ajena desde campos editables del panel. Todos los campos usan ahora `SafeTextField`, cuya entrada nativa Qt permanece en solo lectura; la ruta `canPaste` de Qt 6.12 no accede al MIME del portapapeles para esos campos. Una prueba QML local confirmó escritura con teclado, borrado y sustitución de la selección. El auxiliar de pegado separado pasó cinco pruebas aisladas: texto Unicode, rechazo por tamaño, plazo de dos segundos ante bloqueo, rechazo de varias líneas y rechazo de UTF-8 inválido. El panel Omarchy real se renderizó aislado en ambos idiomas; también pasaron la validación del plugin, formato Rust, Clippy, 91 pruebas del núcleo y 5 del agente Linux. Son comprobaciones locales, no una nueva prueba física entre equipos.
+
 ## Verificación física de 0.24.0 · 2026-10-10
 
 Un Omarchy físico y un Windows 11 x64 ejecutaron 0.24.0 en la misma LAN. Funcionaron el descubrimiento Windows, el aviso de clave cambiada tras reutilizar una IP, el emparejamiento nuevo, el mapa de pantallas, ratón, clic, teclado, portapapeles de texto y regreso por el borde receptor. Ambos equipos actuaron como origen y receptor.

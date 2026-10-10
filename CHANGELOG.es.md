@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.24.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.1) — 2026-10-10
+
+- Los campos del panel Omarchy permanecen internamente en solo lectura para impedir que Qt 6.12 lea sin límites una selección de texto Wayland ajena al cambiar el portapapeles. Se conserva la edición con teclado; el pegado explícito usa un proceso separado con límite de 4 KiB, plazo de dos segundos y límite de memoria.
+- Se añaden comprobaciones de regresión para productores de portapapeles demasiado grandes, detenidos, con varias líneas o UTF-8 inválido. El emparejamiento, el protocolo cifrado de red y los campos de Windows no cambian. Actualice juntos el plugin y el agente Omarchy para que coincidan las versiones mostradas.
+
 ## [0.24.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.0) — 2026-10-10
 
 - Copia una carpeta, archivos anidados o varios archivos seleccionados mediante una oferta autenticada y pega el grupo verificado en el otro equipo. Se conservan la copia individual, el límite de tamaño configurable y la aprobación del receptor.

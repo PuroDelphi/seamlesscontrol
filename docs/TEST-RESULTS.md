@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.24.1 Omarchy panel security check · 2026-10-10
+
+The marketplace review identified Qt 6.12's unbounded synchronous read of a foreign Wayland text selection from writable panel fields. Every panel input now uses `SafeTextField`, whose native Qt editor stays read-only; Qt 6.12's `canPaste` path skips clipboard MIME access for read-only fields. A local Qt QML test confirmed keyboard entry, deletion and selection replacement still work. The separate paste helper passed five isolated tests: Unicode text, oversize rejection, two-second stall cutoff, multiline rejection and invalid UTF-8 rejection. The real Omarchy panel rendered offscreen in both languages, and plugin validation, Rust formatting, Clippy, 91 core tests and 5 Linux agent tests passed. These are local checks, not a claim of a new physical cross-computer test.
+
 ## 0.24.0 physical verification · 2026-10-10
 
 One physical Omarchy computer and one Windows 11 x64 computer ran 0.24.0 on the same LAN. Windows discovery, identity-change warning after an IP was reused, fresh pairing, screen placement, mouse, click, keyboard, text clipboard and return across the receiver edge worked. Both computers acted as source and receiver.

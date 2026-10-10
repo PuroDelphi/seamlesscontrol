@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.24.1](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.1) — 2026-10-10
+
+- Keep every Omarchy panel input natively read-only to prevent Qt 6.12 from synchronously reading an unbounded foreign Wayland text selection when the clipboard changes. Keyboard editing remains available; explicit paste runs in a separate process with a 4 KiB byte limit, two-second deadline and memory cap.
+- Add regression checks for oversized, stalled, multiline and invalid UTF-8 clipboard producers. Pairing, the encrypted network protocol, and Windows input fields are unchanged. Update the Omarchy plugin and agent together so their displayed versions agree.
+
 ## [0.24.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.0) — 2026-10-10
 
 - Copy a folder, nested files or multiple selected files in one authenticated offer, then paste the verified group on the other computer. Keep the single-file flow, configurable size limit and explicit receiver approval.

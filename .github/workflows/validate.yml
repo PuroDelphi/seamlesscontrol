@@ -27,6 +27,8 @@ jobs:
         run: bash -n packaging/*.sh scripts/*.sh tests/*.sh
       - name: Check setup completion receipt
         run: bash tests/setup_result.sh
+      - name: Check bounded Omarchy panel paste
+        run: python3 -m unittest discover -s tests -p test_ui_clipboard_reader.py -v
       - name: Publish marketplace commit SHA
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |

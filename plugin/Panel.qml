@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls as Controls
 import QtCore as Core
 import Quickshell
 import qs.Commons
@@ -589,7 +588,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: pairAddress
             Layout.fillWidth: true
             enabled: root.backend && !root.backend.available
@@ -1213,7 +1212,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: listenAddress
             Layout.fillWidth: true
             placeholderText: root.t("Automático · 47832 (o puerto / IP:puerto)")
@@ -1341,7 +1340,7 @@ Panel {
             fontFamily: root.face
             onClicked: root.saveTimedApproval()
           }
-          Controls.TextField {
+          SafeTextField {
             id: approvalMinutesInput
             Layout.preferredWidth: 72
             text: root.backend ? String(root.backend.approvalMinutes) : "15"
@@ -1350,14 +1349,14 @@ Panel {
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
-            onTextEdited: {
+            onEdited: {
               root.approvalDraft = text.trim()
               if (root.backend && root.backend.approvalMode === "timed")
                 root.backend.approvalFeedback = "unsaved"
             }
-            onEditingFinished: if (root.backend && root.backend.approvalMode === "timed"
+            onSafeEditingFinished: if (root.backend && root.backend.approvalMode === "timed"
                 && root.approvalDraft !== "") root.saveTimedApproval()
-            onAccepted: root.saveTimedApproval()
+            onCommitted: root.saveTimedApproval()
           }
           Text {
             text: root.t("min")
@@ -1446,7 +1445,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && root.backend.installed
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: firewallPortField
             Layout.fillWidth: true
             text: "47832"
@@ -1602,7 +1601,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: connectAddress
             Layout.fillWidth: true
             placeholderText: root.t("IP del vecino:47832")
@@ -1635,7 +1634,7 @@ Panel {
           Layout.fillWidth: true
           visible: root.backend && !root.backend.available && !root.backend.managedAgentRunning
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: meshPort
             Layout.fillWidth: true
             text: "47832"
@@ -1910,7 +1909,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: fileLimitInput
             Layout.fillWidth: true
             text: root.backend ? String(root.backend.fileLimitMiB) : "100"
@@ -1919,7 +1918,7 @@ Panel {
             color: root.ink
             font.family: root.face
             background: Rectangle { color: "transparent"; border.color: Color.accent; border.width: 1; radius: 8 }
-            onAccepted: if (root.backend) root.backend.setFileLimitMiB(text.trim())
+            onCommitted: if (root.backend) root.backend.setFileLimitMiB(text.trim())
           }
           StateButton {
             text: root.t("Guardar límite")
@@ -1944,7 +1943,7 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Controls.TextField {
+        SafeTextField {
           id: fileListenAddress
           Layout.fillWidth: true
           placeholderText: root.t("Automático · 47833 (o IP:puerto)")
@@ -1956,7 +1955,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: fileDirectory
             Layout.fillWidth: true
             placeholderText: root.t("Directorio de destino")
@@ -2130,7 +2129,7 @@ Panel {
           fontFamily: root.face
         }
 
-        Controls.TextField {
+        SafeTextField {
           id: fileSendAddress
           Layout.fillWidth: true
           placeholderText: root.t("IP del destino:47833")
@@ -2157,7 +2156,7 @@ Panel {
         RowLayout {
           Layout.fillWidth: true
           spacing: Style.space(8)
-          Controls.TextField {
+          SafeTextField {
             id: fileSourcePath
             Layout.fillWidth: true
             placeholderText: root.t("Ruta absoluta del archivo")

@@ -147,7 +147,7 @@ def fixture_qml(language):
     defaults = {"string": '""', "bool": "false", "int": "0", "var": "null"}
     properties = re.findall(r"^  (?:readonly )?property (string|bool|int|var) (\w+):", source, re.M)
     values = {
-        "language": language, "installed": True, "pluginVersion": "0.24.0", "agentVersion": "0.24.0",
+        "language": language, "installed": True, "pluginVersion": "0.24.1", "agentVersion": "0.24.1",
         "peers": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4}],
         "peerPolicies": {"abcdef0123456789" * 4: {"control": True, "text": True, "files": True, "lastConnectedMs": 0}},
         "edgePolicy": "fluid",
@@ -186,7 +186,7 @@ def main():
             shutil.copytree(args.shell_source / directory, work / directory)
         (work / "Ui/KeyboardPanel.qml").write_text(SURFACE)
         (work / "plugin").mkdir()
-        for name in ("Panel.qml", "StateButton.qml", "HelpDisclosure.qml", "Translations.js"):
+        for name in ("Panel.qml", "StateButton.qml", "HelpDisclosure.qml", "SafeTextField.qml", "Translations.js"):
             destination = "ControlPanel.qml" if name == "Panel.qml" else name
             shutil.copyfile(ROOT / "plugin" / name, work / "plugin" / destination)
         home = work / "home"

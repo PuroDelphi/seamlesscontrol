@@ -26,6 +26,8 @@ Open **Computers → 2 · Nearby computers**, select **Scan**, then **Pair** bes
 
 For a manual address, select **Check connection before pairing**. If the control port does not respond, start **Receive control** on the destination and allow its TCP control port in that computer's firewall. If it responds, proceed with pairing. The port check does not establish trust: the matching six-digit code still does that.
 
+You can type into the Omarchy panel's address and path fields or paste a short single-line value with **Ctrl+V**. An oversized or stalled clipboard selection is ignored to keep the desktop responsive; choose file and folder paths with **Choose** when convenient.
+
 A **six-digit code** appears on both computers. Compare the two screens and select **Codes match · approve here** on **each** only if they agree. Otherwise select **Codes differ · reject**. Pairing saves trust; it does not start mouse and keyboard control. A long identity fingerprint is not this comparison code.
 
 ![Current Computers panel: pairing address, six-digit confirmation and nearby computers](images/omarchy-peers-en.png)

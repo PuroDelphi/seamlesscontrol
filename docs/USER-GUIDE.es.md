@@ -26,6 +26,8 @@ Abre **Equipos → 2 · Equipos cercanos**, pulsa **Buscar** y luego **Emparejar
 
 Para una dirección manual, pulsa **Comprobar conexión antes de emparejar**. Si el puerto de control no responde, inicia **Recibir control** en el destino y autoriza allí su puerto TCP en el firewall. Si responde, continúa con el emparejamiento. Esta comprobación del puerto no establece confianza: para eso sigue siendo necesario comparar el código de seis cifras.
 
+Puedes escribir en los campos de dirección y ruta del panel Omarchy o pegar un valor corto de una sola línea con **Ctrl+V**. Una selección del portapapeles demasiado grande o bloqueada se ignora para mantener el escritorio disponible; usa **Elegir** para seleccionar rutas de archivos o carpetas cuando te convenga.
+
 Aparece un **código de seis cifras** en ambos equipos. Compara las dos pantallas y pulsa **Coincide · aprobar aquí** en **cada una** solo si coinciden. Si no, pulsa **No coincide · rechazar**. Emparejar guarda la confianza; no inicia el control del ratón y teclado. Una huella larga de identidad no es este código de comparación.
 
 ![Panel Equipos actual: dirección de emparejamiento, confirmación de seis cifras y equipos cercanos](images/omarchy-peers-es.png)

@@ -2,7 +2,7 @@
 
 [![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Download Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Español](README.es.md) · [MIT](LICENSE)
 
-[See what's new in 0.24.0](docs/RELEASE-0.24.0.md)
+[See what's new in 0.24.1](docs/RELEASE-0.24.1.md) · [0.24.0 feature release](docs/RELEASE-0.24.0.md)
 
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
@@ -24,7 +24,7 @@ You can also share text during a connection and copy **files and folders** betwe
 | Install the app, receive or control from Windows | [Illustrated Windows guide](docs/WINDOWS.md) |
 | Copy and paste files or send to a chosen folder | [Omarchy guide](docs/USER-GUIDE.md) / [Windows guide](docs/WINDOWS.md), Files section |
 | Resolve a connection problem | Troubleshooting in each guide; [get support](SUPPORT.md) |
-| See all changes and physical verification for 0.24.0 | [Release notes](docs/RELEASE-0.24.0.md) / [test record](docs/TEST-RESULTS.md) |
+| See the latest fix and physical verification | [0.24.1 release notes](docs/RELEASE-0.24.1.md) / [test record](docs/TEST-RESULTS.md) |
 | Use commands or understand permissions and limits | [Technical guide](docs/TECHNICAL.md) |
 
 The **source** is the computer with the physical mouse and keyboard you will use. The **receiver** is the computer you want to control. Roles can change for another session; reversing them does not require pairing again.

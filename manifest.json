@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "seamlesscontrol.control",
   "name": "SeamlessControl",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "author": "PuroDelphi",
   "license": "MIT",
   "description": "Share mouse, keyboard, clipboard and files across Omarchy and Windows",
