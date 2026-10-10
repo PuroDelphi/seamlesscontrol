@@ -12,6 +12,8 @@ El receptor anuncia `_seamlesscontrol._tcp.local.` con la versión del protocolo
 
 El buscador de Windows conserva hasta 64 equipos cercanos y publica una lista modificada como máximo dos veces por segundo. Una modificación local del código fuente fijado de `mdns-sd` 0.21.5 limita su caché interna a 1.024 unidades de almacenamiento y los TTL de registros recibidos a 120 segundos; véase [`agent/vendor/mdns-sd/SEAMLESSCONTROL-PATCH.md`](../agent/vendor/mdns-sd/SEAMLESSCONTROL-PATCH.md). Así los anuncios no autenticados de la LAN no se acumulan indefinidamente dentro de la dependencia antes de llegar a la interfaz. El descubrimiento sigue sin conceder confianza hasta aprobar el emparejamiento normal.
 
+La biblioteca agrupa los temporizadores de renovación en intervalos de 50 ms, procesa como máximo 32 datagramas por socket antes de limpiar registros vencidos y vuelve a revisar los sockets con paquetes pendientes sin depender de otro aviso del sondeo. Limita a 128 las respuestas aplazadas y limpia los registros huérfanos y el seguimiento de servicios eliminados.
+
 Los botones de firewall elevan el agente para agregar reglas TCP entrantes de control, envío manual y archivos copiados, y una regla UDP `5353` para mDNS. Se limitan al perfil Privado y LocalSubnet. La interfaz informa que solicitó autorización; el comando elevado informa si la regla se aplicó.
 
 El CI Windows compila la GUI con entorno C estático. El workflow del release compila el commit etiquetado y adjunta un ZIP con ambos ejecutables y un SHA-256 del ZIP como asset contiguo. El hijo oculto usa una ventana invisible como propietario del portapapeles, sin depender de una consola visible.

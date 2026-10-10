@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Verificación de temporizadores y bucle mDNS 0.24.3 · 2026-10-10
+
+El revisor confirmó los límites de lista y caché, pero encontró que renovar registros seguía agregando temporizadores y que leer paquetes sin interrupción podía impedir la limpieza. Una nueva prueba programa 100.000 renovaciones en un horizonte de 120 segundos y verifica un máximo de 2.401 intervalos de temporizador. Otra comprueba que la lectura de paquetes cede el turno al agotar el límite; una prueba de caché comprueba que caducan registros huérfanos. La biblioteca incluida pasó 70 pruebas omitiendo la prueba de aislamiento de puerto personalizado, que también falló aquí en el código original de 0.21.5 sin modificar. Son pruebas de código, no una nueva prueba física con Windows.
+
 ## Comprobación de seguridad del descubrimiento Windows 0.24.2 · 2026-10-10
 
 La revisión del marketplace confirmó el arreglo del portapapeles Qt de 0.24.1 y encontró un descubrimiento sin límites para anunciantes no autenticados en la app Windows y su dependencia mDNS. La nueva prueba de caché introduce 5.000 anuncios PTR distintos con el TTL máximo y verifica el límite de 1.024 unidades y el máximo de 120 segundos por registro recibido. Una prueba exclusiva de Windows introduce 10.000 entradas cercanas y verifica el límite de 64 equipos en el panel y que los anuncios idénticos no provoquen cambios. Las instantáneas del descubrimiento se publican como máximo dos veces por segundo. Son pruebas de código y CI; no se afirma haber hecho una nueva sesión física Windows para 0.24.2.

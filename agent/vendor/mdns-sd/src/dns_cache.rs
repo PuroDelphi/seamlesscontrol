@@ -486,6 +486,26 @@ impl DnsCache {
             });
         }
 
+        // SRV/TXT/NSEC may arrive before their PTR, or remain after its goodbye.
+        // Expire them independently so stale, unpaired LAN names cannot occupy
+        // the bounded cache forever once no PTR points at them.
+        self.ptr.retain(|_, records| !records.is_empty());
+        for records in [&mut self.srv, &mut self.txt, &mut self.nsec] {
+            records.retain(|_, values| {
+                values.retain(|value| !value.record.get_record().is_expired(now));
+                !values.is_empty()
+            });
+        }
+        let live_instances: HashSet<&str> = self
+            .ptr
+            .values()
+            .flatten()
+            .filter_map(|value| value.record.any().downcast_ref::<DnsPointer>())
+            .map(DnsPointer::alias)
+            .collect();
+        self.subtype
+            .retain(|instance, _| live_instances.contains(instance.as_str()));
+
         expired_instances
     }
 
@@ -989,6 +1009,38 @@ mod tests {
                 assert!(record.record.get_record().get_ttl() <= MAX_RECEIVED_TTL_SECS);
             }
         }
+    }
+
+    #[test]
+    fn orphan_records_expire_without_a_ptr() {
+        let mut cache = DnsCache::new();
+        let intf = make_intf("lan", 1);
+        let mut timers = Vec::new();
+        let instance = "orphan._seamlesscontrol._tcp.local.";
+        cache.add_or_update(
+            &intf,
+            DnsSrv::new(
+                instance,
+                CLASS_IN,
+                1,
+                0,
+                0,
+                47832,
+                "host.local.".to_string(),
+            )
+            .boxed(),
+            &mut timers,
+            true,
+        );
+        cache.add_or_update(
+            &intf,
+            DnsTxt::new(instance, CLASS_IN, 1, vec![]).boxed(),
+            &mut timers,
+            true,
+        );
+        assert!(cache.storage_units() > 0);
+        cache.evict_expired_services(Instant::now() + Duration::from_secs(2));
+        assert_eq!(cache.storage_units(), 0);
     }
 
     /// Two interfaces discover the same service instance. All record types are

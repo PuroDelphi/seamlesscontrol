@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.24.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.3) — 2026-10-10
+
+- Coalesce mDNS refresh timers and yield between bounded packet batches, so repeated unauthenticated LAN announcements cannot indefinitely grow the timer queue or starve expiry cleanup.
+- Bound delayed responses, expire orphan records and clear tracking for removed services. Retain the 0.24.2 cache and nearby-list limits, the Qt clipboard fix, pairing and encrypted control. See the [release notes](docs/RELEASE-0.24.3.md).
+
 ## [0.24.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.2) — 2026-10-10
 
 - Bound the Windows app's unauthenticated nearby-computer list, mDNS record cache and received DNS TTLs. Batch nearby-list updates to avoid repeatedly serializing and rendering the entire list for every advertisement.

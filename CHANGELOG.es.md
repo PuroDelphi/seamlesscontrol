@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.24.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.3) — 2026-10-10
+
+- Agrupa temporizadores de renovación mDNS y cede el turno tras un lote limitado de paquetes para que anuncios repetidos sin autenticar no hagan crecer la cola sin límite ni impidan limpiar registros vencidos.
+- Limita respuestas aplazadas, caduca registros huérfanos y libera el seguimiento de servicios eliminados. Conserva los límites de caché y equipos cercanos de 0.24.2, el arreglo del portapapeles Qt, el emparejamiento y el control cifrado. Consulta las [notas](docs/RELEASE-0.24.3.md#seamlesscontrol-0243--descubrimiento-estable-y-acotado).
+
 ## [0.24.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.2) — 2026-10-10
 
 - Limita la lista de equipos cercanos sin autenticar, la caché mDNS y los TTL de registros recibidos en Windows. Agrupa las actualizaciones para no serializar ni redibujar toda la lista por cada anuncio.

@@ -51,8 +51,9 @@ use mio::{event::Source, net::UdpSocket as MioUdpSocket, Interest, Poll, Registr
 use socket2::Domain;
 use socket_pktinfo::PktInfoUdpSocket;
 use std::{
-    cmp::{self, Reverse},
-    collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
+    cmp,
+    collections::{hash_map::Entry, BTreeSet, HashMap, HashSet},
+    convert::TryFrom,
     fmt, io,
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, UdpSocket},
     str, thread,
@@ -961,6 +962,62 @@ struct ReRun {
     command: Command,
 }
 
+/// Wakeups are hints to recheck current cache/probe state, not work items.
+/// Coalescing them into 50 ms slots prevents repeated remote DNS refreshes
+/// from retaining one stale timer per packet until its old deadline.
+const TIMER_SLOT_MILLIS: u64 = 50;
+const MAX_DATAGRAMS_PER_SOCKET_ROUND: usize = 32;
+const MAX_DELAYED_RESPONSES: usize = 128;
+
+fn drain_bounded(mut read: impl FnMut() -> bool, limit: usize) -> bool {
+    for _ in 0..limit {
+        if !read() {
+            return false;
+        }
+    }
+    true // A packet may remain; revisit this socket after scheduled work.
+}
+
+struct TimerQueue {
+    origin: Instant,
+    slots: BTreeSet<Instant>,
+}
+
+impl TimerQueue {
+    fn new() -> Self {
+        Self {
+            origin: Instant::now(),
+            slots: BTreeSet::new(),
+        }
+    }
+
+    fn add(&mut self, deadline: Instant) {
+        let elapsed_ms = deadline.saturating_duration_since(self.origin).as_millis();
+        let rounded_ms = elapsed_ms
+            .div_ceil(TIMER_SLOT_MILLIS as u128)
+            .saturating_mul(TIMER_SLOT_MILLIS as u128);
+        let rounded = u64::try_from(rounded_ms)
+            .ok()
+            .and_then(|ms| self.origin.checked_add(Duration::from_millis(ms)))
+            .unwrap_or(deadline);
+        self.slots.insert(rounded);
+    }
+
+    fn first(&self) -> Option<Instant> {
+        self.slots.first().copied()
+    }
+
+    fn pop_due(&mut self, now: Instant) {
+        while self.first().is_some_and(|deadline| deadline <= now) {
+            self.slots.pop_first();
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.slots.len()
+    }
+}
+
 /// A query response deferred per RFC 6762 §6 (shared response).
 struct DelayedResponse {
     /// When to send `out`.
@@ -1195,7 +1252,7 @@ struct Zeroconf {
     ///
     /// When the run loop goes through a single iteration, it will
     /// set its timeout to the earliest timer in this list.
-    timers: BinaryHeap<Reverse<Instant>>,
+    timers: TimerQueue,
 
     status: DaemonStatus,
 
@@ -1364,7 +1421,7 @@ impl Zeroconf {
         let service_name_len_max = SERVICE_NAME_LEN_MAX_DEFAULT;
         let ip_check_interval = IP_CHECK_INTERVAL_IN_SECS_DEFAULT as u64 * 1000;
 
-        let timers = BinaryHeap::new();
+        let timers = TimerQueue::new();
 
         // Enable everything, including loopback interfaces.
         let if_selections = vec![];
@@ -1556,6 +1613,7 @@ impl Zeroconf {
         // Start the run loop.
 
         let mut events = mio::Events::with_capacity(1024);
+        let mut socket_backlog = [false; 2];
         loop {
             let now = Instant::now();
 
@@ -1566,13 +1624,18 @@ impl Zeroconf {
                     .saturating_duration_since(now)
                     .max(Duration::from_millis(1))
             });
+            let timeout = if socket_backlog.iter().any(|pending| *pending) {
+                Some(Duration::ZERO)
+            } else {
+                timeout
+            };
 
             // Process incoming packets, command events and optional timeout.
             events.clear();
-            match self.poller.poll(&mut events, timeout) {
-                Ok(_) => self.handle_poller_events(&events),
-                Err(e) => debug!("failed to select from sockets: {}", e),
+            if let Err(e) = self.poller.poll(&mut events, timeout) {
+                debug!("failed to select from sockets: {}", e);
             }
+            socket_backlog = self.handle_poller_events(&events, socket_backlog);
 
             let now = Instant::now();
 
@@ -1668,6 +1731,10 @@ impl Zeroconf {
             // Notify service listeners about the expired records.
             let expired_services = self.cache.evict_expired_services(now);
             if !expired_services.is_empty() {
+                for instance in expired_services.values().flatten() {
+                    self.resolved.remove(instance);
+                    self.pending_resolves.remove(instance);
+                }
                 debug!(
                     "run: send {} service removal to listeners",
                     expired_services.len()
@@ -1850,25 +1917,24 @@ impl Zeroconf {
     }
 
     fn add_timer(&mut self, next_time: Instant) {
-        self.timers.push(Reverse(next_time));
+        self.timers.add(next_time);
     }
 
     fn peek_earliest_timer(&self) -> Option<Instant> {
-        self.timers.peek().map(|Reverse(v)| *v)
+        self.timers.first()
     }
 
     fn _pop_earliest_timer(&mut self) -> Option<Instant> {
-        self.timers.pop().map(|Reverse(v)| v)
+        let first = self.timers.first();
+        if first.is_some() {
+            self.timers.slots.pop_first();
+        }
+        first
     }
 
     /// Pop all timers that are already passed till `now`.
     fn pop_timers_till(&mut self, now: Instant) {
-        while let Some(Reverse(v)) = self.timers.peek() {
-            if *v > now {
-                break;
-            }
-            self.timers.pop();
-        }
+        self.timers.pop_due(now);
     }
 
     /// Apply all selections to `interfaces` and return the selected addresses.
@@ -2270,7 +2336,7 @@ impl Zeroconf {
                     service_info.set_status(if_index, ServiceStatus::Announced);
                 } else {
                     for timer in dns_registry.new_timers.drain(..) {
-                        self.timers.push(Reverse(timer));
+                        self.timers.add(timer);
                     }
                     service_info.set_status(if_index, ServiceStatus::Probing);
                 }
@@ -2399,7 +2465,7 @@ impl Zeroconf {
                 info.set_status(intf.index, ServiceStatus::Announced);
             } else {
                 for timer in dns_registry.new_timers.drain(..) {
-                    self.timers.push(Reverse(timer));
+                    self.timers.add(timer);
                 }
                 info.set_status(*if_index, ServiceStatus::Probing);
             }
@@ -2513,7 +2579,7 @@ impl Zeroconf {
                         let command =
                             Command::RegisterResend(info.get_fullname().to_string(), *if_index);
                         self.retransmissions.push(ReRun { next_time, command });
-                        self.timers.push(Reverse(next_time));
+                        self.timers.add(next_time);
 
                         let fullname = dns_registry.resolve_name(&service_name).to_string();
 
@@ -3072,9 +3138,8 @@ impl Zeroconf {
         Ok(resolved_service)
     }
 
-    fn handle_poller_events(&mut self, events: &mio::Events) {
+    fn handle_poller_events(&mut self, events: &mio::Events, backlog: [bool; 2]) -> [bool; 2] {
         for ev in events.iter() {
-            trace!("event received with key {:?}", ev.token());
             if ev.token().0 == SIGNAL_SOCK_EVENT_KEY {
                 // Drain signals as we will drain commands as well.
                 self.signal_sock_drain();
@@ -3086,43 +3151,46 @@ impl Zeroconf {
                 ) {
                     debug!("failed to modify poller for signal socket: {}", e);
                 }
-                continue; // Next event.
             }
-
-            // Read until no more packets available.
-            while self.handle_read(ev.token().0) {}
-
-            // we continue to monitor this socket.
-            if ev.token().0 == IPV4_SOCK_EVENT_KEY {
-                // Re-register the IPv4 socket for reading.
-                if let Some(sock) = self.ipv4_sock.as_mut() {
-                    if let Err(e) =
-                        self.poller
-                            .registry()
-                            .reregister(sock, ev.token(), mio::Interest::READABLE)
-                    {
-                        debug!("modify poller for IPv4 socket: {}", e);
-                    }
-                }
-            } else if ev.token().0 == IPV6_SOCK_EVENT_KEY {
-                // Re-register the IPv6 socket for reading.
-                if let Some(sock) = self.ipv6_sock.as_mut() {
-                    if let Err(e) =
-                        self.poller
-                            .registry()
-                            .reregister(sock, ev.token(), mio::Interest::READABLE)
-                    {
-                        debug!("modify poller for IPv6 socket: {}", e);
-                    }
+        }
+        let mut next_backlog = [false; 2];
+        for (index, key) in [IPV4_SOCK_EVENT_KEY, IPV6_SOCK_EVENT_KEY]
+            .iter()
+            .copied()
+            .enumerate()
+        {
+            let ready = backlog[index] || events.iter().any(|event| event.token().0 == key);
+            if !ready {
+                continue;
+            }
+            // Mio may not report an edge-triggered socket again until WouldBlock.
+            // Keep our own backlog flag so a finite packet budget cannot strand
+            // unread datagrams, and always run timer/expiry cleanup between turns.
+            next_backlog[index] =
+                drain_bounded(|| self.handle_read(key), MAX_DATAGRAMS_PER_SOCKET_ROUND);
+            let socket = if index == 0 {
+                &mut self.ipv4_sock
+            } else {
+                &mut self.ipv6_sock
+            };
+            if let Some(socket) = socket.as_mut() {
+                if let Err(error) = self.poller.registry().reregister(
+                    socket,
+                    mio::Token(key),
+                    mio::Interest::READABLE,
+                ) {
+                    debug!("modify poller for socket {key}: {error}");
                 }
             }
         }
+        next_backlog
     }
 
     /// Deal with incoming response packets.  All answers
     /// are held in the cache, and listeners are notified.
     fn handle_response(&mut self, mut msg: DnsIncoming, if_index: u32) {
         let now = Instant::now();
+        let mut removed_instances = Vec::new();
 
         // remove records that are expired.
         let mut record_predicate = |record: &DnsRecordBox| {
@@ -3134,6 +3202,7 @@ impl Zeroconf {
             if self.cache.remove(record) {
                 // for PTR records, send event to listeners
                 if let Some(dns_ptr) = record.any().downcast_ref::<DnsPointer>() {
+                    removed_instances.push(dns_ptr.alias().to_string());
                     call_service_listener(
                         &self.service_queriers,
                         dns_ptr.get_name(),
@@ -3149,6 +3218,10 @@ impl Zeroconf {
         msg.answers_mut().retain(&mut record_predicate);
         msg.authorities_mut().retain(&mut record_predicate);
         msg.additionals_mut().retain(&mut record_predicate);
+        for instance in removed_instances {
+            self.resolved.remove(&instance);
+            self.pending_resolves.remove(&instance);
+        }
 
         // check possible conflicts and handle them.
         self.conflict_handler(&msg, if_index);
@@ -3374,7 +3447,7 @@ impl Zeroconf {
 
             for record in new_records {
                 if dns_registry.update_hostname(name, record.get_name(), create_time) {
-                    self.timers.push(Reverse(create_time));
+                    self.timers.add(create_time);
                 }
 
                 // remember the name changes (note: `name` might not be the original, it could be already changed once.)
@@ -3393,7 +3466,7 @@ impl Zeroconf {
                                 debug!("conflict handler: new probe of {}", record.get_name());
                                 Probe::new(create_time)
                             });
-                        self.timers.push(Reverse(new_probe.next_send));
+                        self.timers.add(new_probe.next_send);
                         new_probe
                     }
                 };
@@ -3607,6 +3680,9 @@ impl Zeroconf {
 
         // Defer PTR responses (RFC 6762 §6).
         if delayed && out.answers_count() > 0 {
+            if self.delayed_responses.len() >= MAX_DELAYED_RESPONSES {
+                return;
+            }
             out.set_id(msg.id());
             self.increase_counter(Counter::KnownAnswerSuppression, out.known_answer_count());
             let delay =
@@ -5306,7 +5382,7 @@ fn hostname_change(original: &str) -> String {
 /// that are finished.
 fn check_probing(
     dns_registry: &mut DnsRegistry,
-    timers: &mut BinaryHeap<Reverse<Instant>>,
+    timers: &mut TimerQueue,
     now: Instant,
 ) -> (DnsOutgoing, Vec<String>) {
     let mut expired_probes = Vec::new();
@@ -5334,7 +5410,7 @@ fn check_probing(
                 probe.update_next_send(now);
 
                 // add timer
-                timers.push(Reverse(probe.next_send));
+                timers.add(probe.next_send);
             }
         }
     }
@@ -5449,13 +5525,14 @@ fn resolve_addr_to_index(if_kind: IfKind, interfaces: &[Interface]) -> IfKind {
 #[cfg(test)]
 mod tests {
     use super::{
-        _new_socket_bind, check_domain_suffix, check_service_name_length, hostname_change,
-        my_ip_interfaces, name_change, resolve_max_packet_size, send_dns_outgoing_impl,
-        valid_instance_name, valid_ip_on_intf, DaemonEvent, HostnameResolutionEvent, IfKind,
-        MaxPacketSizeSelection, MyIntf, SendConfig, ServiceDaemon, ServiceEvent, ServiceInfo,
-        GROUP_ADDR_V4, INITIAL_QUERY_DELAY_MAX_MILLIS, INITIAL_QUERY_DELAY_MIN_MILLIS,
-        MAX_PKT_ABSOLUTE_IPV6, MAX_PKT_DEFAULT, MDNS_PORT, MIN_MAX_PACKET_SIZE, RESOLVE_MAX_TRY,
-        SHARED_RESPONSE_DELAY_MAX_MILLIS, SHARED_RESPONSE_DELAY_MIN_MILLIS,
+        _new_socket_bind, check_domain_suffix, check_service_name_length, drain_bounded,
+        hostname_change, my_ip_interfaces, name_change, resolve_max_packet_size,
+        send_dns_outgoing_impl, valid_instance_name, valid_ip_on_intf, DaemonEvent,
+        HostnameResolutionEvent, IfKind, MaxPacketSizeSelection, MyIntf, SendConfig, ServiceDaemon,
+        ServiceEvent, ServiceInfo, TimerQueue, GROUP_ADDR_V4, INITIAL_QUERY_DELAY_MAX_MILLIS,
+        INITIAL_QUERY_DELAY_MIN_MILLIS, MAX_PKT_ABSOLUTE_IPV6, MAX_PKT_DEFAULT, MDNS_PORT,
+        MIN_MAX_PACKET_SIZE, RESOLVE_MAX_TRY, SHARED_RESPONSE_DELAY_MAX_MILLIS,
+        SHARED_RESPONSE_DELAY_MIN_MILLIS,
     };
     use crate::{
         dns_parser::{
@@ -5472,6 +5549,35 @@ mod tests {
         time::{Duration, Instant, SystemTime},
     };
     use test_log::test;
+
+    #[test]
+    fn repeated_refreshes_coalesce_into_bounded_timer_slots() {
+        let mut timers = TimerQueue::new();
+        let start = Instant::now();
+        for index in 0..100_000_u64 {
+            timers.add(start + Duration::from_micros(index * 1_200));
+        }
+        // The received DNS TTL is capped at 120 seconds. At 50 ms per slot,
+        // even constantly changing refresh deadlines occupy at most 2,401.
+        assert!(timers.len() <= 2_401, "{} timer slots", timers.len());
+        timers.pop_due(start + Duration::from_secs(121));
+        assert_eq!(timers.len(), 0);
+    }
+
+    #[test]
+    fn packet_budget_yields_even_if_packets_keep_arriving() {
+        let mut reads = 0;
+        let pending = drain_bounded(
+            || {
+                reads += 1;
+                true
+            },
+            32,
+        );
+        assert!(pending);
+        assert_eq!(reads, 32);
+        assert!(!drain_bounded(|| false, 32));
+    }
 
     /// Builds an interface address for the max packet size tests below.
     fn test_interface(name: &str, index: u32, addr: IfAddr) -> Interface {

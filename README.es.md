@@ -2,7 +2,7 @@
 
 [![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [English](README.md) · [MIT](LICENSE)
 
-[Novedades de la versión 0.24.2](docs/RELEASE-0.24.2.md#seamlesscontrol-0242--descubrimiento-acotado-en-windows) · [Características de 0.24.0](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows)
+[Novedades de la versión 0.24.3](docs/RELEASE-0.24.3.md#seamlesscontrol-0243--descubrimiento-estable-y-acotado) · [Características de 0.24.0](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows)
 
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
@@ -24,7 +24,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 | Instalar la app, recibir o controlar desde Windows | [Guía ilustrada Windows](docs/WINDOWS.es.md) |
 | Copiar y pegar archivos o enviarlos a una carpeta | [Guía Omarchy](docs/USER-GUIDE.es.md) / [Guía Windows](docs/WINDOWS.es.md), sección Archivos |
 | Resolver un problema de conexión | Sección de problemas de cada guía; [pedir ayuda](SUPPORT.es.md) |
-| Ver la última corrección y las pruebas físicas | [Notas de 0.24.2](docs/RELEASE-0.24.2.md#seamlesscontrol-0242--descubrimiento-acotado-en-windows) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
+| Ver la última corrección y las pruebas físicas | [Notas de 0.24.3](docs/RELEASE-0.24.3.md#seamlesscontrol-0243--descubrimiento-estable-y-acotado) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
 | Usar comandos o conocer permisos y límites | [Guía técnica](docs/TECHNICAL.es.md) |
 
 **Origen** es el equipo donde están el ratón y el teclado físicos que vas a usar. **Receptor** es el equipo que quieres controlar. Los papeles pueden cambiar para otra sesión; no necesitas emparejar de nuevo por invertirlos.

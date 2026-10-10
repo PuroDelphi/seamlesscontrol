@@ -10,6 +10,8 @@ The [Windows guide](WINDOWS.md) covers the tray app's use. On Windows x64, `seam
 
 The receiver advertises `_seamlesscontrol._tcp.local.` with protocol version and public fingerprint through `mdns-sd`, while the app browses that service. Discovery only supplies an address: Noise XX key pinning and six-digit pairing approval remain mandatory.
 
+The Windows nearby list retains at most 64 computers and publishes changed snapshots at most twice per second. The locked, vendored `mdns-sd` 0.21.5 source caps its cache at 1,024 storage units and received DNS TTLs at 120 seconds. It coalesces refresh timers into 50 ms slots, processes at most 32 datagrams per socket before expiry work, and revisits unread sockets without relying on another poll edge. Delayed responses are capped at 128; orphan records and removed-service tracking are cleaned up. See the [vendor patch record](../agent/vendor/mdns-sd/SEAMLESSCONTROL-PATCH.md).
+
 Firewall buttons elevate the agent to add inbound TCP rules for control, manual sends and copied files, plus a UDP `5353` rule for mDNS. Rules are scoped to the Private profile and LocalSubnet. The interface reports an authorization request; the elevated command reports whether the rule was applied.
 
 Windows CI builds the GUI with a static C runtime. The release workflow builds the tagged commit and attaches a ZIP containing both executables, with a SHA-256 of the ZIP as an adjacent asset. The hidden child uses an invisible clipboard owner window without depending on a visible console.

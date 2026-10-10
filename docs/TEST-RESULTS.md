@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.24.3 mDNS timer and event-loop check · 2026-10-10
+
+The reviewer confirmed the list/cache caps but found repeated refreshes still added timers and uninterrupted socket draining could starve cleanup. A new unit test schedules 100,000 repeated refreshes over a 120-second horizon and verifies at most 2,401 timer slots. Another verifies that packet reading yields at its budget; a cache test verifies expiry of orphan records. The vendored library passed 70 tests with its pre-existing environment-sensitive custom-port isolation test excluded. That same test failed independently on the original unmodified 0.21.5 source here. These are code-level checks, not a new physical Windows test.
+
 ## 0.24.2 Windows discovery security check · 2026-10-10
 
 Marketplace review confirmed the 0.24.1 Qt clipboard fix and identified unbounded unauthenticated discovery in the Windows app and its locked mDNS dependency. The new cache test feeds 5,000 distinct PTR advertisements with maximum DNS TTL and verifies the 1,024-unit storage limit and 120-second received TTL cap. A Windows-only test feeds 10,000 nearby entries and verifies the 64-computer panel limit and no-change behavior on repeat announcements. Discovery snapshots are published at most twice per second. These are code and CI checks; no new physical Windows session is claimed for 0.24.2.
