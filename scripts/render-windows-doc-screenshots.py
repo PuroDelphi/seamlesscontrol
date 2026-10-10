@@ -51,7 +51,7 @@ def fixture(language: str, view: str) -> dict:
         "clipboardReady": True, "copiedFile": "SeamlessControl 3 items.scbundle",
         "clipboardOffer": "", "clipboardProgress": None,
         "peers": [{"ip": "192.0.2.20", "fingerprint": FINGERPRINT,
-                   "fileSession": True,
+                   "fileSession": view in ("files", "offer"),
                    "policy": {"control": True, "text": True, "files": True, "lastConnectedMs": 0},
                    "policyError": False}],
         "discovered": [{
