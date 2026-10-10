@@ -169,6 +169,7 @@ Item {
   property bool stoppingFileReceiver: false
   property bool managedAgentRunning: false
   property bool stoppingManagedAgent: false
+  property string sessionStopError: ""
   property string lastAgentError: ""
   readonly property string reconnectReason: lastAgentError.replace(/^Conexión interrumpida: /, "")
     .replace(/\. Reintentando en [0-9]+ s\.$/, "")
@@ -392,13 +393,14 @@ Item {
   }
 
   function stopManagedAgent() {
-    if (!agentProcess.running) {
-      if (!available || role !== "connect" || actionProcess.running) return
-      actionName = t("terminar la sesión")
-      actionProcess.command = ["seamlesscontrold", "stop"]
-      actionProcess.running = true
+    if (stoppingManagedAgent || sessionStopProcess.running) return
+    if (available && role === "connect") {
+      stoppingManagedAgent = true
+      sessionStopError = ""
+      sessionStopProcess.running = true
       return
     }
+    if (!agentProcess.running) return
     stoppingManagedAgent = true
     agentProcess.signal(2)
     stopTimeout.restart()
@@ -753,6 +755,10 @@ Item {
         root.pairSas = fields[5]
         root.pairKey = fields[6]
         root.available = true
+        if (root.stoppingManagedAgent && root.role !== "connect") {
+          root.stoppingManagedAgent = false
+          stopTimeout.stop()
+        }
       }
     }
     onExited: function(code) {
@@ -765,6 +771,10 @@ Item {
         root.paused = false
         root.pairSas = ""
         root.pairKey = ""
+        if (root.stoppingManagedAgent && !agentProcess.running) {
+          root.stoppingManagedAgent = false
+          stopTimeout.stop()
+        }
       }
     }
   }
@@ -947,6 +957,24 @@ Item {
   }
 
   Process {
+    id: sessionStopProcess
+    command: ["seamlesscontrold", "stop"]
+    stderr: SplitParser {
+      onRead: function(line) { root.sessionStopError = String(line).trim() }
+    }
+    onExited: function(code) {
+      if (code !== 0) {
+        root.stoppingManagedAgent = false
+        root.error = root.sessionStopError !== "" ? root.sessionStopError
+          : root.t("No se pudo terminar la sesión. Inténtelo de nuevo.")
+      } else {
+        stopTimeout.restart()
+        root.refresh()
+      }
+    }
+  }
+
+  Process {
     id: agentProcess
     stdout: SplitParser { onRead: function(line) {} }
     stderr: SplitParser {
@@ -986,8 +1014,16 @@ Item {
 
   Timer {
     id: stopTimeout
-    interval: 2000
-    onTriggered: if (agentProcess.running && root.stoppingManagedAgent) agentProcess.signal(15)
+    interval: 3000
+    onTriggered: {
+      if (!root.stoppingManagedAgent) return
+      if (agentProcess.running) agentProcess.signal(15)
+      else if (root.available && root.role === "connect") {
+        root.error = root.t("La sesión sigue activa. Vuelva a intentar Terminar sesión.")
+        root.stoppingManagedAgent = false
+      }
+      root.refresh()
+    }
   }
 
   Timer {
