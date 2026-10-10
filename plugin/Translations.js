@@ -202,6 +202,8 @@ var english = {
   "Conectar varios equipos": "Connect several computers",
   "Malla experimental: un ratón controla dos o tres receptores en un mapa 2 × 2. Empareje y ubique todos los equipos; cada receptor debe usar este mismo puerto. Para dos equipos en total, use Conectar arriba.": "Experimental mesh: one mouse controls two or three receivers in a 2 × 2 layout. Pair and place all computers; each receiver must use this same port. For two computers in total, use Connect above.",
   "Terminar sesión iniciada desde el panel": "Stop session started here",
+  "Terminar sesión activa": "End active session",
+  "terminar la sesión": "end the session",
   "Detener recepción": "Stop receiving",
   "Deteniendo recepción…": "Stopping receiver…",
   "detener la recepción": "stop receiving",

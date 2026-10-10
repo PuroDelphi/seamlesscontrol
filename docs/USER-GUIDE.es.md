@@ -52,7 +52,7 @@ Espera a **Listo**. La pestaña **Equipos** indica qué borde debes cruzar. Muev
 
 Cruza el **borde de entrada del receptor hacia el origen**, o pulsa **Escape en el teclado físico del origen**. Regresar mantiene la conexión lista para otro cruce. Aleja el puntero hacia dentro antes de cruzar otra vez.
 
-Si falla el regreso por el borde, usa **Inicio → Devolver control al origen** en el receptor. Al terminar, pulsa **Inicio → Terminar sesión iniciada desde el panel** en el origen; usa **Detener recepción** en el receptor si ya no quieres dejarlo disponible.
+Si falla el regreso por el borde, usa **Inicio → Devolver control al origen** en el receptor. Al terminar, pulsa **Inicio → Terminar sesión activa** en el origen; usa **Detener recepción** en el receptor si ya no quieres dejarlo disponible.
 
 ## Direcciones y mapa
 
@@ -73,7 +73,7 @@ Si falla el regreso por el borde, usa **Inicio → Devolver control al origen** 
 | --- | --- |
 | Cruzar de regreso / Escape físico / **Devolver control al origen** | Devuelve la entrada al origen sin terminar la sesión. El botón de regreso normal del receptor aparece mientras lo están controlando. |
 | **Pausar captura / Reanudar captura** en el origen | Desactiva/reactiva temporalmente la captura en el borde, manteniendo disponible la sesión. |
-| **Terminar sesión iniciada desde el panel** en el origen | Termina el proceso de origen iniciado por este panel. Una sesión iniciada desde una terminal o servicio se detiene donde se inició. |
+| **Terminar sesión activa** en el origen | Termina la sesión de origen, incluso si se inició desde otra barra o monitor de Omarchy. El panel confirma la parada del agente antes de mostrarlo desconectado. |
 | **Detener recepción** en el receptor | Termina la recepción normalmente, también si el receptor está en pausa. Úsalo para cambiar de función o iniciar el emparejamiento desde ese equipo. |
 | **Cortar entrada remota · emergencia** en el receptor | Desconecta la entrada remota y deja el receptor en pausa. La nueva entrada remota sigue bloqueada hasta **Reanudar recepción**. No es un regreso normal ni un cierre completo. |
 

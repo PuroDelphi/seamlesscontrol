@@ -293,7 +293,7 @@ impl ControlServer {
                                     status.return_requested = None;
                                     "OK\n".to_owned()
                                 }
-                                "stop" if status.role == "serve" => {
+                                "stop" if status.role == "serve" || status.role == "connect" => {
                                     status.shutdown_requested = true;
                                     status.disconnect_requested = true;
                                     if status.phase == "pairing" {
@@ -422,6 +422,8 @@ mod tests {
         assert!(server.handle().paused());
         assert_eq!(request_at(&path, "resume").unwrap(), "OK\n");
         assert!(!server.handle().paused());
+        assert_eq!(request_at(&path, "stop").unwrap(), "OK\n");
+        assert!(server.handle().shutdown_requested());
         drop(server);
         assert!(!path.exists());
         fs::remove_dir_all(dir).unwrap();

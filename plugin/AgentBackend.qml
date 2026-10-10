@@ -392,7 +392,13 @@ Item {
   }
 
   function stopManagedAgent() {
-    if (!agentProcess.running) return
+    if (!agentProcess.running) {
+      if (!available || role !== "connect" || actionProcess.running) return
+      actionName = t("terminar la sesión")
+      actionProcess.command = ["seamlesscontrold", "stop"]
+      actionProcess.running = true
+      return
+    }
     stoppingManagedAgent = true
     agentProcess.signal(2)
     stopTimeout.restart()

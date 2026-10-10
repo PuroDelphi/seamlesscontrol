@@ -52,7 +52,7 @@ Wait for **Ready**. The **Computers** tab tells you which edge to cross. Move th
 
 Cross the receiver's **entry edge toward the source**, or press **Escape on the source's physical keyboard**. Returning keeps the connection ready for another crossing. Move the pointer inward before crossing again.
 
-If edge return fails, use **Home → Return control to source** on the receiver. When finished, select **Home → Stop session started here** on the source; use **Stop receiving** on the receiver if you no longer want it available.
+If edge return fails, use **Home → Return control to source** on the receiver. When finished, select **Home → End active session** on the source; use **Stop receiving** on the receiver if you no longer want it available.
 
 ## Addresses and layout
 
@@ -73,7 +73,7 @@ If edge return fails, use **Home → Return control to source** on the receiver.
 | --- | --- |
 | Cross back / physical Escape / **Return control to source** | Returns input to the source without ending the session. The receiver's normal-return button appears while it is being controlled. |
 | **Pause capture / Resume capture** on the source | Temporarily disables/re-enables edge capture while keeping the session available. |
-| **Stop session started here** on the source | Ends the source process started by this panel. A session started from a terminal or service must be stopped where it was started. |
+| **End active session** on the source | Ends the source session, including one started from another Omarchy bar or monitor. The panel confirms the agent has stopped before showing it as disconnected. |
 | **Stop receiving** on the receiver | Ends receiving normally, including a paused receiver. Use this to change roles or start pairing from that computer. |
 | **Cut remote input · emergency** on the receiver | Disconnects remote input and leaves the receiver paused. New remote input stays blocked until **Resume receiving**. This is not a normal return or full shutdown. |
 

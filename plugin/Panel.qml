@@ -162,6 +162,7 @@ Panel {
 
   function open() {
     switchTab("main")
+    if (backend) backend.refresh()
     controller.show()
   }
   function close() {
@@ -1676,10 +1677,12 @@ Panel {
 
         StateButton {
           Layout.fillWidth: true
-          visible: root.backend && root.backend.managedAgentRunning && root.backend.role !== "serve"
-          text: root.t("Terminar sesión iniciada desde el panel")
+          visible: root.backend && (root.backend.managedAgentRunning && root.backend.role !== "serve"
+            || root.backend.available && root.backend.role === "connect")
+          text: root.t("Terminar sesión activa")
           bordered: true
           focusable: true
+          enabled: root.backend && !root.backend.actionRunning && !root.backend.stoppingManagedAgent
           foreground: root.ink
           accent: Color.accent
           fontFamily: root.face

@@ -61,6 +61,12 @@ mod linux {
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
 
+    async fn wait_for_local_stop(control: &ControlHandle) {
+        while !control.shutdown_requested() {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+
     fn portal_file_path(uri: &str) -> Result<PathBuf, Box<dyn Error>> {
         let encoded = uri
             .strip_prefix("file://")
@@ -662,6 +668,7 @@ mod linux {
                         }
                     }
                     _ = pause_tick.tick() => {
+                        if control.shutdown_requested() { break; }
                         reconcile_mesh_links(&mut links, &peers_dir, &coordinator)?;
                         if control.revoked_active() { return Err("active mesh peer was revoked".into()); }
                         locked = lock_ipc.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
@@ -1084,6 +1091,7 @@ mod linux {
                         }
                     }
                     _ = pause_tick.tick() => {
+                        if control.shutdown_requested() { break; }
                         if control.revoked_active() { break; }
                         locked = local_lock.session_lock_state().unwrap_or(SessionLockState::Undetermined) != SessionLockState::Unlocked;
                         if locked && capture_enabled {
@@ -2792,6 +2800,9 @@ mod linux {
             let control = local_control.handle();
             let mut delay = Duration::from_secs(1);
             loop {
+                if control.shutdown_requested() {
+                    return Ok(());
+                }
                 let ipc =
                     HyprIpc::from_env().ok_or("Hyprland IPC is required to guard mesh capture")?;
                 if ipc
@@ -2802,6 +2813,7 @@ mod linux {
                     control.set_phase("locked");
                     tokio::select! {
                         _ = tokio::signal::ctrl_c() => return Ok(()),
+                        _ = wait_for_local_stop(&control) => return Ok(()),
                         _ = tokio::time::sleep(Duration::from_millis(250)) => continue,
                     }
                 }
@@ -2818,6 +2830,7 @@ mod linux {
                         control.set_phase("reconnecting");
                         tokio::select! {
                             _ = tokio::signal::ctrl_c() => return Ok(()),
+                            _ = wait_for_local_stop(&control) => return Ok(()),
                             _ = tokio::time::sleep(delay) => {}
                         }
                         delay = delay.saturating_mul(2).min(Duration::from_secs(30));
@@ -2870,6 +2883,9 @@ mod linux {
             };
             let mut delay = Duration::from_secs(1);
             loop {
+                if control.shutdown_requested() {
+                    return Ok(());
+                }
                 if matches!(mode, ConnectionMode::CaptureMapped(_)) {
                     let topology = load_topology(&config.join("topology"))?;
                     mode = ConnectionMode::CaptureMapped(Edge::from_logical(
@@ -2890,6 +2906,7 @@ mod linux {
                         control.set_phase("locked");
                         tokio::select! {
                             _ = tokio::signal::ctrl_c() => return Ok(()),
+                            _ = wait_for_local_stop(&control) => return Ok(()),
                             _ = tokio::time::sleep(Duration::from_millis(250)) => continue,
                         }
                     }
@@ -2906,6 +2923,9 @@ mod linux {
                         return Err(error);
                     }
                     Err(AttemptError::Retry(error)) => {
+                        if control.shutdown_requested() {
+                            return Ok(());
+                        }
                         if control.phase() == "disconnected" {
                             delay = Duration::from_secs(1);
                         }
@@ -2917,6 +2937,7 @@ mod linux {
                         control.set_phase("reconnecting");
                         tokio::select! {
                             _ = tokio::signal::ctrl_c() => return Ok(()),
+                            _ = wait_for_local_stop(&control) => return Ok(()),
                             _ = tokio::time::sleep(delay) => {}
                         }
                         delay = delay.saturating_mul(2).min(Duration::from_secs(30));
