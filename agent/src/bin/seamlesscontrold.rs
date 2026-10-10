@@ -2457,7 +2457,7 @@ mod linux {
                     Ok(path) => path.and_then(|path| path.to_str().map(str::to_owned)),
                     Err(error) => {
                         if args[1] == "clipboard-file-event" {
-                            println!("null");
+                            println!("{}", serde_json::json!({ "error": error.to_string() }));
                         }
                         return Err(error.into());
                     }

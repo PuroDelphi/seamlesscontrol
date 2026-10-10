@@ -1075,6 +1075,15 @@ Item {
       onRead: function(line) {
         try {
           var path = JSON.parse(String(line).trim())
+          if (path && typeof path === "object" && typeof path.error === "string") {
+            if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+            root.copiedFilePath = ""
+            root.lastClipboardSentPath = ""
+            root.clipboardFileError = path.error.indexOf("bundle contains a symlink") !== -1
+              ? root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
+              : root.t("No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.")
+            return
+          }
           if (typeof path !== "string" || path.charAt(0) !== "/") {
             if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
             root.copiedFilePath = ""
