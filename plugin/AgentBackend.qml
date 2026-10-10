@@ -115,6 +115,15 @@ Item {
     disconnected: root.t("desconectado")
   })[phase] || phase
   property string peer: ""
+  readonly property bool fileSessionActive: available && peer !== "" && !paused
+    && (phase === "ready" || phase === "rearming" || phase === "controlling"
+        || phase === "connected" || phase === "handoff" || phase === "cross_again")
+  onFileSessionActiveChanged: if (!fileSessionActive) {
+    copiedFilePath = ""
+    lastClipboardSentPath = ""
+    if (sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+    if (clipboardOffer) decideClipboardFile(false)
+  }
   property bool paused: false
   readonly property bool actionRunning: actionProcess.running
   property bool receiverStopRequested: false
@@ -449,6 +458,10 @@ Item {
 
   function sendFile(address, path, copied) {
     if (!installed || sendFileProcess.running || !address || !path) return
+    if (!canShareWith(address)) {
+      fileError = root.t("Conecte con ese equipo antes de compartir archivos.")
+      return
+    }
     error = ""
     fileResult = root.t("Preparando archivo…")
     fileError = ""
@@ -459,15 +472,19 @@ Item {
     sendingFile = true
   }
 
+  function canShareWith(address) {
+    return fileSessionActive && String(address).split(":")[0] === peer
+  }
+
   function sendCopiedFile(address) {
-    if (!copiedFilePath || !address || sendFileProcess.running) return
+    if (!fileSessionActive || !copiedFilePath || !address || sendFileProcess.running) return
     lastClipboardSentPath = copiedFilePath
     sendFile(address, copiedFilePath, true)
   }
 
   function maybeSendCopiedFile() {
-    if (copiedFilePath && copiedFilePath !== lastClipboardSentPath
-        && peers.length === 1 && !sendFileProcess.running)
+    if (fileSessionActive && copiedFilePath && copiedFilePath !== lastClipboardSentPath
+        && peers.length === 1 && peers[0].ip === peer && !sendFileProcess.running)
       sendCopiedFile(peers[0].ip + ":47834")
   }
 
@@ -1086,6 +1103,11 @@ Item {
           }
           if (typeof path !== "string" || path.charAt(0) !== "/") {
             if (root.sendingCopiedFile && sendFileProcess.running) sendFileProcess.running = false
+            root.copiedFilePath = ""
+            root.lastClipboardSentPath = ""
+            return
+          }
+          if (!root.fileSessionActive) {
             root.copiedFilePath = ""
             root.lastClipboardSentPath = ""
             return

@@ -4,7 +4,7 @@
 
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
-También puedes compartir texto durante la conexión y copiar **un archivo local cada vez** entre equipos emparejados. El receptor decide cómo aprobar los archivos; solo quedan disponibles después de verificarse.
+También puedes compartir texto durante la conexión y copiar **archivos y carpetas** entre equipos conectados. El receptor decide cómo aprobar los archivos; solo quedan disponibles después de verificarse.
 
 ## Elige por dónde empezar
 
@@ -61,11 +61,11 @@ Las imágenes muestran interfaces con datos ficticios de documentación; la guí
 | Función | Qué necesitas | Puerto en el receptor |
 |---|---|---|
 | Ratón, teclado y texto del portapapeles | Emparejar + Recibir control + Conectar | TCP `47832` por defecto |
-| Copiar en un explorador y pegar en el otro | Apps abiertas + emparejamiento; aprobar la oferta si corresponde y esperar la verificación antes de Pegar | TCP `47834` |
-| Enviar a una carpeta elegida | Emparejamiento + Archivos → Esperar un archivo en el receptor; elegir y enviar en el origen | TCP `47833` por defecto |
+| Copiar en un explorador y pegar en el otro | Apps abiertas + emparejamiento + conexión de control activa; aprobar la oferta si corresponde y esperar la verificación antes de Pegar | TCP `47834` |
+| Enviar a una carpeta elegida | Conexión de control activa + Archivos → Esperar un archivo en el receptor; elegir y enviar en el origen | TCP `47833` por defecto |
 | Encontrar receptores cercanos | Recepción activa y descubrimiento permitido en la LAN | UDP `5353` (mDNS) |
 
-**Los dos flujos de archivos no requieren una sesión de control.** **Esperar un archivo** no activa la copia y pegado: es el envío manual, de una oferta cada vez. Abrir el puerto de control tampoco abre los de archivos.
+**Ambos flujos de archivos requieren una conexión de control activa.** Emparejar guarda la confianza; detener el control termina el intercambio. **Esperar un archivo** no activa la copia y pegado: es el envío manual, de una oferta cada vez. Abrir el puerto de control tampoco abre los de archivos.
 
 En **Ajustes → Aprobación de archivos entrantes**, puedes preguntar por cada oferta (predeterminado), aceptar automáticamente desde equipos emparejados o aprobar por un tiempo. El modo temporal pregunta por el primer archivo de cada equipo y vuelve a **Preguntar siempre** al vencer o reiniciar. Las [guías ilustradas](docs/USER-GUIDE.es.md) explican el límite de tamaño, la selección del destino y qué hacer si no llega una oferta.
 

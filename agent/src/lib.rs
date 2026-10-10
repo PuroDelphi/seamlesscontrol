@@ -1,6 +1,7 @@
 //! Portable core shared by the Omarchy and Windows agents.
 //! Platform capture, injection, network transport, and persistence are adapters.
 
+pub mod active_session;
 pub mod clipboard;
 pub mod clipboard_file;
 pub mod diagnostics;

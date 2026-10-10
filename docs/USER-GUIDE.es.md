@@ -79,12 +79,14 @@ Si falla el regreso por el borde, usa **Inicio → Devolver control al origen** 
 
 ## Archivos: dos flujos distintos
 
-Los archivos requieren **equipos emparejados con SeamlessControl abierto**, pero **no una sesión de control del ratón y teclado**. Recibir un archivo no lo abre ni lo ejecuta. Ambos flujos autentican al emisor, aplican límites de tamaño y verifican SHA-256 antes de publicar un archivo completo.
+Los archivos requieren equipos emparejados **y una conexión de control activa entre ellos**. Recibir un archivo no lo abre ni lo ejecuta. Ambos flujos autentican al emisor, aplican límites de tamaño y verifican SHA-256 antes de publicar un archivo completo.
+
+**Detener el control detiene las ofertas y transferencias de archivos.** Emparejar solo guarda la confianza; no permite compartir en segundo plano. Durante la conexión, elige **Ajustes → Aprobación de archivos entrantes → Preguntar siempre** para exigir aprobación, o desactiva **Archivos** para ese equipo en **Equipos** para rechazar sus ofertas.
 
 ### Copiar aquí, pegar allá · TCP 47834
 
-1. **Receptor:** permite TCP `47834` una vez en su firewall LAN. En Omarchy usa **Inicio → Preparar recepción de archivos copiados · TCP 47834** o **Ajustes → Archivos copiados · preparar recepción**; prepara y autoriza la regla. Mantén cargado el widget de Omarchy (o abierta la app Windows).
-2. **Origen:** copia **un archivo local, varios archivos o una carpeta** en el explorador. Con exactamente un equipo emparejado, se ofrece automáticamente. Con varios, elige **Archivos → Ofrecer archivo copiado a…**.
+1. **Conecta los equipos emparejados.** Luego, en el receptor, permite TCP `47834` una vez en su firewall LAN. En Omarchy usa **Inicio → Preparar recepción de archivos copiados · TCP 47834** o **Ajustes → Archivos copiados · preparar recepción**; prepara y autoriza la regla. Mantén cargado el widget de Omarchy (o abierta la app Windows).
+2. **Origen:** copia **un archivo local, varios archivos o una carpeta** en el explorador. Con exactamente un equipo conectado, se ofrece automáticamente. Con varios, elige **Archivos → Ofrecer archivo copiado a…**.
 3. **Receptor:** si su modo de aprobación requiere preguntar, pulsa **Aceptar archivo** o **Rechazar**. Aparece una notificación con acciones aunque el panel esté cerrado o estés en otro workspace; la oferta también aparece arriba de cualquier pestaña del panel y en Archivos. Rechazar impide transferir el contenido.
 4. Espera a que terminen la transferencia y verificación. Abre la carpeta de destino en el explorador del receptor y usa **Pegar**.
 
@@ -101,7 +103,7 @@ Una oferta sin aprobar caduca a los **dos minutos**. Vuelve a copiar el archivo 
 1. **Receptor → Archivos:** selecciona un **Directorio de destino** con **Elegir**. Deja la dirección de recepción en Automático, o escribe una `IP:puerto` local.
 2. Pulsa **Preparar regla LAN para archivos**, revisa el puerto de archivos y el alcance LAN, y después **Autorizar esta regla** si el firewall lo necesita.
 3. Pulsa **Esperar un archivo** y espera a **Esperando archivo en** con la dirección del receptor.
-4. **Origen → Archivos:** selecciona **Enviar a…** para el receptor emparejado o escribe su `IP:47833` real; si usa otro puerto de archivos, escribe ese puerto. Elige el archivo local y pulsa **Enviar archivo**.
+4. **Conecta los equipos emparejados.** En el origen → Archivos, selecciona **Enviar a…** para el receptor emparejado o escribe su `IP:47833` real; si usa otro puerto de archivos, escribe ese puerto. Elige el archivo local y pulsa **Enviar archivo**.
 5. **Receptor:** aprueba la oferta cuando se solicite. El archivo verificado se guarda directamente en la carpeta elegida; no hay que pegarlo. Pulsa **Esperar un archivo** otra vez para el siguiente envío.
 
 ![Panel Archivos actual: controles de recepción y envío manual](images/omarchy-files-send-es.png)
@@ -162,7 +164,7 @@ El botón de reparar captura solo aparece en una **sesión de origen iniciada de
 - Bloquear el origen Omarchy desactiva la captura; bloquear el receptor, o no poder determinar su estado de bloqueo, corta la entrada remota. Las teclas/botones pulsados se liberan cuando termina la entrada. Es **control de un escritorio con sesión abierta**, no inicio de sesión remoto, desbloqueo a distancia ni acceso a UAC/escritorios seguros de Windows. Consulta la guía Windows para sus límites de permisos. El bloqueo manual durante control remoto aún requiere verificación física; **devuelve y detén el control antes de bloquear manualmente**.
 - Mientras un origen Omarchy controla activamente un par, el widget cargado en la barra inhibe el **bloqueo automático por inactividad** de Omarchy cuando este respeta inhibidores. El bloqueo manual sigue funcionando; el inhibidor termina al regresar o descargar el widget. Tenlo en cuenta si dejas el origen desatendido.
 - Estas protecciones de bloqueo se refieren al **control de entrada**, no prometen detener todos los receptores de archivos ni borrar el portapapeles. Detén la app/widget o cambia la aprobación de archivos por separado si ya no quieres ofertas. Se excluyen las selecciones Wayland sensibles cuando la aplicación las marca; no supongas que todos los gestores de contraseñas o secretos copiados llevan esa marca.
-- Durante una conexión de control, el **portapapeles de texto** se sincroniza automáticamente (UTF-8, hasta 256 KiB). No se sincronizan imágenes. Copiar archivos usa el flujo independiente de aprobación de arriba; funciona sin control.
+- Durante una conexión de control, el **portapapeles de texto** se sincroniza automáticamente (UTF-8, hasta 256 KiB). No se sincronizan imágenes. Copiar archivos usa el flujo independiente de aprobación de arriba; requiere que esa conexión de control siga activa.
 - **Ajustes → Conectar varios equipos** es experimental: un origen y **dos o tres receptores** en un mapa 2 × 2 conectado. Empareja y ubica los equipos en los mapas participantes, mantén todos los receptores activos en el mismo puerto de control e inicia la malla desde el origen. El portapapeles se comparte entre los receptores conectados. Para dos equipos en total usa **Conectar** normal. La malla física de varios equipos, cambios rápidos de destino y recuperación de red no están completamente validados; consulta el [registro de pruebas](TEST-RESULTS.es.md), no los renders de documentación, para los resultados observados.
 
 ## Actualizar y retirar

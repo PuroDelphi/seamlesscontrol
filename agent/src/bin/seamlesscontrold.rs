@@ -11,6 +11,7 @@ mod linux {
         ei,
         event::{DeviceCapability, EiEvent},
     };
+    use seamlesscontrol_core::active_session::ActiveSession;
     use seamlesscontrol_core::clipboard::{
         ClipboardEvent, ClipboardPacket, ClipboardSync, MeshClipboard,
     };
@@ -372,6 +373,7 @@ mod linux {
     struct MeshLink {
         writer: SecureWriter<TcpStream>,
         peer_key: [u8; 32],
+        _active_session: Option<ActiveSession>,
         sequence: u64,
         reader: Option<thread::JoinHandle<()>>,
     }
@@ -455,6 +457,7 @@ mod linux {
         let mut link = MeshLink {
             writer,
             peer_key: peer.public_key,
+            _active_session: Some(ActiveSession::start(config, peer_ip, &peer.public_key)?),
             sequence: 0,
             reader: Some(reader),
         };
@@ -1698,6 +1701,7 @@ mod linux {
             .stream_mut()
             .set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
         first = Frame::read_from(&mut channel)?;
+        let _active_session = ActiveSession::start(config, peer_ip, &peer.public_key)?;
         channel
             .stream_mut()
             .set_read_timeout(Some(Duration::from_secs(if mesh_source { 15 } else { 5 })))?;
@@ -2130,6 +2134,8 @@ mod linux {
                     .map_err(|error| AttemptError::Stop(Box::new(error)))?;
                 peer_policy
                     .save(config, &peer.public_key)
+                    .map_err(|error| AttemptError::Stop(Box::new(error)))?;
+                let _active_session = ActiveSession::start(config, address.ip(), &peer.public_key)
                     .map_err(|error| AttemptError::Stop(Box::new(error)))?;
                 let ipc = HyprIpc::from_env().ok_or_else(|| {
                     AttemptError::Stop("Hyprland IPC is required to guard local capture".into())
@@ -3007,6 +3013,7 @@ mod linux {
                 MeshLink {
                     writer,
                     peer_key: remote_key,
+                    _active_session: None,
                     sequence: 0,
                     reader: None,
                 },

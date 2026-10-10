@@ -1780,7 +1780,7 @@ Panel {
 
         PanelSectionHeader {
           Layout.fillWidth: true
-          text: root.t("ARCHIVOS · ENTRE EQUIPOS EMPAREJADOS")
+          text: root.t("ARCHIVOS · ENTRE EQUIPOS CONECTADOS")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -1788,14 +1788,26 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Copiar y pegar archivos")
-          description: root.t("Copie un archivo, varios archivos o una carpeta en el explorador. Con un solo equipo emparejado se ofrecen automáticamente; con varios, elija el destino aquí. El receptor aprueba una sola oferta para todo el grupo. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
+          description: root.t("Conecte primero los equipos. Copie un archivo, varios archivos o una carpeta en el explorador. Con un solo equipo conectado se ofrecen automáticamente; con varios, elija el destino aquí. El receptor aprueba una sola oferta para todo el grupo. Después de la verificación, use Pegar en su explorador. El receptor debe permitir TCP 47834 en la LAN.")
           foreground: root.ink
           fontFamily: root.face
         }
 
         Text {
           Layout.fillWidth: true
-          text: root.backend && root.backend.copiedFilePath !== ""
+          text: root.t("Emparejar solo guarda la confianza. Inicie una conexión de control para compartir archivos. Al detenerla cesan las ofertas; la aprobación entrante decide si se pregunta durante la conexión.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.muted
+          font.family: root.face
+          font.pixelSize: Style.font.caption
+        }
+
+        Text {
+          Layout.fillWidth: true
+          text: root.backend && !root.backend.fileSessionActive
+            ? root.t("Conecte con un equipo emparejado antes de copiar archivos.")
+            : root.backend && root.backend.copiedFilePath !== ""
             ? root.t("Selección copiada: ") + root.backend.copiedFilePath.split("/").pop()
             : root.t("Copie archivos o una carpeta en el explorador para ofrecerlos.")
           textFormat: Text.PlainText
@@ -1817,14 +1829,14 @@ Panel {
         }
 
         Repeater {
-          model: root.backend && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
+          model: root.backend && root.backend.fileSessionActive && root.backend.copiedFilePath !== "" ? root.backend.peers.length : 0
           delegate: StateButton {
             required property int index
             Layout.fillWidth: true
             text: root.t("Ofrecer archivo copiado a ") + root.backend.peers[index].ip
             bordered: true
             focusable: true
-            enabled: !root.backend.sendingFile
+            enabled: !root.backend.sendingFile && root.backend.peers[index].ip === root.backend.peer
             foreground: root.ink
             accent: Color.accent
             fontFamily: root.face
@@ -1837,6 +1849,8 @@ Panel {
           text: root.backend && root.backend.clipboardOffer
             ? root.t("Archivo entrante de ") + root.backend.clipboardOffer.peer + ": "
               + root.backend.clipboardOffer.name + " (" + root.backend.clipboardOffer.size + root.t(" bytes)")
+            : root.backend && !root.backend.fileSessionActive
+              ? root.t("Esperando conexión de control para compartir archivos.")
             : root.backend && root.backend.clipboardFileListening
               ? root.t("Disponible para archivos copiados · TCP 47834")
               : root.t("Preparando recepción de archivos copiados…")
@@ -2107,7 +2121,7 @@ Panel {
         HelpDisclosure {
           Layout.fillWidth: true
           title: root.t("Ayuda · Enviar archivos")
-          description: root.t("En el origen, elija un equipo emparejado y un archivo local.")
+          description: root.t("En el origen, conecte primero con el equipo emparejado y elija un archivo local.")
           foreground: root.ink
           fontFamily: root.face
         }
@@ -2165,6 +2179,7 @@ Panel {
           bordered: true
           focusable: true
           enabled: root.backend && root.backend.installed && !root.backend.sendingFile
+            && root.backend.canShareWith(fileSendAddress.text.trim())
             && fileSendAddress.text.trim() !== "" && fileSourcePath.text.trim() !== ""
           foreground: root.ink
           accent: Color.accent

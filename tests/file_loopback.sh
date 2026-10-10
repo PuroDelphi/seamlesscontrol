@@ -10,11 +10,12 @@ server_pid=
 client_pid=
 receiver_pid=
 sender_pid=
+lease_pid=
 cleanup() {
-  for pid in "$sender_pid" "$receiver_pid" "$client_pid" "$server_pid"; do
+  for pid in "$sender_pid" "$receiver_pid" "$client_pid" "$server_pid" "$lease_pid"; do
     if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || true; fi
   done
-  for pid in "$sender_pid" "$receiver_pid" "$client_pid" "$server_pid"; do
+  for pid in "$sender_pid" "$receiver_pid" "$client_pid" "$server_pid" "$lease_pid"; do
     if [[ -n "$pid" ]]; then wait "$pid" 2>/dev/null || true; fi
   done
   rm -rf -- "$scratch"
@@ -50,6 +51,28 @@ XDG_RUNTIME_DIR="$scratch/server/run" "$agent" approve "$code" >/dev/null
 XDG_RUNTIME_DIR="$scratch/client/run" "$agent" approve "$code" >/dev/null
 wait "$client_pid"
 client_pid=
+
+# The file-protocol fixture simulates both ends of an authenticated active
+# control session. The separate active_session unit tests verify lease cleanup.
+server_key=$(XDG_CONFIG_HOME="$scratch/client/config" "$agent" peers | awk -F '\t' '$2 == "127.0.0.1" { print $3 }')
+client_key=$(XDG_CONFIG_HOME="$scratch/server/config" "$agent" peers | awk -F '\t' '$2 == "127.0.0.1" { print $3 }')
+[[ -n "$server_key" && -n "$client_key" ]]
+server_lease="$scratch/server/config/seamlesscontrol/active-sessions/$client_key/test.lease"
+client_lease="$scratch/client/config/seamlesscontrol/active-sessions/$server_key/test.lease"
+mkdir -m 700 -p "${server_lease%/*}" "${client_lease%/*}"
+(
+  while :; do
+    timestamp=$(date +%s%3N)
+    printf '127.0.0.1\n%s\n' "$timestamp" > "$server_lease"
+    printf '127.0.0.1\n%s\n' "$timestamp" > "$client_lease"
+    sleep 0.25
+  done
+) &
+lease_pid=$!
+for _ in {1..40}; do
+  if [[ -s "$server_lease" && -s "$client_lease" ]]; then break; fi
+  sleep 0.05
+done
 
 printf 'contenido cifrado y verificado\n' >"$scratch/ejemplo.txt"
 mkfifo "$scratch/input"

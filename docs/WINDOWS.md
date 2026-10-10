@@ -119,15 +119,17 @@ While the control connection is running, copy text on one computer and paste it 
 
 | Task | Use | Needed on the receiver |
 | --- | --- | --- |
-| Copy in one file manager and paste in the other | Top **Files → Copy here, paste there** card | App/plugin running; TCP `47834`; no manual waiting or control connection. |
+| Copy in one file manager and paste in the other | Top **Files → Copy here, paste there** card | Active control connection; app/plugin running; TCP `47834`; no manual waiting. |
 | Choose a file and save it directly into a folder | **Files → Send a file / Wait for one file** | **Wait for a file** active; TCP `47833` by default. |
 
-Both workflows require pairing, follow the receiving computer's approval preference, and verify the transfer. Manual sending accepts one file. Copied-file sharing accepts one local file, multiple local files or a folder as one approved group; it supports **Copy**, not cross-computer Cut/move. Both computers need group-capable agents.
+Both workflows require pairing and an active control connection, follow the receiving computer's approval preference, and verify the transfer. Manual sending accepts one file. Copied-file sharing accepts one local file, multiple local files or a folder as one approved group; it supports **Copy**, not cross-computer Cut/move. Both computers need group-capable agents.
+
+**Stopping Control another computer stops file offers and transfers with that computer.** Pairing alone never starts sharing. While connected, **Accept automatically** skips the prompt; choose **Settings → Incoming file approval → Ask every time** to require a decision, or turn off that peer's **Files** permission in **Computers** to block its offers.
 
 #### Copy here, paste there
 
-1. Keep both apps/plugin running and the computers paired. Copy **one local file, several files or a folder** in Explorer or the Omarchy file manager.
-2. With exactly one paired computer, the file is offered automatically. With several, choose the destination under **Files → Copy here, paste there**. Expected result: the copied file is shown and an offer reaches the receiver.
+1. Keep both apps/plugin running and connect the paired computers. Copy **one local file, several files or a folder** in Explorer or the Omarchy file manager.
+2. With exactly one connected computer, the file is offered automatically. With several, choose the destination under **Files → Copy here, paste there**. Expected result: the copied file is shown and an offer reaches the receiver.
 3. With the default approval mode, the receiver checks sender, filename and size, then chooses **Accept file** or **Decline**. Windows also shows a native approval dialog even when hidden in the tray; Omarchy uses an actionable desktop notification. The Files page has approval buttons too.
 4. Wait for verified completion in **Activity**. Then open the folder where you want the file and **Paste** in the receiver's file manager. Accepting prepares the local clipboard; it does not paste into your chosen folder for you.
 

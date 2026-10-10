@@ -1,6 +1,7 @@
 //! Windows console agent. It shares the Omarchy wire protocol and trust store.
 //! Input is sent to the currently signed-in, unlocked desktop session.
 
+use crate::active_session::ActiveSession;
 use crate::clipboard::{ClipboardPacket, ClipboardSync};
 use crate::clipboard_file;
 use crate::edge_policy::EdgePolicy;
@@ -359,6 +360,7 @@ fn serve_connection(
         .stream_mut()
         .set_read_timeout(Some(PAIRING_TIMEOUT))?;
     let first_input = Frame::read_from(&mut channel)?;
+    let _active_session = ActiveSession::start(config, ip, &pinned)?;
     channel
         .stream_mut()
         .set_read_timeout(Some(Duration::from_secs(5)))?;
@@ -527,6 +529,7 @@ fn connect_source(
     }
     policy.mark_connected()?;
     policy.save(config, &pinned)?;
+    let _active_session = ActiveSession::start(config, address.ip(), &pinned)?;
     channel.stream_mut().set_read_timeout(None)?;
     let (capture_tx, capture_rx) = sync_channel(4096);
     let capture = CaptureHandle::start(edge, EdgePolicy::load(config), capture_tx)?;

@@ -89,13 +89,14 @@ ShellRoot {
       fixture.receivingFile = false
       fixture.fileListening = false
       fixture.copiedFilePath = ""
+      fixture.fileSessionActive = scene.tab === "files" || scene.state === "ready" || scene.state === "receiver"
       if (scene.state === "pair") fixture.pairSas = "123456"
-      if (scene.state === "ready" || scene.state === "receiver") {
+      if (scene.state === "ready" || scene.state === "receiver" || scene.tab === "files") {
         fixture.available = true
         fixture.managedAgentRunning = true
         fixture.role = scene.state === "ready" ? "connect" : "serve"
-        fixture.phase = scene.state === "ready" ? "ready" : "controlling"
-        fixture.phaseText = scene.state === "ready" ? (LANG === "es" ? "listo" : "ready") : (LANG === "es" ? "control remoto" : "controlling")
+        fixture.phase = scene.state === "ready" ? "ready" : scene.tab === "files" ? "connected" : "controlling"
+        fixture.phaseText = scene.state === "ready" ? (LANG === "es" ? "listo" : "ready") : scene.tab === "files" ? (LANG === "es" ? "conectado" : "connected") : (LANG === "es" ? "control remoto" : "controlling")
       }
       if (scene.state === "firewall") {
         fixture.firewallPort = "47832"
@@ -156,7 +157,7 @@ def fixture_qml(language):
         "approvalUntil": {}, "clipboardFileListening": True, "fileListenEndpoint": "192.0.2.20:47833",
     }
     declarations = [f"property {kind} {name}: {json.dumps(values[name]) if name in values else defaults[kind]}" for kind, name in properties]
-    return "QtObject { id: fixture\n" + "\n".join(declarations) + "\nsignal pathChosen(string kind, string path)\nfunction cancelFirewall() {}\n}"
+    return "QtObject { id: fixture\n" + "\n".join(declarations) + "\nsignal pathChosen(string kind, string path)\nfunction cancelFirewall() {}\nfunction canShareWith(address) { return fileSessionActive && String(address).indexOf(peer + ':') === 0 }\n}"
 
 
 def main():

@@ -4,7 +4,7 @@
 
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
-You can also share text during a connection and copy **one local file at a time** between paired computers. The receiver chooses how to approve files; they become available only after verification.
+You can also share text during a connection and copy **files and folders** between connected computers. The receiver chooses how to approve files; they become available only after verification.
 
 ## Choose where to start
 
@@ -61,11 +61,11 @@ Images show interfaces with fictional documentation data; each platform guide ex
 | Feature | What you need | Port on the receiver |
 |---|---|---|
 | Mouse, keyboard and text clipboard | Pair + Receive control + Connect | TCP `47832` by default |
-| Copy in one file manager and paste in the other | Apps open + pairing; approve the offer when required and wait for verification before Paste | TCP `47834` |
-| Send to a chosen folder | Pairing + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
+| Copy in one file manager and paste in the other | Apps open + pairing + active control connection; approve the offer when required and wait for verification before Paste | TCP `47834` |
+| Send to a chosen folder | Active control connection + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
 | Find nearby receivers | Active receiving and discovery allowed on the LAN | UDP `5353` (mDNS) |
 
-**Neither file flow requires a control session.** **Wait for a file** does not enable copy and paste: it is the manual send flow, one offer at a time. Opening the control port does not open the file ports.
+**Both file flows require an active control connection.** Pairing saves trust; stopping control ends sharing. **Wait for a file** does not enable copy and paste: it is the manual send flow, one offer at a time. Opening the control port does not open the file ports.
 
 Under **Settings → Incoming file approval**, you can ask for every offer (default), accept automatically from paired computers, or approve for a while. Temporary mode asks for the first file from each computer and returns to **Ask every time** on expiry or restart. The [illustrated guides](docs/USER-GUIDE.md) explain size limits, destination selection and missing offers.
 

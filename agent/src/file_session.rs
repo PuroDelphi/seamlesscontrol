@@ -1,6 +1,7 @@
 //! One-shot encrypted file transfer. Pair the computers first; each received
 //! file requires a fresh local confirmation before any bytes are written.
 
+use crate::active_session;
 use crate::file_bundle;
 use crate::file_transfer::{
     DEFAULT_MAX_FILE_BYTES, FileMessage, FileOffer, FileReceiver, FileSender,
@@ -142,12 +143,11 @@ pub fn send_once_with_progress(
     mut progress: impl FnMut(u8),
 ) -> Result<(), Box<dyn Error>> {
     let pinned = pinned_key(peers, address.ip())?;
-    if !PeerPolicy::load(
-        peers.parent().ok_or("peer directory has no parent")?,
-        &pinned,
-    )?
-    .permits(Capability::Files)
-    {
+    let config = peers.parent().ok_or("peer directory has no parent")?;
+    if !active_session::is_active(config, address.ip(), &pinned)? {
+        return Err("connect this computer before sharing files".into());
+    }
+    if !PeerPolicy::load(config, &pinned)?.permits(Capability::Files) {
         return Err("file transfers are disabled for this paired computer".into());
     }
     let mut sender = FileSender::open(source, limit)?;
@@ -175,6 +175,10 @@ pub fn send_once_with_progress(
     let mut transferred = 0u64;
     let mut last_percent = 0u8;
     loop {
+        if !active_session::is_active(config, address.ip(), &pinned)? {
+            let _ = send_frame(&mut channel, &mut sent, FileMessage::Cancel);
+            return Err("control session ended during file transfer".into());
+        }
         match sender.next_chunk() {
             Ok(Some(chunk)) => {
                 transferred += chunk.len() as u64;
@@ -301,11 +305,9 @@ fn receive_with_listener_progress(
         }
         channel.stream_mut().set_read_timeout(Some(FILE_TIMEOUT))?;
         channel.stream_mut().set_write_timeout(Some(FILE_TIMEOUT))?;
-        let files_allowed = PeerPolicy::load(
-            peers.parent().ok_or("peer directory has no parent")?,
-            &pinned,
-        )?
-        .permits(Capability::Files);
+        let config = peers.parent().ok_or("peer directory has no parent")?;
+        let files_allowed = active_session::is_active(config, peer_address.ip(), &pinned)?
+            && PeerPolicy::load(config, &pinned)?.permits(Capability::Files);
         break (channel, peer_address, pinned, files_allowed);
     };
     let mut sent = 0;
@@ -326,6 +328,11 @@ fn receive_with_listener_progress(
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
+    let config = peers.parent().ok_or("peer directory has no parent")?;
+    if !active_session::is_active(config, peer_address.ip(), &peer_key)? {
+        send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
+        return Ok(None);
+    }
     let total = offer.size;
     let stage = group_count.map(|_| bundle_stage(directory)).transpose()?;
     let receive_directory = stage.as_ref().map_or(directory, |stage| stage.0.as_path());
@@ -335,6 +342,9 @@ fn receive_with_listener_progress(
     let mut transferred = 0u64;
     let mut last_percent = 0u8;
     loop {
+        if !active_session::is_active(config, peer_address.ip(), &peer_key)? {
+            return Err("control session ended during file transfer".into());
+        }
         match receive_frame(&mut channel, &mut received)? {
             FileMessage::Chunk(data) => {
                 receiver.write_chunk(&data)?;
@@ -426,9 +436,94 @@ pub fn configured_limit() -> Result<u64, Box<dyn Error>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::active_session::ActiveSession;
     use crate::storage::{remember_peer_key, revoke_peer_key};
     use std::fs;
     use std::thread;
+
+    fn connected(
+        sender_peers: &Path,
+        receiver_peers: &Path,
+        ip: IpAddr,
+        sender: &Identity,
+        receiver: &Identity,
+    ) -> (ActiveSession, ActiveSession) {
+        (
+            ActiveSession::start(sender_peers.parent().unwrap(), ip, &receiver.public).unwrap(),
+            ActiveSession::start(receiver_peers.parent().unwrap(), ip, &sender.public).unwrap(),
+        )
+    }
+
+    #[test]
+    fn paired_computers_cannot_send_files_without_control_session() {
+        let dir =
+            std::env::temp_dir().join(format!("seamlesscontrol-no-session-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        let peers = dir.join("peers");
+        let source = dir.join("example.txt");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(&source, b"private").unwrap();
+        let sender = Identity::generate().unwrap();
+        let receiver = Identity::generate().unwrap();
+        let address: SocketAddr = "127.0.0.1:47834".parse().unwrap();
+        remember_peer_key(&peers, address.ip(), &receiver.public).unwrap();
+        let error = send_once(address, &source, &sender, &peers, DEFAULT_MAX_FILE_BYTES)
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("connect this computer"), "{error}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn receiver_rejects_when_its_control_session_has_ended() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-receiver-ended-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let sender_peers = dir.join("sender-peers");
+        let receiver_peers = dir.join("receiver-peers");
+        let downloads = dir.join("downloads");
+        fs::create_dir_all(&downloads).unwrap();
+        let source = dir.join("example.txt");
+        fs::write(&source, b"private").unwrap();
+        let sender = Identity::generate().unwrap();
+        let receiver = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        remember_peer_key(&sender_peers, ip, &receiver.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &sender.public).unwrap();
+        let sender_session =
+            ActiveSession::start(sender_peers.parent().unwrap(), ip, &receiver.public).unwrap();
+        let receiver_session =
+            ActiveSession::start(receiver_peers.parent().unwrap(), ip, &sender.public).unwrap();
+        drop(receiver_session);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let worker = thread::spawn(move || {
+            receive_with_listener(
+                listener,
+                &downloads,
+                &receiver,
+                &receiver_peers,
+                DEFAULT_MAX_FILE_BYTES,
+                &mut |_, _, _| panic!("disconnected receiver must not ask for approval"),
+            )
+            .unwrap()
+        });
+        let error = send_once(
+            address,
+            &source,
+            &sender,
+            &sender_peers,
+            DEFAULT_MAX_FILE_BYTES,
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("rejected"), "{error}");
+        assert!(worker.join().unwrap().is_none());
+        drop(sender_session);
+        fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn panel_offer_is_machine_readable_and_acceptance_is_explicit() {
@@ -516,6 +611,7 @@ mod tests {
             (&first, &first_peers, true),
             (&second, &second_peers, false),
         ] {
+            let _sessions = connected(sender_peers, &receiver_peers, ip, sender, &receiver);
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let address = listener.local_addr().unwrap();
             let receiver = receiver.clone();
@@ -572,6 +668,7 @@ mod tests {
         let ip: IpAddr = "127.0.0.1".parse().unwrap();
         remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
         remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        let _sessions = connected(&sender_peers, &receiver_peers, ip, &sender_id, &receiver_id);
         for accepted in [false, true] {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let address = listener.local_addr().unwrap();
@@ -649,6 +746,7 @@ mod tests {
         let ip: IpAddr = "127.0.0.1".parse().unwrap();
         remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
         remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        let _sessions = connected(&sender_peers, &receiver_peers, ip, &sender_id, &receiver_id);
         for accepted in [false, true] {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             let address = listener.local_addr().unwrap();
@@ -712,6 +810,7 @@ mod tests {
         remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
         remember_peer_key(&impostor_peers, ip, &receiver_id.public).unwrap();
         remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        let _sessions = connected(&sender_peers, &receiver_peers, ip, &sender_id, &receiver_id);
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let worker = thread::spawn(move || {
@@ -767,6 +866,7 @@ mod tests {
         let receiver_peers = dir.join("receiver-peers");
         remember_peer_key(&sender_peers, ip, &receiver_id.public).unwrap();
         remember_peer_key(&receiver_peers, ip, &sender_id.public).unwrap();
+        let _sessions = connected(&sender_peers, &receiver_peers, ip, &sender_id, &receiver_id);
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let worker = thread::spawn({

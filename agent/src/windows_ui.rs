@@ -1,6 +1,7 @@
 //! WebView2 window and tray shell over the existing seamlesscontrold.exe.
 //! No input, encryption, file or clipboard protocol is reimplemented here.
 
+use seamlesscontrol_core::active_session;
 use seamlesscontrol_core::diagnostics::{PeerDiagnosis, diagnose_peer};
 use seamlesscontrol_core::edge_policy::EdgePolicy;
 use seamlesscontrol_core::peer_policy::{Capability, PeerPolicy};
@@ -724,6 +725,16 @@ impl Controller {
                 self.log(format!("Could not wait for copied files: {error}"));
             }
         }
+        let sharing_active = self.peers.keys().any(|ip| self.active_file_peer(*ip));
+        if !sharing_active {
+            if self.copied_send_active {
+                self.stop(Slot::SendFile);
+            }
+            if self.clipboard_offer.is_some() {
+                let _ = self.decide_copied_file(false);
+            }
+            self.copied_file = None;
+        }
         match self
             .clipboard
             .copied_paths(self.file_limit_mib * 1024 * 1024, &self.clipboard_staging)
@@ -736,7 +747,9 @@ impl Controller {
                 }
                 self.copied_file = None;
                 self.last_copied_send = None;
-                if let Some(paths) = paths {
+                if !sharing_active {
+                    self.log("Connect to a paired computer before copying files across.");
+                } else if let Some(paths) = paths {
                     if paths.len() == 1 && paths[0].is_file() {
                         self.copied_file = paths.into_iter().next();
                     } else {
@@ -919,6 +932,9 @@ impl Controller {
         if !self.peers.contains_key(&ip) {
             return Err("pair this computer before sending a copied file".into());
         }
+        if !self.active_file_peer(ip) {
+            return Err("connect to this computer before sharing copied files".into());
+        }
         let path = self
             .copied_file
             .clone()
@@ -957,6 +973,14 @@ impl Controller {
         self.clipboard_offer = None;
         self.clipboard_offer_since = None;
         Ok(())
+    }
+
+    fn active_file_peer(&self, ip: IpAddr) -> bool {
+        let config = self.layout_path.parent().unwrap_or(Path::new("."));
+        load_peer_key(&config.join("peers"), ip)
+            .ok()
+            .flatten()
+            .is_some_and(|key| active_session::is_active(config, ip, &key).unwrap_or(false))
     }
 
     fn decide_manual_file(&mut self, accept: bool) -> io::Result<()> {
@@ -1093,6 +1117,7 @@ impl Controller {
                     });
                 serde_json::json!({
                     "ip": ip.to_string(), "fingerprint": fingerprint,
+                    "fileSession": self.active_file_peer(*ip),
                     "policy": policy.as_ref().ok().map(|policy| serde_json::json!({
                         "control": policy.control, "text": policy.text, "files": policy.files,
                         "lastConnectedMs": policy.last_connected_ms,
@@ -1844,11 +1869,18 @@ fn run_app() -> Result<(), Box<dyn Error>> {
             Event::UserEvent(UiEvent::CopiedBundle(generation, result)) => {
                 if generation == controller.copied_generation {
                     match result {
-                        Ok(path) => {
+                        Ok(path)
+                            if controller
+                                .peers
+                                .keys()
+                                .any(|ip| controller.active_file_peer(*ip)) =>
+                        {
                             controller.log("Copied group is ready to offer.");
                             controller.copied_file = Some(path);
                             controller.last_copied_send = None;
                         }
+                        Ok(_) => controller
+                            .log("Copied group ignored because no control session is active."),
                         Err(error) => {
                             controller.log(format!("Could not prepare copied group: {error}"))
                         }

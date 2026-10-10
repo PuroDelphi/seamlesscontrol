@@ -79,12 +79,14 @@ If edge return fails, use **Home → Return control to source** on the receiver.
 
 ## Files: two separate workflows
 
-Files require **paired computers with SeamlessControl running**, but **no mouse/keyboard control session**. Receiving a file does not open or execute it. Both flows authenticate the sender, apply size checks and verify SHA-256 before publishing a completed file.
+Files require paired computers **and an active control connection between them**. Receiving a file does not open or execute it. Both flows authenticate the sender, apply size checks and verify SHA-256 before publishing a completed file.
+
+**Stopping control stops file offers and transfers.** Pairing only saves trust; it does not allow background file sharing. While connected, choose **Settings → Incoming file approval → Ask every time** to require approval, or turn off **Files** for that computer in **Computers** to reject its offers.
 
 ### Copy here, paste there · TCP 47834
 
-1. **Receiver:** allow TCP `47834` once through its LAN firewall. In Omarchy use **Home → Set up copied-file receiving · TCP 47834** or **Settings → Copied files · set up receiving**; preview and authorize the rule. Keep the Omarchy widget loaded (or the Windows app running).
-2. **Source:** copy **one local file, several files, or a folder** in your file manager. With exactly one paired computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
+1. **Connect the paired computers.** Then, on the receiver, allow TCP `47834` once through its LAN firewall. In Omarchy use **Home → Set up copied-file receiving · TCP 47834** or **Settings → Copied files · set up receiving**; preview and authorize the rule. Keep the Omarchy widget loaded (or the Windows app running).
+2. **Source:** copy **one local file, several files, or a folder** in your file manager. With exactly one connected computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
 3. **Receiver:** if its approval mode requires a prompt, select **Accept file** or **Decline**. An actionable desktop notification appears even with the panel closed or on another workspace; the offer also appears at the top of every panel tab and in Files. Rejection prevents content transfer.
 4. Wait for transfer and verification to finish. Open the destination folder in the receiver's file manager and use **Paste**.
 
@@ -101,7 +103,7 @@ An unapproved offer expires after **two minutes**. Copy the file again or use th
 1. **Receiver → Files:** choose a **Destination folder** with **Choose**. Leave the receiving address on Automatic, or enter a local `IP:port`.
 2. Select **Preview file LAN rule**, review the file port and LAN scope, then **Authorize this rule** if the firewall needs it.
 3. Select **Wait for a file** and wait for **Waiting for a file on** with the receiver address.
-4. **Source → Files:** select **Send to…** for the paired receiver, or enter its actual `IP:47833`; if it uses another file port, enter that port. Choose the local file and select **Send file**.
+4. **Connect the paired computers.** On the source in Files, select **Send to…** for the paired receiver, or enter its actual `IP:47833`; if it uses another file port, enter that port. Choose the local file and select **Send file**.
 5. **Receiver:** approve the offer when required. The verified file is saved directly in the chosen folder; no Paste step is needed. Select **Wait for a file** again for the next transfer.
 
 ![Current Files panel: manual receive and send controls](images/omarchy-files-send-en.png)
@@ -151,7 +153,7 @@ The helper adds a scoped **UFW** rule; it does not enable UFW or configure other
 | **Reconnecting** | Let the agent retry and read **Last attempt**. Do not start a second source session. If the receiver/address changed, make it available again, stop the source session, Scan and Connect again. |
 | Pointer stays on the receiver | Use physical Escape or **Return control to source**. If normal return fails, use the receiver's emergency cut and resume only when safe. |
 | **Locked** | Unlock locally. The app does not unlock computers remotely; an unknown lock state also blocks input. Move away from the source edge before crossing again. |
-| Copied-file offer never arrives | Keep both apps/widget active, check pairing and receiver TCP `47834`, and copy supported local files or a folder. **Wait for a file** and opening only `47832` or `47833` do not enable this flow. |
+| Copied-file offer never arrives | Keep both apps/widget active, start their control connection, check pairing and receiver TCP `47834`, and copy supported local files or a folder. **Wait for a file** and opening only `47832` or `47833` do not enable this flow. |
 | Manual file send times out | Start **Wait for a file** again and match its announced address and file port; check the separate file firewall rule. |
 
 The capture repair button only appears for a **panel-started source session** after authenticated capture setup has remained pending for 15 seconds. If normal panel stop hangs, the panel escalates its stop signal after two seconds. For diagnostics and support without changing system settings, see the [technical guide](TECHNICAL.md) and [support guide](../SUPPORT.md).
@@ -161,8 +163,8 @@ The capture repair button only appears for a **panel-started source session** af
 - Use a **private LAN and trusted computers**. Network sessions are encrypted/authenticated with Noise XX and pinned keys. Compare pairing codes on both physical screens; discovery and IP addresses alone do not establish trust. **Revoke** blocks that saved key and closes its session; reconnecting requires explicit fresh pairing.
 - Locking the Omarchy source disables capture; locking the receiver, or being unable to determine its lock state, cuts remote input. Held keys/buttons are released when input ends. This is **normal signed-in desktop control**, not remote login, remote unlock or access to Windows UAC/secure desktops. Consult the Windows guide for its permission limits. Manual locking during remote control still needs physical verification; **return and stop control before locking manually**.
 - While an Omarchy source actively controls a peer, the loaded bar widget inhibits Omarchy's inhibitor-aware **automatic idle lock**. Manual locking still works; the inhibitor ends on return or widget unload. Keep this in mind on an unattended source.
-- These lock safeguards concern **input control**, not a promise to stop every file listener or erase the clipboard. Stop the app/widget or change file approval separately when you no longer want file offers. Sensitive Wayland clipboard selections are excluded where marked by the application; do not assume every password manager or copied secret is marked.
-- During a control connection, **text clipboard** synchronization is automatic (UTF-8, up to 256 KiB). Images are not synchronized. File copying is the separate approved flow above; it can operate without control.
+- These lock safeguards concern input control. File listeners may remain open, but they reject offers without a current authenticated control session. Stopping control does not erase a file already received into the local clipboard. Sensitive Wayland clipboard selections are excluded where marked by the application; do not assume every password manager or copied secret is marked.
+- During a control connection, **text clipboard** synchronization is automatic (UTF-8, up to 256 KiB). Images are not synchronized. File copying uses a separate approved transfer while that control connection remains active.
 - **Settings → Connect several computers** is experimental: one source plus **two or three receivers** in a connected 2 × 2 layout. Pair and place the computers on the participating layouts, keep every receiver active on the same control port, then start mesh from the source. Clipboard updates are shared across connected receivers. For two computers total use normal **Connect**. Physical multi-machine mesh, rapid handoffs and network recovery are not fully validated; see the [test record](TEST-RESULTS.md), not the documentation renders, for observed results.
 
 ## Update and remove
