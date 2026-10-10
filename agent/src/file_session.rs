@@ -320,7 +320,8 @@ fn receive_with_listener_progress(
     if offer.name.ends_with(".scbundle") && group_count.is_none() {
         return Err("invalid bundle offer name".into());
     }
-    if !files_allowed {
+    let config = peers.parent().ok_or("peer directory has no parent")?;
+    if !files_allowed || !active_session::is_active(config, peer_address.ip(), &peer_key)? {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
@@ -328,7 +329,6 @@ fn receive_with_listener_progress(
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
-    let config = peers.parent().ok_or("peer directory has no parent")?;
     if !active_session::is_active(config, peer_address.ip(), &peer_key)? {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
