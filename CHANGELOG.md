@@ -4,6 +4,15 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.24.0](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.0) — 2026-10-10
+
+- Copy a folder, nested files or multiple selected files in one authenticated offer, then paste the verified group on the other computer. Keep the single-file flow, configurable size limit and explicit receiver approval.
+- Require a live control connection on **both** computers for copied and manual file exchange. Saved pairing alone no longer permits background file offers; ending control stops new offers and transfers.
+- Let each paired computer allow or deny Control, Text and Files separately, with a last-connection date in both interfaces.
+- Add Fluid, Deliberate double crossing and Protect full-screen crossing choices on Omarchy and Windows. Keep edge return and Escape, and restore local input after lock, sleep, receiver stop and reconnection.
+- Add read-only connection checks and clearer update feedback. Omarchy compares plugin and agent versions and lets either bar end an active source session. Windows can update both executables from a release ZIP verified against its adjacent SHA-256 file.
+- Verify control, crossing, permissions, grouped files, connection-bound sharing and lock/sleep recovery on a physical Omarchy ↔ Windows 11 x64 pair. See the [release notes](docs/RELEASE-0.24.0.md) and [test record](docs/TEST-RESULTS.md).
+
 ## [0.23.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.23.3) — 2026-10-09
 
 - Update the locked Tokio dependency from 1.53.1 to 1.53.2 and `mdns-sd` from 0.21.4 to 0.21.5. The latter fixes discovery timer behavior after clock changes or system sleep; application code and the pairing protocol are unchanged.

@@ -2,6 +2,19 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.24.0 physical verification · 2026-10-10
+
+One physical Omarchy computer and one Windows 11 x64 computer ran 0.24.0 on the same LAN. Windows discovery, identity-change warning after an IP was reused, fresh pairing, screen placement, mouse, click, keyboard, text clipboard and return across the receiver edge worked. Both computers acted as source and receiver.
+
+- **Crossing:** Fluid return, Deliberate double crossing and Protect full-screen behaved as selected from each source. The first deliberate crossing stayed local; the second within 1.6 seconds entered the peer. Full-screen protection required the second crossing only with a full-screen source window.
+- **Permissions:** Each receiver displayed Control, Text, Files and the last connection time. Turning off each permission blocked its corresponding operation without revoking pairing; restoring it worked.
+- **Files:** A folder with a nested file and a selection of multiple files were copied and pasted in both directions with one offer and intact contents. Rejecting an offer transferred nothing. The Windows receiver's 1 MiB limit rejected a 2 MiB file. An Omarchy folder containing a symbolic link was rejected with a visible explanation and no new Windows offer.
+- **Connection boundary:** With control stopped, copying a new file in either file manager produced no offer despite saved pairing and an available receiver. A live connection enabled transfers in either direction; ending it stopped later offers. A session started from one Omarchy bar could be ended from the other bar, and both panels then showed no session.
+- **Recovery:** With either computer as physical source, stopping and restarting the other receiver returned local input, reconnected to Ready and required a fresh edge crossing. Lock/unlock and sleep/wake on each source also preserved local mouse and keyboard access and required a new crossing. The Omarchy sleep test was recorded in the system journal. A briefly persistent receiver TCP connection after one Windows Stop was observed once but not reproduced; no broader result is inferred from that observation.
+- **Diagnosis and updates:** The reachable, already-paired control-port check was confirmed in both interfaces. The physical Omarchy and Windows agents reported 0.24.0. The Windows bundled update path passed CI tests including checksum rejection; an in-app update from a tagged 0.24.0 ZIP had not been available during these pre-release physical tests.
+
+Older dated entries below describe the state at the time of each test. A pending check mentioned in an older entry may have been completed in the 0.24.0 verification above.
+
 ## Physical results at a glance
 
 | Feature | Observed result |
@@ -65,22 +78,8 @@ Local loopback and integrated tests cover pairing, Noise XX, discovery, simulate
 
 For 0.19.7, a local encrypted loopback test keeps two mesh links open, revokes an idle peer, verifies its socket closes while the other link remains usable, then revokes the active peer and verifies that the mesh loop receives the error that triggers capture release. The complete Rust test suite (72 tests) and Clippy passed locally. This does not replace a physical multi-computer mesh test.
 
-The following still need physical verification: other keyboard shortcuts and layouts, wheel and dragging between the two Omarchy computers; copied-file transfers between two Omarchy or two Windows computers, larger files and interrupted transfers; multiple receiver mesh; other screen edges and monitor arrangements; locking, sleep and network loss. Windows still needs Start with Windows at a new sign-in, untested keys and layouts, wheel, drag, manual Send file to Omarchy, lock, and other screen layouts.
+Outside the Omarchy ↔ Windows pair verified above, physical coverage has not yet included other keyboard layouts, wheel and dragging between the two Omarchy computers; copied-file groups between two Omarchy or two Windows computers; large or interrupted transfers; multiple-receiver mesh; other monitor arrangements; or network loss during a transfer. Start with Windows at a new sign-in and additional keyboard layouts also remain outside the observed scope.
 
 ### Remaining copied-file checks
 
 The Omarchy/Windows pair has passed the normal workflow, both approval directions, Unicode names, duplicate copies and rejection. When the required computers and test environments are available, check Omarchy ↔ Omarchy and Windows ↔ Windows, other Linux file managers, large or oversized files, cancellation during transfer, changed source files, network interruption and retry, insufficient destination space, clipboard replacement before Paste, and simultaneous text clipboard changes. Record each result here rather than treating an untested scenario as a product failure or a completed check.
-
-### 0.24.0 physical checks · 2026-10-10
-
-The 0.24.0 alpha agent and app ran on one physical Omarchy receiver and one Windows 11 x64 source. Windows appeared through LAN discovery. A previous Omarchy identity had used the Windows IP address; Omarchy correctly warned that the key changed. After the user paired the current Windows identity, Windows connected and the user verified pointer movement, click, keyboard input and return over the receiver edge.
-
-With Windows as source, **Deliberate** crossing held the first edge attempt and accepted a second attempt within 1.6 seconds. **Protect full-screen** allowed a single crossing with a normal window and required two while a Windows window was full-screen. The user returned over the Omarchy edge.
-
-In the Omarchy receiver's **Computers** panel, the user saw Control, Text and Files permissions and a last-connection date for Windows. Denying Control rejected a new Windows control connection without revoking pairing. Denying Text prevented a test string copied in Windows from appearing in Omarchy on the next control connection. Denying Files stopped an incoming copied-file offer. All three permissions were restored. A short UI refresh delay made rapid toggling confusing; the panel now disables those buttons while a change is being saved and updates their displayed state on completion. The user confirmed the restored Files indicator on the corrected panel.
-
-Copied groups were exercised physically in both directions. A Windows folder containing two small text files, one in a subfolder, produced one offer and pasted into Omarchy with both files and the folder structure intact. The test folder copied from Omarchy produced one Windows approval and pasted with both files intact. Selecting two separate Windows files also produced one Omarchy offer and pasted both files. Selecting `uno.txt` and `tres.txt` together in Omarchy likewise produced one Windows offer and pasted both files. Rejecting a fresh Windows offer in Omarchy prevented transfer. With the Windows receiver limit temporarily set to 1 MiB, copying a 2 MiB Omarchy file was rejected; the user restored the previous limit. In a controlled repeat, a copied Omarchy folder containing a symbolic link produced no new Windows offer, and direct inspection of that same clipboard selection returned `bundle contains a symlink`. The user had pasted a folder with the same name after an earlier attempt; whether it came from an older offer is unknown. An invalid selection now clears the previous copied path and produces a structured error event. The user found its translated message in the live Files panel; no new Windows offer appeared. The message was moved immediately below the copied-selection line for visibility.
-
-The Windows receiver also blocked an Omarchy copied-file offer when its Files permission was disabled, even while Receive control was active. The user restored Files afterward. This exposed an unintended prior behavior: file offers were possible after control stopped because pairing alone authorized the separate file listener. A new alpha change now requires a live control session on both computers for copied and manual file transfer; its physical Windows build and disconnected/connected checks are pending.
-
-The current alpha Rust suite passed locally with loopback sockets available: 91 library and 5 agent tests. The first sandboxed invocation denied socket creation (`Operation not permitted`); rerunning with local socket access passed. Linux and Windows x64 CI passed for the copied-selection and visible-error fixes. Remaining 0.24.0 checks include reciprocal Windows receiver permissions, diagnosis and update feedback in both interfaces, Omarchy-source crossing modes, and lock/sleep/disconnect recovery.

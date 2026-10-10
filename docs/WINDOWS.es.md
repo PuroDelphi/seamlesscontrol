@@ -19,17 +19,6 @@ Esta guía describe la interfaz actual del repositorio. Un release con tag puede
 3. Extrae el ZIP en una carpeta que vayas a conservar, por ejemplo dentro de Documentos. **`seamlesscontrol.exe` y `seamlesscontrold.exe` deben permanecer juntos.** No hay un instalador que ejecutar.
 4. Haz doble clic en **`seamlesscontrol.exe`** tras extraerlo; no lo abras dentro del ZIP. Continúa con el [primer inicio](#primer-inicio-y-bandeja-del-sistema).
 
-### Probar la alpha actual
-
-Usa esta vía solo si quieres la compilación de desarrollo en lugar de un release con tag.
-
-1. Abre [Actions → Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Inicia sesión en GitHub si la descarga de artefactos lo requiere.
-2. Elige una **ejecución satisfactoria de la rama `alpha`** y comprueba su commit. El mismo workflow compila `main`; no supongas que todas sus ejecuciones son alpha.
-3. Descarga el artefacto **`seamlesscontrol-windows-x64`**. GitHub entrega un ZIP con ambos ejecutables y **`SHA256SUMS.txt`**.
-4. Extráelo y conserva los ejecutables juntos. La comprobación SHA-256 opcional compara **cada `.exe` extraído** con `SHA256SUMS.txt`, no el ZIP del artefacto. Abre `seamlesscontrol.exe`.
-
-Los releases con tag publican en cambio un checksum del **ZIP completo** como asset separado. No mezcles ejecutables de compilaciones distintas. Si ya está instalado, usa [Actualizar](#actualizar-o-desinstalar) para no dejar la app anterior en ejecución.
-
 ### Primer inicio y bandeja del sistema
 
 1. En una LAN doméstica/laboral de confianza, usa el perfil de red **Privada** de Windows. Si aparece una petición del firewall, permite el acceso en **Redes privadas**, no en redes públicas.
@@ -107,7 +96,7 @@ En **Equipos → Equipos emparejados**, cada identidad guardada tiene permisos s
 | Detener completamente esta app | **Ajustes → Salir de la app** o **Exit SeamlessControl** en la bandeja | Terminan las sesiones iniciadas por esta app y sale el proceso. |
 | Retirar la confianza de un equipo | **Equipos → Equipos emparejados → Revocar → Sí, revocar** | Bloquea su identidad, elimina su posición del mapa y cierra el control afectado. Volver a emparejar exige aprobar un código nuevo en ambos equipos. |
 
-Detener solo el control **no** desactiva la recepción de archivos copiados mientras la app siga abierta. Sal de la app si quieres detener tanto control como archivos. Cerrar su ventana nunca es una parada de emergencia.
+Detener el control termina el intercambio de archivos con ese equipo aunque el receptor de archivos siga abierto. Emparejar por sí solo no permite enviar ni recibir archivos. Cerrar la ventana solo oculta la app en la bandeja; usa **Detener** para terminar la sesión.
 
 ## Compartir texto y archivos
 
@@ -193,12 +182,12 @@ No abras estos puertos a Internet, no añadas reenvío en el router ni desactive
 | Conectar en la fila solo abre Inicio | Prepara dirección y borde. Pulsa **Conectar en Inicio** para iniciar la sesión. |
 | CONECTADO pero cruzar no hace nada | Espera a **Ready to control** en Actividad. Comprueba que el receptor esté disponible y cruza el borde **exterior** elegido. Vuelve/Detén antes de cambiar el lado. |
 | No puedes volver por el borde | Pulsa **Escape en el teclado físico del origen**. Actualiza ambos agentes: las sesiones directas aprenden el borde de entrada/regreso sin mapa receptor. Revisa los errores en Actividad. |
-| Copiar un archivo no produce una oferta útil | Copia archivos locales o una carpeta; no uses Cortar, archivos virtuales no compatibles ni enlaces. Comprueba emparejamiento, límites y TCP `47834` en el receptor. Con varios pares, elige destino en la tarjeta superior de Archivos. |
+| Copiar un archivo no produce una oferta útil | Primero conecta los equipos emparejados y espera Listo; emparejar o solo Recibir control no activa el intercambio. Copia archivos locales o una carpeta; no uses Cortar, archivos virtuales no compatibles ni enlaces. Comprueba los límites y TCP `47834` en el receptor. Con varios pares conectados, elige destino en la tarjeta superior de Archivos. |
 | El archivo copiado aceptado no está en la carpeta deseada | Espera a que termine y **Pega en el explorador del receptor**. Los envíos manuales guardan directamente y no necesitan Pegar. |
 | Falla el envío manual aunque funciona el control | Inicia **Esperar un archivo** en destino y permite su puerto de archivos (normalmente `47833`), no solo el de control. |
 | La app reconecta al abrirse / no puedes reemplazar archivos | Usa Detener para cambiar el modo guardado; para reemplazar ejecutables, **sal desde la bandeja**, no cierres solo la ventana. |
 
-Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa los controles locales; el acceso remoto a escritorios protegidos no es una función admitida. El [registro de pruebas](TEST-RESULTS.es.md) enumera comprobaciones físicas pendientes, como otras teclas/distribuciones, disposiciones de monitores, bloqueo/suspensión/pérdida de red y algunos casos de archivos. Las ilustraciones HTML no validan esos comportamientos.
+Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa los controles locales; el acceso remoto a escritorios protegidos no es una función admitida. El [registro de pruebas](TEST-RESULTS.es.md) incluye comprobaciones físicas satisfactorias de bloqueo, suspensión e interrupción del receptor en ambos sentidos y delimita el alcance de otras disposiciones y casos de archivos. Las ilustraciones HTML no validan esos comportamientos.
 
 ## Actualizar o desinstalar
 
@@ -208,7 +197,7 @@ Si un bloqueo/UAC de Windows o una aplicación elevada impide la entrada, usa lo
 2. En la app pulsa **Ajustes → Actualizar desde el ZIP de lanzamiento…** y elige el ZIP. La app comprueba su SHA256, cierra sus sesiones, sustituye ambos ejecutables juntos y vuelve a abrirse. El resultado aparece en **Actividad**. Conserva identidad, emparejamientos, preferencias y último modo de control.
 3. Revisa **Ajustes → Acerca de SeamlessControl**: las versiones de la app y el agente deben coincidir. Si aparece un fallo, se intenta restaurar los ejecutables anteriores; consulta Actividad antes de reintentar.
 
-Para un **artefacto alpha de desarrollo**, o si iniciaste un agente de consola por separado, sal antes de la app y el agente de consola. Extrae el artefacto y reemplaza manualmente los dos `.exe` juntos. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde la nueva ubicación.
+Si la actualización desde la app no puede ejecutarse, sal desde la bandeja y cierra cualquier agente de consola iniciado por separado. Extrae el ZIP del lanzamiento con tag y reemplaza manualmente los dos `.exe` juntos. Si moviste la carpeta de la app, actualiza **Iniciar con Windows** desde la nueva ubicación.
 
 Los datos de **`%LOCALAPPDATA%\SeamlessControl`** están separados de los ejecutables. No los borres como paso de una actualización normal.
 

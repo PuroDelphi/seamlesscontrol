@@ -19,17 +19,6 @@ This guide describes the repository's current interface. A tagged release can be
 3. Extract the ZIP into a folder you will keep, such as a folder inside Documents. **`seamlesscontrol.exe` and `seamlesscontrold.exe` must stay together.** There is no installer to run.
 4. Double-click **`seamlesscontrol.exe`** after extraction; do not launch it inside the ZIP. Continue with [first launch](#first-launch-and-the-system-tray).
 
-### Testing the current alpha
-
-Use this route only when you want the development build rather than a tagged release.
-
-1. Open [Actions → Windows x64](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/windows-alpha.yml). Sign in to GitHub if artifact downloading requires it.
-2. Choose a **successful run for the `alpha` branch** and check its commit. The same workflow also builds `main`; do not assume every run is alpha.
-3. Download the **`seamlesscontrol-windows-x64`** artifact. GitHub supplies one ZIP containing both executables and **`SHA256SUMS.txt`**.
-4. Extract it and keep the executables together. The optional SHA-256 check is for **each extracted `.exe`** against `SHA256SUMS.txt`, not for the artifact ZIP. Open `seamlesscontrol.exe`.
-
-Tagged releases instead publish a checksum for the **complete ZIP** as a separate asset. Do not mix executables from different builds. For an existing installation, use [Update](#update-or-remove) so the old app is not still running.
-
 ### First launch and the system tray
 
 1. On a trusted home/work LAN, use Windows' **Private** network profile. If a firewall prompt appears, allow access on **Private networks**, not Public networks.
@@ -107,7 +96,7 @@ In **Computers → Paired computers**, each saved identity has separate **Contro
 | Stop this app completely | **Settings → Exit app** or tray **Exit SeamlessControl** | Sessions started by this app end; the process exits. |
 | Remove a computer's trust | **Computers → Paired computers → Revoke → Yes, revoke** | Its identity is blocked, its map position is removed and affected control is closed. Re-pairing needs a new code approved on both computers. |
 
-Stopping control alone does **not** turn off copied-file receiving while the app remains open. Exit the app if you want to stop both control and file sharing. Closing its window is never an emergency stop.
+Stopping control ends file exchange with that computer, even if the copied-file listener remains open. Pairing alone cannot send or receive files. Closing the window only hides the app in the tray; use **Stop** to end the session.
 
 ## Share text and files
 
@@ -193,12 +182,12 @@ Do not open these ports to the Internet, add router forwarding or disable the fi
 | Row Connect only opens Overview | This prepares the address and edge. Choose **Connect in Overview** to start the session. |
 | CONNECTED but crossing does nothing | Wait for **Ready to control** in Activity. Check that the receiver is available and that you cross the selected **outer** edge. Return/Stop before changing the side. |
 | Cannot return by the screen edge | Press **Escape on the physical source keyboard**. Update both agents; direct sessions learn the entry/return edge without a receiver map. See Activity for errors. |
-| Copying a file produces no usable offer | Copy local files or a folder, not Cut, unsupported virtual files or links. Check pairing, size limits and TCP `47834` on the receiver. With several peers, choose the destination in the top Files card. |
+| Copying a file produces no usable offer | First connect the paired computers and wait for Ready; pairing or Receive control alone does not enable file exchange. Copy local files or a folder, not Cut, unsupported virtual files or links. Check the size limits and TCP `47834` on the receiver. With several connected peers, choose the destination in the top Files card. |
 | Accepted copied file is not in the desired folder | Wait for completion, then **Paste in the receiver's file manager**. Manual transfers instead save directly and do not need Paste. |
 | Manual sending fails although control works | Start **Wait for a file** on the destination and permit its file port (normally `47833`), not just the control port. |
 | App reconnects after reopening / cannot replace files | Use Stop to change the saved mode; to replace binaries, **exit from the tray**, not just close the window. |
 
-If a Windows lock/UAC prompt or an elevated application blocks input, use the local controls; do not treat remote access to protected desktops as supported. The [test record](TEST-RESULTS.md) lists pending physical checks, including other keys/layouts, monitor arrangements, lock/sleep/network loss and some file-transfer cases. HTML illustrations do not validate those behaviors.
+If a Windows lock/UAC prompt or an elevated application blocks input, use the local controls; do not treat remote access to protected desktops as supported. The [test record](TEST-RESULTS.md) includes successful physical lock, sleep and receiver-interruption checks in both directions and specifies the scope of other layouts and file-transfer cases. HTML illustrations do not validate those behaviors.
 
 ## Update or remove
 
@@ -208,7 +197,7 @@ If a Windows lock/UAC prompt or an elevated application blocks input, use the lo
 2. In the app choose **Settings → Update from release ZIP…** and select the ZIP. The app verifies the ZIP's SHA256 against its sidecar, closes its sessions, replaces both executables together and opens again. The result appears in **Activity**. Your pairing identity, preferences and saved control mode remain in place.
 3. Check **Settings → About SeamlessControl**: the app and agent versions should match. If the update reports a failure, the previous executables are restored when possible; read Activity before retrying.
 
-For a **development alpha artifact**, or if a console agent was started separately, exit the tray app and console agent first, then extract the artifact and replace both `.exe` files together manually. If you moved the app folder, update **Start with Windows** from its new location.
+If the in-app update cannot run, exit the tray app and any separately started console agent, extract the tagged release ZIP and replace both `.exe` files together manually. If you moved the app folder, update **Start with Windows** from its new location.
 
 The data in **`%LOCALAPPDATA%\SeamlessControl`** is separate from the executables. Do not delete it as an ordinary update step.
 

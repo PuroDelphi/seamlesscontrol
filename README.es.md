@@ -2,9 +2,19 @@
 
 [![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [English](README.md) · [MIT](LICENSE)
 
+[Novedades de la versión 0.24.0](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows)
+
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
 También puedes compartir texto durante la conexión y copiar **archivos y carpetas** entre equipos conectados. El receptor decide cómo aprobar los archivos; solo quedan disponibles después de verificarse.
+
+![SeamlessControl: ratón, teclado, portapapeles y archivos entre Omarchy y Windows](preview.png)
+
+- **Muévete con naturalidad:** cruza el borde de la pantalla y regresa igual. Elige cruce fluido, doble cruce deliberado o protección al usar pantalla completa.
+- **Decide en quién confías:** compara un código de seis cifras en ambos equipos y configura por separado los permisos Control, Texto y Archivos de cada equipo emparejado.
+- **Copia un grupo completo:** selecciona varios archivos o una carpeta con archivos anidados, aprueba una sola oferta en el receptor y pega allí el grupo verificado.
+- **Comparte solo durante la conexión:** guardar un emparejamiento no inicia el intercambio de archivos. Al terminar la sesión de control cesan las ofertas y transferencias nuevas.
+- **Recupera el control:** la entrada local vuelve tras bloqueo, suspensión o parada del receptor; un cruce nuevo reanuda el control remoto.
 
 ## Elige por dónde empezar
 
@@ -14,6 +24,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 | Instalar la app, recibir o controlar desde Windows | [Guía ilustrada Windows](docs/WINDOWS.es.md) |
 | Copiar y pegar archivos o enviarlos a una carpeta | [Guía Omarchy](docs/USER-GUIDE.es.md) / [Guía Windows](docs/WINDOWS.es.md), sección Archivos |
 | Resolver un problema de conexión | Sección de problemas de cada guía; [pedir ayuda](SUPPORT.es.md) |
+| Ver las novedades y pruebas físicas de 0.24.0 | [Notas de lanzamiento](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
 | Usar comandos o conocer permisos y límites | [Guía técnica](docs/TECHNICAL.es.md) |
 
 **Origen** es el equipo donde están el ratón y el teclado físicos que vas a usar. **Receptor** es el equipo que quieres controlar. Los papeles pueden cambiar para otra sesión; no necesitas emparejar de nuevo por invertirlos.
@@ -39,7 +50,7 @@ Abre **SeamlessControl** desde la barra y pulsa **Inicio → Preparar este equip
 
 Cerrar la ventana **no** cierra la aplicación: queda en la bandeja. Para salir, usa **Exit SeamlessControl** en su menú. El arranque automático se activa opcionalmente en **Ajustes → Iniciar con Windows**.
 
-La [guía Windows](docs/WINDOWS.es.md) incluye verificación SHA-256, firewall y descarga de compilaciones **alpha**. No confundas una compilación de prueba de Actions con la última versión publicada.
+La [guía Windows](docs/WINDOWS.es.md) explica la verificación SHA-256, el firewall y la instalación desde un lanzamiento con tag. Las compilaciones de desarrollo siguen disponibles en Actions.
 
 ## 2. Empareja, ubica y conecta
 
@@ -88,13 +99,13 @@ Para retirarlo, usa **Ajustes → Retirar agente** y después `omarchy plugin re
 
 ### Windows
 
-Para actualizar, sal desde la bandeja, extrae el ZIP nuevo, reemplaza **ambos ejecutables** y abre la app otra vez. Se conservan los datos en `%LOCALAPPDATA%\SeamlessControl`.
+Para actualizar, descarga el ZIP de lanzamiento y su archivo `.sha256` contiguo en la misma carpeta. Pulsa **Ajustes → Actualizar desde el ZIP de lanzamiento…**; la app verifica el checksum, reemplaza **ambos ejecutables** y vuelve a abrirse. Se conservan los datos en `%LOCALAPPDATA%\SeamlessControl`.
 
 Para desinstalar, primero desactiva **Ajustes → Iniciar con Windows**, sal desde la bandeja y borra la carpeta de los ejecutables. Retira las reglas `SeamlessControl TCP … Private LAN` y `SeamlessControl UDP 5353 Private LAN` que hayas autorizado. Borra la carpeta de datos **solo** si deseas una identidad nueva: tendrás que volver a emparejar.
 
 ## Alcance y documentación del proyecto
 
-El [registro de pruebas](docs/TEST-RESULTS.es.md) recoge control, regreso, texto y copia de archivos en ambos sentidos entre Omarchy y Windows 11 x64 físicos. No equivale a una garantía para todas las combinaciones: la malla de varios equipos es experimental, y otras disposiciones, suspensión y fallos de red tienen escenarios pendientes. El bloqueo manual durante control remoto en Omarchy aún requiere verificación física; devuelve y detén el control antes de bloquear manualmente.
+El [registro de pruebas](docs/TEST-RESULTS.es.md) recoge control, regreso, portapapeles y grupos de archivos en ambos sentidos entre Omarchy y Windows 11 x64 físicos, además de bloqueo, suspensión e interrupción del receptor. La malla de varios equipos sigue siendo experimental; el registro detalla el alcance de otras disposiciones y condiciones de red.
 
 Las guías anteriores describen el uso actual. Las notas `docs/RELEASE-*.md`, el changelog y el registro de viabilidad conservan **historia de versiones**, no instrucciones actuales de instalación.
 
