@@ -24,25 +24,40 @@ pub fn emit_watched_event() -> io::Result<()> {
     let event = match std::env::var("CLIPBOARD_STATE").as_deref() {
         Ok("data") => {
             let types = clipboard_types();
+            let watched_type = std::env::var("CLIPBOARD_TYPE").unwrap_or_default();
             if types
                 .iter()
                 .any(|mime| mime == "text/uri-list" || FILE_ACTION_MIMES.contains(&mime.as_str()))
             {
                 ClipboardEvent::Ignore
             } else if types.iter().any(|mime| mime == "image/png") {
-                match wl_paste_bounded(&["--no-newline", "--type", "image/png"], MAX_IMAGE_BYTES)? {
+                let bytes = if watched_type == "image/png" {
+                    read_stdin_bounded(MAX_IMAGE_BYTES)?
+                } else {
+                    wl_paste_bounded(&["--no-newline", "--type", "image/png"], MAX_IMAGE_BYTES)?
+                };
+                match bytes {
                     Some(bytes) if valid_png_header(&bytes) => ClipboardEvent::ImagePng(bytes),
                     _ => ClipboardEvent::Ignore,
                 }
             } else {
-                let mut bytes = Vec::new();
-                io::stdin()
-                    .take((MAX_TEXT_BYTES + 1) as u64)
-                    .read_to_end(&mut bytes)?;
-                if bytes.len() > MAX_TEXT_BYTES || std::str::from_utf8(&bytes).is_err() {
-                    ClipboardEvent::Ignore
-                } else {
-                    ClipboardEvent::Text(bytes)
+                let text_type = types
+                    .iter()
+                    .find(|mime| mime.starts_with("text/plain") || mime.as_str() == "UTF8_STRING");
+                let bytes = match text_type {
+                    Some(mime) if mime.as_str() == watched_type => {
+                        read_stdin_bounded(MAX_TEXT_BYTES)?
+                    }
+                    Some(mime) => {
+                        wl_paste_bounded(&["--no-newline", "--type", mime], MAX_TEXT_BYTES)?
+                    }
+                    None => None,
+                };
+                match bytes {
+                    Some(bytes) if std::str::from_utf8(&bytes).is_ok() => {
+                        ClipboardEvent::Text(bytes)
+                    }
+                    _ => ClipboardEvent::Ignore,
                 }
             }
         }
@@ -52,6 +67,14 @@ pub fn emit_watched_event() -> io::Result<()> {
     let mut output = io::stdout().lock();
     event.write_framed(&mut output)?;
     output.flush()
+}
+
+fn read_stdin_bounded(limit: usize) -> io::Result<Option<Vec<u8>>> {
+    let mut bytes = Vec::new();
+    io::stdin()
+        .take((limit + 1) as u64)
+        .read_to_end(&mut bytes)?;
+    Ok((bytes.len() <= limit).then_some(bytes))
 }
 
 fn clipboard_types() -> Vec<String> {

@@ -16,6 +16,7 @@ Este documento registra las pruebas físicas pendientes antes de considerar esto
 - [ ] Windows → Omarchy: probar una imagen de Recortes y otra copiada del navegador. Pegar sus píxeles y comprobar transparencia si la hay.
 - [ ] Con el permiso Portapapeles desactivado, comprobar que no llegan texto ni imágenes. Sin conexión de control, comprobar que tampoco llegan.
 - [ ] Soltar un archivo y una carpeta en la página Archivos del emisor en ambos sentidos. Comprobar oferta única, modos de aprobación, límite, rechazo, fin de sesión y conservación del original.
+- [ ] En Windows, comprobar que todavía se puede arrastrar un equipo emparejado al mapa de pantallas después de habilitar la recepción de archivos arrastrados.
 - [ ] Probar una imagen mayor que 8 MiB y un arrastre no admitido. El control debe responder y la interfaz debe indicar cómo enviar el contenido como archivo.
 
 ## Puente nativo de arrastre aparte

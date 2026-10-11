@@ -16,6 +16,7 @@ This document tracks the remaining physical checks before these changes can be c
 - [ ] Windows → Omarchy: test a Snipping Tool image and a browser image copy. Paste pixels into an application. Verify transparency where the source has it.
 - [ ] With Clipboard permission off, confirm image and text do not arrive. With no active control connection, confirm neither arrives.
 - [ ] Drop a file and a folder onto the sender's Files page in each OS direction. Confirm one receiver offer, Ask every time / automatic / timed approval behavior, size limit, rejection, no transfer after session stop, and original remains in place.
+- [ ] On Windows, confirm that dragging a paired computer onto the screen map still works after enabling native file drops in the app.
 - [ ] Test an image above the 8 MiB clipboard limit and an unsupported drag source. Control must remain responsive and the UI must explain how to send the content as a file.
 
 ## Separate native drag bridge
