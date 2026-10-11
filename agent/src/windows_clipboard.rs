@@ -499,6 +499,47 @@ fn read_global_data(format: u32, limit: usize) -> io::Result<Option<Vec<u8>>> {
 }
 
 fn dib_to_png(dib: &[u8]) -> Option<Vec<u8>> {
+    dib_to_png_direct(dib).or_else(|| dib_to_png_via_bmp(dib))
+}
+
+fn dib_to_png_via_bmp(dib: &[u8]) -> Option<Vec<u8>> {
+    let header = usize::try_from(u32::from_le_bytes(dib.get(0..4)?.try_into().ok()?)).ok()?;
+    if !(40..=124).contains(&header) || header > dib.len() {
+        return None;
+    }
+    let bpp = u16::from_le_bytes(dib.get(14..16)?.try_into().ok()?);
+    let compression = u32::from_le_bytes(dib.get(16..20)?.try_into().ok()?);
+    let colors_used = u32::from_le_bytes(dib.get(32..36)?.try_into().ok()?);
+    let palette_entries = if colors_used > 0 {
+        usize::try_from(colors_used).ok()?
+    } else if bpp <= 8 {
+        1usize.checked_shl(u32::from(bpp))?
+    } else {
+        0
+    };
+    let masks = if header == 40 && compression == 3 {
+        12
+    } else {
+        0
+    };
+    let data_offset = 14usize
+        .checked_add(header)?
+        .checked_add(masks)?
+        .checked_add(palette_entries.checked_mul(4)?)?;
+    let file_size = 14usize.checked_add(dib.len())?;
+    if data_offset > file_size || file_size > MAX_IMAGE_BYTES {
+        return None;
+    }
+    let mut bmp = Vec::with_capacity(file_size);
+    bmp.extend_from_slice(b"BM");
+    bmp.extend_from_slice(&u32::try_from(file_size).ok()?.to_le_bytes());
+    bmp.extend_from_slice(&[0; 4]);
+    bmp.extend_from_slice(&u32::try_from(data_offset).ok()?.to_le_bytes());
+    bmp.extend_from_slice(dib);
+    to_wire_png(ImageFormat::Bmp, &bmp)
+}
+
+fn dib_to_png_direct(dib: &[u8]) -> Option<Vec<u8>> {
     let le_u16 = |start: usize| {
         Some(u16::from_le_bytes(
             dib.get(start..start + 2)?.try_into().ok()?,
@@ -640,6 +681,24 @@ impl Default for WindowsClipboard {
 #[cfg(test)]
 mod image_tests {
     use super::*;
+
+    #[test]
+    fn indexed_windows_bitmap_converts_to_png() {
+        let mut dib = vec![0u8; 40 + 8 + 4];
+        dib[0..4].copy_from_slice(&40u32.to_le_bytes());
+        dib[4..8].copy_from_slice(&2i32.to_le_bytes());
+        dib[8..12].copy_from_slice(&1i32.to_le_bytes());
+        dib[12..14].copy_from_slice(&1u16.to_le_bytes());
+        dib[14..16].copy_from_slice(&1u16.to_le_bytes());
+        dib[44..48].copy_from_slice(&[255, 255, 255, 0]);
+        dib[48] = 0b1000_0000;
+        let png = dib_to_png(&dib).expect("indexed DIB");
+        let decoded = image::load_from_memory_with_format(&png, ImageFormat::Png)
+            .unwrap()
+            .to_rgb8();
+        assert_eq!(decoded.get_pixel(0, 0).0, [255, 255, 255]);
+        assert_eq!(decoded.get_pixel(1, 0).0, [0, 0, 0]);
+    }
 
     #[test]
     fn windows_bitmap_converts_to_png_and_back_without_swapping_channels() {
