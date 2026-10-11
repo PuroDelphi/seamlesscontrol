@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.24.4 Windows live revocation check · 2026-10-10
+
+The marketplace reviewer found that the Windows console removed a trust-store entry without ending an already authenticated receiver channel. Windows CI now opens a local receiver socket, revokes its pinned key through the shared trust store, checks that the watcher detects it and closes the socket, and checks Control/Text permission changes. A combined loopback input test verifies that a held key and mouse button are released on that live connection. This is a code-level regression check, not a new physical Windows/Omarchy session.
+
 ## 0.24.3 mDNS timer and event-loop check · 2026-10-10
 
 The reviewer confirmed the list/cache caps but found repeated refreshes still added timers and uninterrupted socket draining could starve cleanup. A new unit test schedules 100,000 repeated refreshes over a 120-second horizon and verifies at most 2,401 timer slots. Another verifies that packet reading yields at its budget; a cache test verifies expiry of orphan records. The vendored library passed 70 tests with its pre-existing environment-sensitive custom-port isolation test excluded. That same test failed independently on the original unmodified 0.21.5 source here. These are code-level checks, not a new physical Windows test.

@@ -84,7 +84,7 @@ The app remembers the destination and edge. If outgoing control was left enabled
 
 **Crossing preference:** In **Settings → Screen crossing**, choose **Fluid** (one edge crossing), **Deliberate** (move away and cross twice within 1.6 seconds), or **Protect full-screen apps** (two crossings only while the foreground window fills its monitor). The choice takes effect with the next connection. Escape and the receiver's return edge still return your input.
 
-In **Computers → Paired computers**, each saved identity has separate **Control**, **Text** and **Files** choices and a last connection time. Control and text changes take effect on the next connection; files on the next offer. **Revoke** still removes trust immediately.
+In **Computers → Paired computers**, each saved identity has separate **Control**, **Text** and **Files** choices and a last connection time. Changing Control or Text ends an affected active Windows session; connect again for the new choice. Files applies to the next offer. **Revoke** blocks the saved key and closes its active session even if revocation was done with `seamlesscontrold.exe revoke <PEER_IP>` in a separate console. Update both Windows executables together so a running receiver honors this behavior.
 
 ## Return or stop sharing
 

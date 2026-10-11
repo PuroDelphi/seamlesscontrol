@@ -84,7 +84,7 @@ La app recuerda el destino y el borde. Si dejaste habilitado el control saliente
 
 **Preferencia de cruce:** En **Ajustes → Cruce entre pantallas**, elige **Fluido** (un cruce), **Deliberado** (sal del borde y crúzalo dos veces en 1,6 segundos) o **Proteger pantalla completa** (dos cruces solo cuando la ventana activa llena su monitor). Se aplica en la siguiente conexión. Escape y el borde de regreso siguen devolviendo el control.
 
-En **Equipos → Equipos emparejados**, cada identidad guardada tiene permisos separados de **Control**, **Texto** y **Archivos**, y muestra la última conexión. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. **Revocar** elimina la confianza de inmediato.
+En **Equipos → Equipos emparejados**, cada identidad guardada tiene permisos separados de **Control**, **Texto** y **Archivos**, y muestra la última conexión. Cambiar Control o Texto termina una sesión Windows activa afectada; conecta otra vez para aplicar la nueva elección. Archivos se aplica a la siguiente oferta. **Revocar** bloquea la clave guardada y cierra la sesión activa incluso si se hizo con `seamlesscontrold.exe revoke <IP_DEL_PAR>` desde otra consola. Actualiza juntos los dos ejecutables Windows para que un receptor en marcha tenga este comportamiento.
 
 ## Volver o detener el uso compartido
 

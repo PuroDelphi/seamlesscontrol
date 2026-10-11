@@ -18,6 +18,8 @@ Windows CI builds the GUI with a static C runtime. The release workflow builds t
 
 The Windows control receiver caps concurrent TCP connections at eight and closes excess connections before spawning a worker. The initial preauthentication exchange has a ten-second I/O timeout; the longer code-confirmation timeout begins only after Noise completes.
 
+An active Windows receiver checks its pinned peer identity and Control/Text permissions every 50 ms from a separate watcher. Trust-store read errors fail closed; a changed or revoked identity shuts down the TCP socket even if no frames arrive. The input receiver releases held keys and buttons before the connection worker exits. The Windows source checks the same state in its capture loop. Console `revoke` waits for the active-session lease to disappear and reports an error if an older running receiver does not close.
+
 This guide covers manual operation, packaging, security, and current limits. The addresses below are **fictional examples**: source `192.168.50.10`, receiver `192.168.50.20`, LAN `192.168.50.0/24`, interface `wlan0`.
 
 ## Packaging and updates

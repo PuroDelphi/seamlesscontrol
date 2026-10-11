@@ -8,7 +8,7 @@ use crate::edge_policy::EdgePolicy;
 use crate::file_session;
 use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
-use crate::receiver::run_receiver_with_first;
+use crate::receiver::{ReceiverError, run_receiver_with_first_until};
 use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter, negotiate_pairing};
 use crate::storage::{
     is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
@@ -33,6 +33,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 const PAIRING_TIMEOUT: Duration = Duration::from_secs(330);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_RECEIVER_CONNECTIONS: usize = 8;
+const PEER_CHECK_INTERVAL: Duration = Duration::from_millis(50);
 const DEFAULT_CONTROL_BIND: &str = "0.0.0.0:47832";
 const DEFAULT_FILE_BIND: &str = "0.0.0.0:47833";
 
@@ -263,6 +264,80 @@ impl Drop for ReceiverLease {
     }
 }
 
+/// The console and tray app can change the trust store from another process.
+/// A live Noise channel must not outlive its pinned identity or permissions.
+fn active_peer_allowed(config: &Path, ip: IpAddr, key: &[u8; 32], text: bool) -> io::Result<bool> {
+    let peers = config.join("peers");
+    if is_revoked(&peers, key)? || load_peer_key(&peers, ip)? != Some(*key) {
+        return Ok(false);
+    }
+    let policy = PeerPolicy::load(config, key)?;
+    Ok(policy.control && policy.text == text)
+}
+
+struct ActivePeerWatch {
+    running: Arc<AtomicBool>,
+    denied: Arc<AtomicBool>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+
+impl ActivePeerWatch {
+    fn start(
+        stream: &TcpStream,
+        config: &Path,
+        ip: IpAddr,
+        key: [u8; 32],
+        text: bool,
+    ) -> io::Result<Self> {
+        if !active_peer_allowed(config, ip, &key, text)? {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "peer authorization changed",
+            ));
+        }
+        let socket = stream.try_clone()?;
+        let config = config.to_path_buf();
+        let running = Arc::new(AtomicBool::new(true));
+        let denied = Arc::new(AtomicBool::new(false));
+        let worker_running = Arc::clone(&running);
+        let worker_denied = Arc::clone(&denied);
+        let worker = thread::Builder::new()
+            .name("seamlesscontrol-peer-watch".into())
+            .spawn(move || {
+                while worker_running.load(Ordering::Acquire) {
+                    if !active_peer_allowed(&config, ip, &key, text).unwrap_or(false) {
+                        worker_denied.store(true, Ordering::Release);
+                        let _ = socket.shutdown(Shutdown::Both);
+                        break;
+                    }
+                    thread::sleep(PEER_CHECK_INTERVAL);
+                }
+            })?;
+        Ok(Self {
+            running,
+            denied,
+            worker: Some(worker),
+        })
+    }
+
+    fn denied(&self) -> bool {
+        self.denied.load(Ordering::Acquire)
+            || self
+                .worker
+                .as_ref()
+                .is_some_and(thread::JoinHandle::is_finished)
+    }
+}
+
+impl Drop for ActivePeerWatch {
+    fn drop(&mut self) {
+        self.running.store(false, Ordering::Release);
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
+        }
+    }
+}
+
 fn serve_connection(
     stream: TcpStream,
     ip: IpAddr,
@@ -356,6 +431,7 @@ fn serve_connection(
     .write_to(&mut channel)?;
     policy.mark_connected()?;
     policy.save(config, &pinned)?;
+    let watch = ActivePeerWatch::start(channel.stream_mut(), config, ip, pinned, policy.text)?;
     channel
         .stream_mut()
         .set_read_timeout(Some(PAIRING_TIMEOUT))?;
@@ -367,7 +443,18 @@ fn serve_connection(
     let (mut reader, writer) = channel.into_tcp_halves()?;
     let injector = WindowsInjector::new(writer, identity.public, pinned, policy.text)?;
     println!("Input session from {ip} is ready.");
-    run_receiver_with_first(&mut reader, injector, Some(first_input))?;
+    let result =
+        run_receiver_with_first_until(&mut reader, injector, Some(first_input), || watch.denied());
+    let denied = watch.denied();
+    drop(watch);
+    if denied {
+        if let Err(ReceiverError::Injection(error)) = result {
+            return Err(error.into());
+        }
+        println!("Input session from {ip} ended because peer authorization changed.");
+        return Ok(());
+    }
+    result?;
     println!("Input session from {ip} ended; held keys and buttons were released.");
     Ok(())
 }
@@ -551,12 +638,19 @@ fn connect_source(
     let mut heartbeat = Instant::now();
     let mut clipboard_tick = Instant::now();
     let mut desktop_tick = Instant::now();
+    let mut authorization_tick = Instant::now();
     let mut epoch = None;
     let mut previous_epoch = 0;
     println!("Ready to control {address}. Move the mouse across the {edge:?} outer screen edge.");
     println!("Move back across the entry edge on Omarchy, or press Escape on Windows, to return.");
     let result = (|| -> Result<(), Box<dyn Error>> {
         loop {
+            if authorization_tick.elapsed() >= PEER_CHECK_INTERVAL {
+                authorization_tick = Instant::now();
+                if !active_peer_allowed(config, address.ip(), &pinned, policy.text)? {
+                    return Err("peer authorization changed; local control restored".into());
+                }
+            }
             if capture.failed() {
                 return Err("Windows input capture stopped or its event queue overflowed".into());
             }
@@ -798,7 +892,14 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         }
         [_, command, ip] if command == "revoke" => {
             let ip: IpAddr = ip.parse()?;
-            revoke_peer_key(&peers, ip)?;
+            let key = revoke_peer_key(&peers, ip)?;
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while ActiveSession::is_active(&config, ip, &key)? && Instant::now() < deadline {
+                thread::sleep(PEER_CHECK_INTERVAL);
+            }
+            if ActiveSession::is_active(&config, ip, &key)? {
+                return Err("peer was revoked, but its active session did not stop; restart Receive control".into());
+            }
             println!("Revoked {ip}. It must be paired again with a new identity.");
         }
         [_, command] if command == "serve" => {
@@ -927,6 +1028,137 @@ fn receive_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::receiver::Injector;
+    use crate::state::InputEvent;
+    use crate::storage::remember_peer_key;
+    use std::io::Read;
+
+    fn test_config() -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("sc-win-revoke-{}-{nonce}", std::process::id()))
+    }
+
+    struct RecordingInjector(Arc<Mutex<Vec<InputEvent>>>);
+
+    impl Injector for RecordingInjector {
+        fn inject(&mut self, event: &InputEvent) -> io::Result<()> {
+            self.0.lock().unwrap().push(event.clone());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn console_revocation_shuts_down_existing_receiver_socket() {
+        let config = test_config();
+        let peers = config.join("peers");
+        let key = [42; 32];
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        remember_peer_key(&peers, ip, &key).unwrap();
+        let listener = TcpListener::bind((ip, 0)).unwrap();
+        let mut source = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (receiver, _) = listener.accept().unwrap();
+        source
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let watch = ActivePeerWatch::start(&receiver, &config, ip, key, true).unwrap();
+        assert!(!watch.denied());
+
+        revoke_peer_key(&peers, ip).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !watch.denied() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert!(watch.denied(), "active receiver did not notice revocation");
+        let mut byte = [0];
+        match source.read(&mut byte) {
+            Ok(0) => {}
+            Err(error)
+                if !matches!(
+                    error.kind(),
+                    io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+                ) => {}
+            other => panic!("revoked receiver socket remained open: {other:?}"),
+        }
+        drop(watch);
+        assert!(!active_peer_allowed(&config, ip, &key, true).unwrap());
+        let _ = std::fs::remove_dir_all(config);
+    }
+
+    #[test]
+    fn active_control_checks_current_permissions_and_pin() {
+        let config = test_config();
+        let peers = config.join("peers");
+        let key = [19; 32];
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        remember_peer_key(&peers, ip, &key).unwrap();
+        assert!(active_peer_allowed(&config, ip, &key, true).unwrap());
+        let mut policy = PeerPolicy::load(&config, &key).unwrap();
+        policy.text = false;
+        policy.save(&config, &key).unwrap();
+        assert!(!active_peer_allowed(&config, ip, &key, true).unwrap());
+        policy.control = false;
+        policy.save(&config, &key).unwrap();
+        assert!(!active_peer_allowed(&config, ip, &key, false).unwrap());
+        let _ = std::fs::remove_dir_all(config);
+    }
+
+    #[test]
+    fn revoking_during_input_releases_held_key_and_button() {
+        let config = test_config();
+        let peers = config.join("peers");
+        let key = [31; 32];
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        remember_peer_key(&peers, ip, &key).unwrap();
+        let listener = TcpListener::bind((ip, 0)).unwrap();
+        let mut source = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (mut receiver, _) = listener.accept().unwrap();
+        receiver
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let worker_observed = Arc::clone(&observed);
+        let worker_config = config.clone();
+        let worker = thread::spawn(move || {
+            let watch = ActivePeerWatch::start(&receiver, &worker_config, ip, key, true).unwrap();
+            let _ = run_receiver_with_first_until(
+                &mut receiver,
+                RecordingInjector(worker_observed),
+                None,
+                || watch.denied(),
+            );
+            assert!(watch.denied(), "receiver ended without noticing revocation");
+        });
+        for (kind, sequence, payload) in [
+            (Kind::Control, 0, b"BEGIN".to_vec()),
+            (Kind::Input, 1, InputEvent::KeyDown(42).encode()),
+            (Kind::Input, 2, InputEvent::ButtonDown(272).encode()),
+        ] {
+            Frame {
+                kind,
+                epoch: 7,
+                sequence,
+                payload,
+            }
+            .write_to(&mut source)
+            .unwrap();
+        }
+        let deadline = Instant::now() + Duration::from_secs(1);
+        while observed.lock().unwrap().len() < 2 && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(10));
+        }
+        assert_eq!(observed.lock().unwrap().len(), 2);
+        revoke_peer_key(&peers, ip).unwrap();
+        worker.join().unwrap();
+        let events = observed.lock().unwrap();
+        assert_eq!(events.len(), 4, "held input was not released: {events:?}");
+        assert!(events.contains(&InputEvent::KeyUp(42)));
+        assert!(events.contains(&InputEvent::ButtonUp(272)));
+        drop(events);
+        let _ = std::fs::remove_dir_all(config);
+    }
 
     #[test]
     fn receiver_slots_bound_stalled_connections_and_reopen_after_drop() {

@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.24.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.4) — 2026-10-10
+
+- Cierra las sesiones Windows activas de recepción y origen cuando se revoca la clave fijada o cambian los permisos Control/Texto, incluso al revocar desde consola. Libera la entrada retenida y detiene el intercambio de texto en el canal anterior.
+- La revocación por consola espera el cierre de la sesión antes de confirmar éxito. Añade una prueba con socket abierto. Véanse las [notas de lanzamiento](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows).
+
 ## [0.24.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.3) — 2026-10-10
 
 - Agrupa temporizadores de renovación mDNS y cede el turno tras un lote limitado de paquetes para que anuncios repetidos sin autenticar no hagan crecer la cola sin límite ni impidan limpiar registros vencidos.

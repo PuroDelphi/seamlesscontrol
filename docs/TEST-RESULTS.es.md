@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Verificación de revocación activa Windows 0.24.4 · 2026-10-10
+
+El revisor encontró que la consola Windows eliminaba una clave del almacén de confianza sin terminar un canal receptor ya autenticado. CI de Windows ahora abre un socket de recepción local, revoca su clave fijada mediante el almacén de confianza compartido, comprueba que el vigilante lo detecta y cierra el socket, y comprueba los cambios de permisos Control/Texto. Una prueba integrada de entrada local verifica que se liberan una tecla y un botón retenidos en esa conexión activa. Es una prueba de regresión de código, no una nueva sesión física Windows/Omarchy.
+
 ## Verificación de temporizadores y bucle mDNS 0.24.3 · 2026-10-10
 
 El revisor confirmó los límites de lista y caché, pero encontró que renovar registros seguía agregando temporizadores y que leer paquetes sin interrupción podía impedir la limpieza. Una nueva prueba programa 100.000 renovaciones en un horizonte de 120 segundos y verifica un máximo de 2.401 intervalos de temporizador. Otra comprueba que la lectura de paquetes cede el turno al agotar el límite; una prueba de caché comprueba que caducan registros huérfanos. La biblioteca incluida pasó 70 pruebas omitiendo la prueba de aislamiento de puerto personalizado, que también falló aquí en el código original de 0.21.5 sin modificar. Son pruebas de código, no una nueva prueba física con Windows.

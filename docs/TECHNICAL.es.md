@@ -14,6 +14,8 @@ El buscador de Windows conserva hasta 64 equipos cercanos y publica una lista mo
 
 La biblioteca agrupa los temporizadores de renovación en intervalos de 50 ms, procesa como máximo 32 datagramas por socket antes de limpiar registros vencidos y vuelve a revisar los sockets con paquetes pendientes sin depender de otro aviso del sondeo. Limita a 128 las respuestas aplazadas y limpia los registros huérfanos y el seguimiento de servicios eliminados.
 
+Un receptor Windows activo comprueba cada 50 ms, mediante un vigilante independiente, que siguen vigentes la identidad fijada y los permisos Control/Texto. Los errores al leer la confianza cierran la sesión; revocar o cambiar la identidad cierra el socket aunque no lleguen eventos. El receptor libera teclas y botones retenidos antes de salir. Windows como origen verifica el mismo estado en su bucle de captura. El comando `revoke` espera a que desaparezca el comprobante de sesión activa y muestra error si un receptor antiguo no se cierra.
+
 Los botones de firewall elevan el agente para agregar reglas TCP entrantes de control, envío manual y archivos copiados, y una regla UDP `5353` para mDNS. Se limitan al perfil Privado y LocalSubnet. La interfaz informa que solicitó autorización; el comando elevado informa si la regla se aplicó.
 
 El CI Windows compila la GUI con entorno C estático. El workflow del release compila el commit etiquetado y adjunta un ZIP con ambos ejecutables y un SHA-256 del ZIP como asset contiguo. El hijo oculto usa una ventana invisible como propietario del portapapeles, sin depender de una consola visible.
