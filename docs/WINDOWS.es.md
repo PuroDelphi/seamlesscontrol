@@ -102,7 +102,7 @@ Detener el control termina el intercambio de archivos con ese equipo aunque el r
 
 ### Texto e imágenes: requieren una conexión de control
 
-Mientras la conexión esté activa, copia texto o una imagen en una aplicación y pégala en una aplicación del otro equipo. El permiso autenticado **Portapapeles** cubre ambos. El texto admite hasta 256 KiB y las imágenes PNG hasta 8 MiB; los mapas de bits compatibles de Windows se convierten a PNG. No se sincronizan formatos enriquecidos de documentos. Una imagen copiada sigue la conexión de control y no genera una oferta de archivo.
+Mientras la conexión esté activa, copia texto o una imagen en una aplicación y pégala en una aplicación del otro equipo. El permiso autenticado **Portapapeles** cubre ambos. El texto admite hasta 256 KiB y las imágenes convertidas hasta 32 MiB. Los formatos de imagen habituales (PNG, JPEG, GIF, WebP, TIFF, BMP e ICO) y los mapas de bits compatibles de Windows se convierten a PNG para el envío. De las imágenes animadas se usa el primer fotograma; no se sincronizan gráficos vectoriales ni formatos enriquecidos de documentos. Una imagen copiada sigue la conexión de control y no genera una oferta de archivo.
 
 ### Archivos: elige el flujo adecuado
 

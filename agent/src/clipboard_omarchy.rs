@@ -5,6 +5,7 @@ use crate::clipboard::{
     valid_png_header,
 };
 use crate::clipboard_file::{file_uri, local_regular_file, parse_file_uris, parse_one_file_uri};
+use crate::clipboard_image::{format_for_mime, to_wire_png};
 use crate::file_bundle;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -30,14 +31,25 @@ pub fn emit_watched_event() -> io::Result<()> {
                 .any(|mime| mime == "text/uri-list" || FILE_ACTION_MIMES.contains(&mime.as_str()))
             {
                 ClipboardEvent::Ignore
-            } else if types.iter().any(|mime| mime == "image/png") {
-                let bytes = if watched_type == "image/png" {
+            } else if let Some((mime, format)) = types
+                .iter()
+                .filter_map(|mime| format_for_mime(mime).map(|format| (mime, format)))
+                .min_by_key(|(mime, _)| {
+                    if mime.eq_ignore_ascii_case("image/png") {
+                        0
+                    } else {
+                        1
+                    }
+                })
+            {
+                let bytes = if watched_type == *mime {
                     read_stdin_bounded(MAX_IMAGE_BYTES)?
                 } else {
-                    wl_paste_bounded(&["--no-newline", "--type", "image/png"], MAX_IMAGE_BYTES)?
+                    wl_paste_bounded(&["--no-newline", "--type", mime], MAX_IMAGE_BYTES)?
                 };
                 match bytes {
-                    Some(bytes) if valid_png_header(&bytes) => ClipboardEvent::ImagePng(bytes),
+                    Some(bytes) => to_wire_png(format, &bytes)
+                        .map_or(ClipboardEvent::Ignore, ClipboardEvent::ImagePng),
                     _ => ClipboardEvent::Ignore,
                 }
             } else {

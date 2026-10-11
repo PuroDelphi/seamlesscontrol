@@ -9,7 +9,7 @@ use crate::topology::Edge;
 
 pub const PROTOCOL_VERSION: u16 = 1;
 /// Application handshake shared by the Omarchy and Windows agents.
-pub const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/6";
+pub const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/7";
 pub const MAX_PAYLOAD: usize = crate::clipboard::MAX_CLIPBOARD_BYTES + 45;
 const MAX_GENERAL_PAYLOAD: usize = 1024 * 1024;
 const HEADER_LEN: usize = 20;

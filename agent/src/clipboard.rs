@@ -1,10 +1,10 @@
-//! Bounded text and PNG clipboard messages shared by both platform adapters.
+//! Bounded text and raster-image clipboard messages shared by both platform adapters.
 
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
 pub const MAX_TEXT_BYTES: usize = 256 * 1024;
-pub const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_IMAGE_BYTES: usize = 32 * 1024 * 1024;
 pub const MAX_CLIPBOARD_BYTES: usize = MAX_IMAGE_BYTES;
 const PACKET_MAGIC: &[u8; 4] = b"SCB1";
 const PACKET_HEADER: usize = 4 + 8 + 32;

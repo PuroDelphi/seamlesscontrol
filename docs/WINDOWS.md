@@ -102,7 +102,7 @@ Stopping control ends file exchange with that computer, even if the copied-file 
 
 ### Text and images: a control connection is needed
 
-While the control connection is running, copy text or an image in an app on one computer and paste it in an app on the other. The authenticated **Clipboard** permission covers both. Text is limited to 256 KiB and PNG images to 8 MiB; Windows bitmap clipboard images are converted to PNG. Rich document formats are not synchronized. Image clipboard sharing follows the control connection and does not create a file offer.
+While the control connection is running, copy text or an image in an app on one computer and paste it in an app on the other. The authenticated **Clipboard** permission covers both. Text is limited to 256 KiB and converted images to 32 MiB. Common raster formats (PNG, JPEG, GIF, WebP, TIFF, BMP and ICO) and supported Windows bitmap clipboard images are converted to PNG for transfer. Animated images use the first frame; vector and rich document formats are not synchronized. Image clipboard sharing follows the control connection and does not create a file offer.
 
 ### Files: choose the right workflow
 

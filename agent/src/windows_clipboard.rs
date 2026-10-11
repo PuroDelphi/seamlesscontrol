@@ -1,7 +1,9 @@
-//! Windows text/PNG clipboard adapter and local file clipboard bridge.
+//! Windows text/raster-image clipboard adapter and local file clipboard bridge.
 
 use crate::clipboard::{ClipboardEvent, MAX_IMAGE_BYTES, MAX_TEXT_BYTES, valid_png_header};
 use crate::clipboard_file::local_regular_file;
+use crate::clipboard_image::to_wire_png;
+use image::ImageFormat;
 use std::io;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
@@ -24,6 +26,7 @@ const CF_UNICODETEXT: u32 = 13;
 const CF_HDROP: u32 = 15;
 const CF_DIB: u32 = 8;
 const CF_DIBV5: u32 = 17;
+const CF_TIFF: u32 = 6;
 const MAX_UTF16_BYTES: usize = MAX_TEXT_BYTES * 2 + 2;
 
 fn last_error(context: &'static str) -> io::Error {
@@ -103,29 +106,13 @@ impl WindowsClipboard {
         let Some(_open) = OpenedClipboard::open_for_read()? else {
             return Ok(None);
         };
-        let png_format = registered_png_format();
         let event = if unsafe { IsClipboardFormatAvailable(CF_HDROP) } != 0 {
             ClipboardEvent::Ignore
-        } else if png_format != 0 && unsafe { IsClipboardFormatAvailable(png_format) } != 0 {
-            match read_global_data(png_format, MAX_IMAGE_BYTES)? {
-                Some(bytes) if valid_png_header(&bytes) => ClipboardEvent::ImagePng(bytes),
-                Some(_) => ClipboardEvent::Ignore,
-                None => return Ok(None),
-            }
-        } else if unsafe { IsClipboardFormatAvailable(CF_DIBV5) } != 0
-            || unsafe { IsClipboardFormatAvailable(CF_DIB) } != 0
-        {
-            let format = if unsafe { IsClipboardFormatAvailable(CF_DIBV5) } != 0 {
-                CF_DIBV5
-            } else {
-                CF_DIB
+        } else if let Some(image) = read_raster_clipboard()? {
+            let Some(image) = image else {
+                return Ok(None); // Delayed rendering may not be ready yet.
             };
-            match read_global_data(format, MAX_IMAGE_BYTES * 8)? {
-                Some(dib) => {
-                    dib_to_png(&dib).map_or(ClipboardEvent::Ignore, ClipboardEvent::ImagePng)
-                }
-                None => return Ok(None),
-            }
+            image
         } else if unsafe { IsClipboardFormatAvailable(CF_UNICODETEXT) } != 0 {
             let handle = unsafe { GetClipboardData(CF_UNICODETEXT) };
             if handle.is_null() {
@@ -434,8 +421,63 @@ impl WindowsClipboard {
 }
 
 fn registered_png_format() -> u32 {
-    let name: Vec<u16> = "PNG\0".encode_utf16().collect();
+    registered_clipboard_format("PNG")
+}
+
+fn registered_clipboard_format(name: &str) -> u32 {
+    let name: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
     unsafe { RegisterClipboardFormatW(name.as_ptr()) }
+}
+
+/// Outer None means no raster format; inner None means a delayed format is not ready yet.
+fn read_raster_clipboard() -> io::Result<Option<Option<ClipboardEvent>>> {
+    let mut offered = false;
+    for (name, format) in [
+        ("PNG", ImageFormat::Png),
+        ("image/png", ImageFormat::Png),
+        ("JFIF", ImageFormat::Jpeg),
+        ("image/jpeg", ImageFormat::Jpeg),
+        ("GIF", ImageFormat::Gif),
+        ("image/gif", ImageFormat::Gif),
+        ("image/webp", ImageFormat::WebP),
+        ("image/tiff", ImageFormat::Tiff),
+        ("image/bmp", ImageFormat::Bmp),
+        ("image/x-icon", ImageFormat::Ico),
+    ] {
+        let id = registered_clipboard_format(name);
+        if id == 0 || unsafe { IsClipboardFormatAvailable(id) } == 0 {
+            continue;
+        }
+        offered = true;
+        let Some(bytes) = read_global_data(id, MAX_IMAGE_BYTES)? else {
+            return Ok(Some(None));
+        };
+        if let Some(png) = to_wire_png(format, &bytes) {
+            return Ok(Some(Some(ClipboardEvent::ImagePng(png))));
+        }
+    }
+    if unsafe { IsClipboardFormatAvailable(CF_TIFF) } != 0 {
+        offered = true;
+        let Some(bytes) = read_global_data(CF_TIFF, MAX_IMAGE_BYTES)? else {
+            return Ok(Some(None));
+        };
+        if let Some(png) = to_wire_png(ImageFormat::Tiff, &bytes) {
+            return Ok(Some(Some(ClipboardEvent::ImagePng(png))));
+        }
+    }
+    for format in [CF_DIBV5, CF_DIB] {
+        if unsafe { IsClipboardFormatAvailable(format) } == 0 {
+            continue;
+        }
+        offered = true;
+        let Some(dib) = read_global_data(format, MAX_IMAGE_BYTES * 8)? else {
+            return Ok(Some(None));
+        };
+        if let Some(png) = dib_to_png(&dib) {
+            return Ok(Some(Some(ClipboardEvent::ImagePng(png))));
+        }
+    }
+    Ok(offered.then_some(Some(ClipboardEvent::Ignore)))
 }
 
 fn read_global_data(format: u32, limit: usize) -> io::Result<Option<Vec<u8>>> {

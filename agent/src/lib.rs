@@ -4,6 +4,7 @@
 pub mod active_session;
 pub mod clipboard;
 pub mod clipboard_file;
+pub mod clipboard_image;
 pub mod diagnostics;
 pub mod edge_policy;
 pub mod file_bundle;
