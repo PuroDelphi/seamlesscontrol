@@ -436,6 +436,9 @@ fn serve_connection(
         .stream_mut()
         .set_read_timeout(Some(PAIRING_TIMEOUT))?;
     let first_input = Frame::read_from(&mut channel)?;
+    if !active_peer_allowed(config, ip, &pinned, policy.text)? {
+        return Err("peer authorization changed before input began".into());
+    }
     let _active_session = ActiveSession::start(config, ip, &pinned)?;
     channel
         .stream_mut()
@@ -616,6 +619,9 @@ fn connect_source(
     }
     policy.mark_connected()?;
     policy.save(config, &pinned)?;
+    if !active_peer_allowed(config, address.ip(), &pinned, policy.text)? {
+        return Err("peer authorization changed before capture began".into());
+    }
     let _active_session = ActiveSession::start(config, address.ip(), &pinned)?;
     channel.stream_mut().set_read_timeout(None)?;
     let (capture_tx, capture_rx) = sync_channel(4096);
