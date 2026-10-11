@@ -1,7 +1,7 @@
 //! Windows console agent. It shares the Omarchy wire protocol and trust store.
 //! Input is sent to the currently signed-in, unlocked desktop session.
 
-use crate::active_session::ActiveSession;
+use crate::active_session::{self, ActiveSession};
 use crate::clipboard::{ClipboardPacket, ClipboardSync};
 use crate::clipboard_file;
 use crate::edge_policy::EdgePolicy;
@@ -900,10 +900,10 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             let ip: IpAddr = ip.parse()?;
             let key = revoke_peer_key(&peers, ip)?;
             let deadline = Instant::now() + Duration::from_secs(3);
-            while ActiveSession::is_active(&config, ip, &key)? && Instant::now() < deadline {
+            while active_session::is_active(&config, ip, &key)? && Instant::now() < deadline {
                 thread::sleep(PEER_CHECK_INTERVAL);
             }
-            if ActiveSession::is_active(&config, ip, &key)? {
+            if active_session::is_active(&config, ip, &key)? {
                 return Err("peer was revoked, but its active session did not stop; restart Receive control".into());
             }
             println!("Revoked {ip}. It must be paired again with a new identity.");
