@@ -9,7 +9,7 @@ use crate::file_transfer::{
 use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{Frame, Kind};
 use crate::secure::{Identity, Role, SecureChannel};
-use crate::storage::{key_fingerprint, load_peer_key};
+use crate::storage::{is_revoked, key_fingerprint, load_peer_key};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
 use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
@@ -124,6 +124,19 @@ fn pinned_key(peers: &Path, ip: IpAddr) -> Result<[u8; 32], Box<dyn Error>> {
     load_peer_key(peers, ip)?.ok_or_else(|| "pair with this IP before transferring files".into())
 }
 
+fn live_file_permission(
+    config: &Path,
+    peers: &Path,
+    ip: IpAddr,
+    key: &[u8; 32],
+) -> io::Result<bool> {
+    if is_revoked(peers, key)? || load_peer_key(peers, ip)? != Some(*key) {
+        return Ok(false);
+    }
+    Ok(active_session::is_active(config, ip, key)?
+        && PeerPolicy::load(config, key)?.permits(Capability::Files))
+}
+
 pub fn send_once(
     address: SocketAddr,
     source: &Path,
@@ -147,8 +160,8 @@ pub fn send_once_with_progress(
     if !active_session::is_active(config, address.ip(), &pinned)? {
         return Err("connect this computer before sharing files".into());
     }
-    if !PeerPolicy::load(config, &pinned)?.permits(Capability::Files) {
-        return Err("file transfers are disabled for this paired computer".into());
+    if !live_file_permission(config, peers, address.ip(), &pinned)? {
+        return Err("file transfers are disabled or peer trust changed".into());
     }
     let mut sender = FileSender::open(source, limit)?;
     let total = sender.offer.size;
@@ -175,7 +188,7 @@ pub fn send_once_with_progress(
     let mut transferred = 0u64;
     let mut last_percent = 0u8;
     loop {
-        if !active_session::is_active(config, address.ip(), &pinned)? {
+        if !live_file_permission(config, peers, address.ip(), &pinned)? {
             let _ = send_frame(&mut channel, &mut sent, FileMessage::Cancel);
             return Err("control session ended during file transfer".into());
         }
@@ -306,8 +319,7 @@ fn receive_with_listener_progress(
         channel.stream_mut().set_read_timeout(Some(FILE_TIMEOUT))?;
         channel.stream_mut().set_write_timeout(Some(FILE_TIMEOUT))?;
         let config = peers.parent().ok_or("peer directory has no parent")?;
-        let files_allowed = active_session::is_active(config, peer_address.ip(), &pinned)?
-            && PeerPolicy::load(config, &pinned)?.permits(Capability::Files);
+        let files_allowed = live_file_permission(config, peers, peer_address.ip(), &pinned)?;
         break (channel, peer_address, pinned, files_allowed);
     };
     let mut sent = 0;
@@ -321,7 +333,7 @@ fn receive_with_listener_progress(
         return Err("invalid bundle offer name".into());
     }
     let config = peers.parent().ok_or("peer directory has no parent")?;
-    if !files_allowed || !active_session::is_active(config, peer_address.ip(), &peer_key)? {
+    if !files_allowed || !live_file_permission(config, peers, peer_address.ip(), &peer_key)? {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
@@ -329,7 +341,7 @@ fn receive_with_listener_progress(
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
-    if !active_session::is_active(config, peer_address.ip(), &peer_key)? {
+    if !live_file_permission(config, peers, peer_address.ip(), &peer_key)? {
         send_frame(&mut channel, &mut sent, FileMessage::Reject)?;
         return Ok(None);
     }
@@ -342,7 +354,7 @@ fn receive_with_listener_progress(
     let mut transferred = 0u64;
     let mut last_percent = 0u8;
     loop {
-        if !active_session::is_active(config, peer_address.ip(), &peer_key)? {
+        if !live_file_permission(config, peers, peer_address.ip(), &peer_key)? {
             return Err("control session ended during file transfer".into());
         }
         match receive_frame(&mut channel, &mut received)? {
@@ -356,6 +368,9 @@ fn receive_with_listener_progress(
                 }
             }
             FileMessage::End => {
+                if !live_file_permission(config, peers, peer_address.ip(), &peer_key)? {
+                    return Err("peer authorization changed during file transfer".into());
+                }
                 let saved = receiver.finish()?;
                 let saved = if let (Some(count), Some(stage)) = (group_count, stage.as_ref()) {
                     publish_bundle(&saved, directory, stage, count, limit)?
@@ -471,6 +486,26 @@ mod tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("connect this computer"), "{error}");
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn revocation_blocks_files_even_while_a_control_lease_still_exists() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-revoke-live-file-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let peers = dir.join("peers");
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let key = [29; 32];
+        remember_peer_key(&peers, ip, &key).unwrap();
+        let session = ActiveSession::start(&dir, ip, &key).unwrap();
+        assert!(live_file_permission(&dir, &peers, ip, &key).unwrap());
+        revoke_peer_key(&peers, ip).unwrap();
+        assert!(active_session::is_active(&dir, ip, &key).unwrap());
+        assert!(!live_file_permission(&dir, &peers, ip, &key).unwrap());
+        drop(session);
         fs::remove_dir_all(dir).unwrap();
     }
 

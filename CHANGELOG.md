@@ -6,7 +6,7 @@ This file summarizes published changes and changes not yet included in a release
 
 ## [0.24.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.4) — 2026-10-10
 
-- Close active Windows receiver and source sessions when their pinned peer is revoked or Control/Text permissions change, including revocation from the console. Release held input and stop text sharing on the old channel.
+- Close active Windows receiver and source sessions when their pinned peer is revoked or Control/Text permissions change, including revocation from the console. Release held input, stop text sharing and invalidate file transfers on the old trust.
 - Make Windows console revocation wait for the active session to end before reporting success. Add an open-socket revocation regression test. See the [release notes](docs/RELEASE-0.24.4.md).
 
 ## [0.24.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.3) — 2026-10-10

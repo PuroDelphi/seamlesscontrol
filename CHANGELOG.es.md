@@ -6,7 +6,7 @@ Este archivo resume los cambios publicados y los cambios aún sin release. Consu
 
 ## [0.24.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.4) — 2026-10-10
 
-- Cierra las sesiones Windows activas de recepción y origen cuando se revoca la clave fijada o cambian los permisos Control/Texto, incluso al revocar desde consola. Libera la entrada retenida y detiene el intercambio de texto en el canal anterior.
+- Cierra las sesiones Windows activas de recepción y origen cuando se revoca la clave fijada o cambian los permisos Control/Texto, incluso al revocar desde consola. Libera la entrada retenida, detiene el intercambio de texto e invalida las transferencias de archivos con la confianza anterior.
 - La revocación por consola espera el cierre de la sesión antes de confirmar éxito. Añade una prueba con socket abierto. Véanse las [notas de lanzamiento](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows).
 
 ## [0.24.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.3) — 2026-10-10
