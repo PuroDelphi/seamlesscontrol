@@ -2,7 +2,7 @@
 
 use crate::clipboard::{ClipboardEvent, MAX_IMAGE_BYTES, MAX_TEXT_BYTES, valid_png_header};
 use crate::clipboard_file::local_regular_file;
-use crate::clipboard_image::to_wire_png;
+use crate::clipboard_image::{to_wire_png, to_wire_png_for_mime};
 use image::ImageFormat;
 use std::io;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
@@ -12,8 +12,8 @@ use std::thread;
 use std::time::Duration;
 use windows_sys::Win32::Foundation::GlobalFree;
 use windows_sys::Win32::System::DataExchange::{
-    CloseClipboard, CountClipboardFormats, EmptyClipboard, GetClipboardData,
-    GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard,
+    CloseClipboard, CountClipboardFormats, EmptyClipboard, EnumClipboardFormats, GetClipboardData,
+    GetClipboardFormatNameW, GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard,
     RegisterClipboardFormatW, SetClipboardData,
 };
 use windows_sys::Win32::System::Memory::{
@@ -432,27 +432,31 @@ fn registered_clipboard_format(name: &str) -> u32 {
 /// Outer None means no raster format; inner None means a delayed format is not ready yet.
 fn read_raster_clipboard() -> io::Result<Option<Option<ClipboardEvent>>> {
     let mut offered = false;
-    for (name, format) in [
-        ("PNG", ImageFormat::Png),
-        ("image/png", ImageFormat::Png),
-        ("JFIF", ImageFormat::Jpeg),
-        ("image/jpeg", ImageFormat::Jpeg),
-        ("GIF", ImageFormat::Gif),
-        ("image/gif", ImageFormat::Gif),
-        ("image/webp", ImageFormat::WebP),
-        ("image/tiff", ImageFormat::Tiff),
-        ("image/bmp", ImageFormat::Bmp),
-        ("image/x-icon", ImageFormat::Ico),
-    ] {
-        let id = registered_clipboard_format(name);
-        if id == 0 || unsafe { IsClipboardFormatAvailable(id) } == 0 {
+    let mut id = 0;
+    for _ in 0..256 {
+        id = unsafe { EnumClipboardFormats(id) };
+        if id == 0 {
+            break;
+        }
+        let mut name = [0u16; 256];
+        let len = unsafe { GetClipboardFormatNameW(id, name.as_mut_ptr(), name.len() as i32) };
+        if len <= 0 {
             continue;
         }
+        let name = String::from_utf16_lossy(&name[..len as usize]);
+        let mime = match name.as_str() {
+            "PNG" => "image/png",
+            "JFIF" => "image/jpeg",
+            "GIF" => "image/gif",
+            "SVG" => "image/svg+xml",
+            _ if name.to_ascii_lowercase().starts_with("image/") => &name,
+            _ => continue,
+        };
         offered = true;
         let Some(bytes) = read_global_data(id, MAX_IMAGE_BYTES)? else {
             return Ok(Some(None));
         };
-        if let Some(png) = to_wire_png(format, &bytes) {
+        if let Some(png) = to_wire_png_for_mime(mime, &bytes) {
             return Ok(Some(Some(ClipboardEvent::ImagePng(png))));
         }
     }

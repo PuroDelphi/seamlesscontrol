@@ -5,7 +5,7 @@ This document tracks the remaining physical checks before these changes can be c
 ## Implemented
 
 - [x] Add bounded PNG clipboard messages to the authenticated control channel, including mesh forwarding and loop prevention.
-- [x] Read common Wayland raster MIME types and Windows registered raster formats or supported DIB/DIBV5 bitmap selections; convert non-PNG formats to bounded PNG. Publish PNG on Omarchy and PNG plus DIBV5 on Windows.
+- [x] Read SVG and supported Wayland raster MIME types and Windows registered raster formats or supported DIB/DIBV5 bitmap selections; convert non-PNG formats to bounded PNG. Publish PNG on Omarchy and PNG plus DIBV5 on Windows.
 - [x] Keep image clipboard under the existing per-peer Clipboard permission and active control session. Ignore unsupported or oversized images instead of breaking mouse or keyboard control.
 - [x] Let users drop local files and folders onto the sender's Files page on Omarchy or Windows. Reuse the existing authenticated file offer, Files permission, receiver approval mode, size limit, hash verification and staging. Never move or delete the source.
 - [x] Update English and Spanish user guides with the new workflow and its limits.
@@ -13,7 +13,7 @@ This document tracks the remaining physical checks before these changes can be c
 ## Verify on physical computers
 
 - [ ] Omarchy → Windows: copy a screenshot/image from an application and paste its pixels into an image editor or chat composer. Verify text still syncs after the image.
-- [ ] Windows → Omarchy: test a Snipping Tool image and browser copies of JPEG, GIF and WebP images. Paste pixels into an application. Verify transparency where the source has it.
+- [ ] Windows → Omarchy: test a Snipping Tool image and browser copies of JPEG, GIF, WebP and SVG images. Paste pixels into an application. Verify transparency where the source has it.
 - [ ] With Clipboard permission off, confirm image and text do not arrive. With no active control connection, confirm neither arrives.
 - [ ] Drop a file and a folder onto the sender's Files page in each OS direction. Confirm one receiver offer, Ask every time / automatic / timed approval behavior, size limit, rejection, no transfer after session stop, and original remains in place.
 - [ ] On Windows, confirm that dragging a paired computer onto the screen map still works after enabling native file drops in the app.

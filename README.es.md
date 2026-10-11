@@ -4,7 +4,7 @@
 
 [Novedades de la versión 0.24.4](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows) · [Características de 0.24.0](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows)
 
-La rama `alpha` prepara el portapapeles de texto e imágenes y la zona para soltar archivos en la app del emisor. Consulta el [registro de validación alpha](docs/ALPHA-IMAGE-DROP.es.md); el último lanzamiento con tag sigue siendo 0.24.4.
+La rama `alpha` prepara el portapapeles de texto e imágenes (PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG) y la zona para soltar archivos en la app del emisor. Consulta el [registro de validación alpha](docs/ALPHA-IMAGE-DROP.es.md); el último lanzamiento con tag sigue siendo 0.24.4.
 
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 

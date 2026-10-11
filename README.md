@@ -4,7 +4,7 @@
 
 [See what's new in 0.24.4](docs/RELEASE-0.24.4.md) · [0.24.0 feature release](docs/RELEASE-0.24.0.md)
 
-The `alpha` branch is preparing text and common raster-image clipboard sharing (PNG, JPEG, GIF, WebP, TIFF, BMP and ICO) plus file drops onto the sender's app. See the [alpha validation record](docs/ALPHA-IMAGE-DROP.md); the latest tagged release remains 0.24.4.
+The `alpha` branch is preparing text and image clipboard sharing (PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld and SVG) plus file drops onto the sender's app. See the [alpha validation record](docs/ALPHA-IMAGE-DROP.md); the latest tagged release remains 0.24.4.
 
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
