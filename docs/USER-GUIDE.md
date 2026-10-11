@@ -100,6 +100,8 @@ For several files or a folder, the receiver sees **one offer** with the number o
 
 An unapproved offer expires after **two minutes**. Copy the file again or use the offer button to retry. GNOME Files supports copying from **Recent** as well as normal folders. Other file managers must expose a local file in supported clipboard formats; remote files, symbolic links and cut/move operations are not offered. A copied group is presented as one offer, with its item count and total size; after approval, paste the received folder to keep its contents together. Both computers need a version that supports groups. Up to 256 files and folders (including nested items) fit in one group and the configured size limit applies to the entire group. Rename a file containing `:` before sending: that character is rejected for Windows-compatible safety.
 
+You can also drag local files or folders from the file manager onto the **Files** page of the sender's SeamlessControl panel. This starts the same approved offer and never moves the original. A continuous drag from one computer's file manager across the screen edge into another computer's file manager is not available yet; use the panel drop area or Copy and Paste.
+
 ### Send directly to a folder · TCP 47833 by default
 
 1. **Receiver → Files:** choose a **Destination folder** with **Choose**. Leave the receiving address on Automatic, or enter a local `IP:port`.
@@ -132,7 +134,7 @@ Approval does **not** open firewall ports, start the manual receiver, or authori
 
 | Purpose | Default port | What must be running on the receiver | Omarchy rule location |
 | --- | --- | --- | --- |
-| Mouse/keyboard control and text clipboard | TCP `47832` | **Home → Receive control** | **Settings → Firewall · receiver only** |
+| Mouse/keyboard control and text/image clipboard | TCP `47832` | **Home → Receive control** | **Settings → Firewall · receiver only** |
 | Manual file send to a folder | TCP `47833` | **Files → Wait for a file**, once per offer | **Files → Preview file LAN rule** |
 | Copy/paste files | TCP `47834` | Omarchy widget loaded / Windows app running | **Settings → Copied files · set up receiving** |
 | Nearby receiver discovery | UDP `5353` (mDNS) | Control receiver advertising on the LAN | Network's multicast/mDNS policy; the panel's TCP rules do not configure this |
@@ -166,7 +168,7 @@ The capture repair button only appears for a **panel-started source session** af
 - Locking the Omarchy source disables capture; locking the receiver, or being unable to determine its lock state, cuts remote input. Held keys/buttons are released when input ends. This is **normal signed-in desktop control**, not remote login, remote unlock or access to Windows UAC/secure desktops. Consult the Windows guide for its permission limits. Physical lock and wake tests passed on the Omarchy/Windows pair: local input returned, and remote control required a fresh crossing after unlock. Unlock the source locally; the app cannot enter a locked desktop.
 - While an Omarchy source actively controls a peer, the loaded bar widget inhibits Omarchy's inhibitor-aware **automatic idle lock**. Manual locking still works; the inhibitor ends on return or widget unload. Keep this in mind on an unattended source.
 - These lock safeguards concern input control. File listeners may remain open, but they reject offers without a current authenticated control session. Stopping control does not erase a file already received into the local clipboard. Sensitive Wayland clipboard selections are excluded where marked by the application; do not assume every password manager or copied secret is marked.
-- During a control connection, **text clipboard** synchronization is automatic (UTF-8, up to 256 KiB). Images are not synchronized. File copying uses a separate approved transfer while that control connection remains active.
+- During a control connection, **text and PNG image clipboard** synchronization is automatic under the peer’s **Clipboard** permission (text up to 256 KiB; PNG up to 8 MiB). Images must be available as PNG or a supported Windows bitmap; rich document formats are not synchronized. File copying and files dropped onto the SeamlessControl panel use a separate approved transfer while that connection remains active.
 - **Settings → Connect several computers** is experimental: one source plus **two or three receivers** in a connected 2 × 2 layout. Pair and place the computers on the participating layouts, keep every receiver active on the same control port, then start mesh from the source. Clipboard updates are shared across connected receivers. For two computers total use normal **Connect**. Physical multi-machine mesh, rapid handoffs and network recovery are not fully validated; see the [test record](TEST-RESULTS.md), not the documentation renders, for observed results.
 
 ## Update and remove

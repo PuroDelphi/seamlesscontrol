@@ -100,24 +100,26 @@ Detener el control termina el intercambio de archivos con ese equipo aunque el r
 
 ## Compartir texto y archivos
 
-### Texto: necesita una conexión de control
+### Texto e imágenes: requieren una conexión de control
 
-Mientras la conexión de control esté en ejecución, copia texto en un equipo y pégalo en el otro. La sincronización es bidireccional; no sincroniza imágenes del portapapeles ni formatos enriquecidos. No necesitas enviar un archivo de texto para compartir su texto.
+Mientras la conexión esté activa, copia texto o una imagen en una aplicación y pégala en una aplicación del otro equipo. El permiso autenticado **Portapapeles** cubre ambos. El texto admite hasta 256 KiB y las imágenes PNG hasta 8 MiB; los mapas de bits compatibles de Windows se convierten a PNG. No se sincronizan formatos enriquecidos de documentos. Una imagen copiada sigue la conexión de control y no genera una oferta de archivo.
 
 ### Archivos: elige el flujo adecuado
 
 | Tarea | Usa | Qué necesita el receptor |
 | --- | --- | --- |
-| Copiar en un explorador y pegar en el otro | Tarjeta superior **Archivos → Copia aquí, pega allá** | Conexión de control activa; app/plugin en ejecución; TCP `47834`; sin espera manual. |
+| Copiar en un explorador y pegar en el otro, o soltar archivos en la ventana de SeamlessControl | Tarjeta superior **Archivos → Copia aquí, pega allá** | Conexión de control activa; app/plugin en ejecución; TCP `47834`; sin espera manual. |
 | Elegir un archivo y guardarlo directamente en una carpeta | **Archivos → Enviar un archivo / Esperar un archivo** | **Esperar un archivo** activo; TCP `47833` por defecto. |
 
 Ambos flujos requieren emparejamiento y conexión de control activa, siguen la preferencia de aprobación del receptor y verifican la transferencia. El envío manual admite un archivo. La copia entre exploradores admite un archivo local, varios archivos o una carpeta como un solo grupo aprobado; admite **Copiar**, no Cortar/mover entre equipos. Ambos equipos deben tener agentes compatibles con grupos.
+
+Soltar archivos en la página **Archivos de SeamlessControl del emisor** también inicia una oferta aprobada. Arrastrar directamente desde un explorador de un sistema operativo a un explorador del otro cruzando el borde aún no está disponible: los dos escritorios no comparten el mismo objeto de arrastre. Soltar no mueve ni elimina el archivo original.
 
 **Detener Controlar otro equipo detiene las ofertas y transferencias de archivos con ese equipo.** Emparejar por sí solo no inicia el intercambio. Durante una conexión, **Aceptar automáticamente** omite el aviso; elige **Ajustes → Aprobación de archivos entrantes → Preguntar siempre** para exigir una decisión, o desactiva **Archivos** para ese equipo en **Equipos** para bloquear sus ofertas.
 
 #### Copia aquí, pega allá
 
-1. Mantén ambas apps/plugin en ejecución y conecta los equipos emparejados. Copia **un archivo local, varios archivos o una carpeta** en el Explorador o en el explorador Omarchy.
+1. Mantén ambas apps/plugin en ejecución y conecta los equipos emparejados. Copia **un archivo local, varios archivos o una carpeta** en el Explorador o en el explorador Omarchy. Como alternativa, arrastra archivos o carpetas locales a la página **Archivos** de SeamlessControl en el equipo emisor.
 2. Con exactamente un equipo conectado, se ofrece automáticamente. Con varios, elige el destino en **Archivos → Copia aquí, pega allá**. Resultado esperado: aparece el archivo copiado y llega una oferta al receptor.
 3. Con el modo predeterminado, el receptor revisa remitente, nombre y tamaño y pulsa **Aceptar archivo** o **Rechazar**. Windows también muestra un diálogo nativo aunque esté oculto en la bandeja; Omarchy usa una notificación de escritorio con botones. La página Archivos también tiene botones de aprobación.
 4. Espera la finalización verificada en **Actividad**. Abre entonces la carpeta donde quieres el archivo y **Pega** en el explorador del receptor. Aceptar prepara el portapapeles local; no pega por ti en la carpeta elegida.

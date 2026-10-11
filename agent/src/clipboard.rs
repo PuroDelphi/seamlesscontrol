@@ -1,9 +1,11 @@
-//! Small text-only clipboard messages shared by both platform adapters.
+//! Bounded text and PNG clipboard messages shared by both platform adapters.
 
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 
 pub const MAX_TEXT_BYTES: usize = 256 * 1024;
+pub const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_CLIPBOARD_BYTES: usize = MAX_IMAGE_BYTES;
 const PACKET_MAGIC: &[u8; 4] = b"SCB1";
 const PACKET_HEADER: usize = 4 + 8 + 32;
 
@@ -11,6 +13,7 @@ const PACKET_HEADER: usize = 4 + 8 + 32;
 pub enum ClipboardEvent {
     Ignore,
     Text(Vec<u8>),
+    ImagePng(Vec<u8>),
     Clear,
 }
 
@@ -21,6 +24,12 @@ impl ClipboardEvent {
             Self::Text(bytes) => {
                 let mut out = Vec::with_capacity(bytes.len() + 1);
                 out.push(1);
+                out.extend_from_slice(bytes);
+                out
+            }
+            Self::ImagePng(bytes) => {
+                let mut out = Vec::with_capacity(bytes.len() + 1);
+                out.push(3);
                 out.extend_from_slice(bytes);
                 out
             }
@@ -38,6 +47,7 @@ impl ClipboardEvent {
                 Ok(Self::Text(bytes.to_vec()))
             }
             [2] => Ok(Self::Clear),
+            [3, bytes @ ..] if valid_png_header(bytes) => Ok(Self::ImagePng(bytes.to_vec())),
             _ => Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid clipboard message",
@@ -47,7 +57,7 @@ impl ClipboardEvent {
 
     pub fn write_framed(&self, writer: &mut impl Write) -> io::Result<()> {
         let payload = self.encode();
-        if payload.len() > MAX_TEXT_BYTES + 1 {
+        if payload.len() > MAX_CLIPBOARD_BYTES + 1 {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "clipboard too large",
@@ -64,7 +74,7 @@ impl ClipboardEvent {
         }
         reader.read_exact(&mut size[1..])?;
         let size = u32::from_be_bytes(size) as usize;
-        if !(1..=MAX_TEXT_BYTES + 1).contains(&size) {
+        if !(1..=MAX_CLIPBOARD_BYTES + 1).contains(&size) {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "invalid clipboard length",
@@ -96,7 +106,7 @@ impl ClipboardPacket {
 
     pub fn decode(payload: &[u8]) -> io::Result<Self> {
         if payload.len() < PACKET_HEADER + 1
-            || payload.len() > PACKET_HEADER + MAX_TEXT_BYTES + 1
+            || payload.len() > PACKET_HEADER + MAX_CLIPBOARD_BYTES + 1
             || &payload[..4] != PACKET_MAGIC
         {
             return Err(io::Error::new(
@@ -201,6 +211,12 @@ impl MeshClipboard {
                     "invalid mesh clipboard text",
                 ));
             }
+            ClipboardEvent::ImagePng(bytes) if !valid_png_header(bytes) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid clipboard PNG",
+                ));
+            }
             ClipboardEvent::Ignore => return Ok(None),
             _ => {}
         }
@@ -219,6 +235,28 @@ impl MeshClipboard {
         self.latest = Some(packet.clone());
         Ok(Some(packet))
     }
+}
+
+/// Reject malformed or unreasonable image headers before forwarding data to
+/// the platform clipboard. The PNG decoder in the destination application is
+/// still responsible for validating the remaining chunks.
+pub fn valid_png_header(bytes: &[u8]) -> bool {
+    if bytes.len() < 33 || bytes.len() > MAX_IMAGE_BYTES {
+        return false;
+    }
+    if &bytes[..8] != b"\x89PNG\r\n\x1a\n"
+        || bytes[8..12] != 13u32.to_be_bytes()
+        || &bytes[12..16] != b"IHDR"
+    {
+        return false;
+    }
+    let width = u32::from_be_bytes(bytes[16..20].try_into().expect("checked length"));
+    let height = u32::from_be_bytes(bytes[20..24].try_into().expect("checked length"));
+    width > 0
+        && height > 0
+        && width <= 16384
+        && height <= 16384
+        && u64::from(width) * u64::from(height) <= 64_000_000
 }
 
 impl ClipboardSync {
@@ -379,6 +417,24 @@ mod tests {
         assert!(ClipboardEvent::decode(&[2, 0]).is_err());
         let oversized = ((MAX_TEXT_BYTES + 2) as u32).to_be_bytes();
         assert!(ClipboardEvent::read_framed(&mut oversized.as_slice()).is_err());
+    }
+
+    #[test]
+    fn png_clipboard_is_bounded_and_rejects_unreasonable_dimensions() {
+        let mut png = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        png.extend_from_slice(&128u32.to_be_bytes());
+        png.extend_from_slice(&64u32.to_be_bytes());
+        png.extend_from_slice(&[8, 6, 0, 0, 0, 0, 0, 0, 0]);
+        let event = ClipboardEvent::ImagePng(png.clone());
+        let mut wire = Vec::new();
+        event.write_framed(&mut wire).unwrap();
+        assert_eq!(
+            ClipboardEvent::read_framed(&mut wire.as_slice()).unwrap(),
+            Some(event)
+        );
+        png[16..20].copy_from_slice(&u32::MAX.to_be_bytes());
+        assert!(ClipboardEvent::decode(&[vec![3], png].concat()).is_err());
+        assert!(ClipboardEvent::decode(&[3, 1, 2, 3]).is_err());
     }
 
     #[test]

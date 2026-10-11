@@ -1,6 +1,6 @@
-//! Windows text clipboard adapter and local file clipboard bridge.
+//! Windows text/PNG clipboard adapter and local file clipboard bridge.
 
-use crate::clipboard::{ClipboardEvent, MAX_TEXT_BYTES};
+use crate::clipboard::{ClipboardEvent, MAX_IMAGE_BYTES, MAX_TEXT_BYTES, valid_png_header};
 use crate::clipboard_file::local_regular_file;
 use std::io;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
@@ -11,7 +11,8 @@ use std::time::Duration;
 use windows_sys::Win32::Foundation::GlobalFree;
 use windows_sys::Win32::System::DataExchange::{
     CloseClipboard, CountClipboardFormats, EmptyClipboard, GetClipboardData,
-    GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard, SetClipboardData,
+    GetClipboardSequenceNumber, IsClipboardFormatAvailable, OpenClipboard,
+    RegisterClipboardFormatW, SetClipboardData,
 };
 use windows_sys::Win32::System::Memory::{
     GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock,
@@ -21,6 +22,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{CreateWindowExW, DestroyWindow
 
 const CF_UNICODETEXT: u32 = 13;
 const CF_HDROP: u32 = 15;
+const CF_DIB: u32 = 8;
+const CF_DIBV5: u32 = 17;
 const MAX_UTF16_BYTES: usize = MAX_TEXT_BYTES * 2 + 2;
 
 fn last_error(context: &'static str) -> io::Error {
@@ -100,8 +103,29 @@ impl WindowsClipboard {
         let Some(_open) = OpenedClipboard::open_for_read()? else {
             return Ok(None);
         };
+        let png_format = registered_png_format();
         let event = if unsafe { IsClipboardFormatAvailable(CF_HDROP) } != 0 {
             ClipboardEvent::Ignore
+        } else if png_format != 0 && unsafe { IsClipboardFormatAvailable(png_format) } != 0 {
+            match read_global_data(png_format, MAX_IMAGE_BYTES)? {
+                Some(bytes) if valid_png_header(&bytes) => ClipboardEvent::ImagePng(bytes),
+                Some(_) => ClipboardEvent::Ignore,
+                None => return Ok(None),
+            }
+        } else if unsafe { IsClipboardFormatAvailable(CF_DIBV5) } != 0
+            || unsafe { IsClipboardFormatAvailable(CF_DIB) } != 0
+        {
+            let format = if unsafe { IsClipboardFormatAvailable(CF_DIBV5) } != 0 {
+                CF_DIBV5
+            } else {
+                CF_DIB
+            };
+            match read_global_data(format, MAX_IMAGE_BYTES * 8)? {
+                Some(dib) => {
+                    dib_to_png(&dib).map_or(ClipboardEvent::Ignore, ClipboardEvent::ImagePng)
+                }
+                None => return Ok(None),
+            }
         } else if unsafe { IsClipboardFormatAvailable(CF_UNICODETEXT) } != 0 {
             let handle = unsafe { GetClipboardData(CF_UNICODETEXT) };
             if handle.is_null() {
@@ -279,6 +303,15 @@ impl WindowsClipboard {
                 Some(wide)
             }
             ClipboardEvent::Clear => None,
+            ClipboardEvent::ImagePng(bytes) => {
+                if !valid_png_header(bytes) {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid clipboard PNG",
+                    ));
+                }
+                None
+            }
             ClipboardEvent::Ignore => unreachable!(),
         };
         let handle = if let Some(wide) = &wide {
@@ -298,10 +331,63 @@ impl WindowsClipboard {
         } else {
             None
         };
+        let image_handle = if let ClipboardEvent::ImagePng(bytes) = event {
+            let handle = unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes.len()) };
+            if handle.is_null() {
+                return Err(last_error("image GlobalAlloc failed"));
+            }
+            let pointer = unsafe { GlobalLock(handle) };
+            if pointer.is_null() {
+                unsafe { GlobalFree(handle) };
+                return Err(last_error("image GlobalLock failed"));
+            }
+            unsafe {
+                ptr::copy_nonoverlapping(bytes.as_ptr(), pointer.cast::<u8>(), bytes.len());
+                GlobalUnlock(handle);
+            }
+            Some(handle)
+        } else {
+            None
+        };
+        let dib_handle = if let ClipboardEvent::ImagePng(bytes) = event {
+            match png_to_dibv5(bytes) {
+                Some(dib) => {
+                    let handle = unsafe { GlobalAlloc(GMEM_MOVEABLE, dib.len()) };
+                    if handle.is_null() {
+                        if let Some(image_handle) = image_handle {
+                            unsafe { GlobalFree(image_handle) };
+                        }
+                        return Err(last_error("DIB GlobalAlloc failed"));
+                    }
+                    let pointer = unsafe { GlobalLock(handle) };
+                    if pointer.is_null() {
+                        unsafe { GlobalFree(handle) };
+                        if let Some(image_handle) = image_handle {
+                            unsafe { GlobalFree(image_handle) };
+                        }
+                        return Err(last_error("DIB GlobalLock failed"));
+                    }
+                    unsafe {
+                        ptr::copy_nonoverlapping(dib.as_ptr(), pointer.cast::<u8>(), dib.len());
+                        GlobalUnlock(handle);
+                    }
+                    Some(handle)
+                }
+                None => None,
+            }
+        } else {
+            None
+        };
         let _open = match OpenedClipboard::open_for_write() {
             Ok(open) => open,
             Err(error) => {
                 if let Some(handle) = handle {
+                    unsafe { GlobalFree(handle) };
+                }
+                if let Some(handle) = image_handle {
+                    unsafe { GlobalFree(handle) };
+                }
+                if let Some(handle) = dib_handle {
                     unsafe { GlobalFree(handle) };
                 }
                 return Err(error);
@@ -311,7 +397,29 @@ impl WindowsClipboard {
             if let Some(handle) = handle {
                 unsafe { GlobalFree(handle) };
             }
+            if let Some(handle) = image_handle {
+                unsafe { GlobalFree(handle) };
+            }
+            if let Some(handle) = dib_handle {
+                unsafe { GlobalFree(handle) };
+            }
             return Err(last_error("EmptyClipboard failed"));
+        }
+        if let Some(image_handle) = image_handle {
+            let format = registered_png_format();
+            if format == 0 || unsafe { SetClipboardData(format, image_handle) }.is_null() {
+                unsafe { GlobalFree(image_handle) };
+                if let Some(dib_handle) = dib_handle {
+                    unsafe { GlobalFree(dib_handle) };
+                }
+                return Err(last_error("SetClipboardData PNG failed"));
+            }
+        }
+        if let Some(dib_handle) = dib_handle
+            && unsafe { SetClipboardData(CF_DIBV5, dib_handle) }.is_null()
+        {
+            unsafe { GlobalFree(dib_handle) };
+            return Err(last_error("SetClipboardData DIBV5 failed"));
         }
         if let Some(handle) = handle
             && unsafe { SetClipboardData(CF_UNICODETEXT, handle) }.is_null()
@@ -325,8 +433,185 @@ impl WindowsClipboard {
     }
 }
 
+fn registered_png_format() -> u32 {
+    let name: Vec<u16> = "PNG\0".encode_utf16().collect();
+    unsafe { RegisterClipboardFormatW(name.as_ptr()) }
+}
+
+fn read_global_data(format: u32, limit: usize) -> io::Result<Option<Vec<u8>>> {
+    let handle = unsafe { GetClipboardData(format) };
+    if handle.is_null() {
+        return Ok(None);
+    }
+    let size = unsafe { GlobalSize(handle) };
+    if size == 0 || size > limit {
+        return Ok(Some(Vec::new()));
+    }
+    let pointer = unsafe { GlobalLock(handle) };
+    if pointer.is_null() {
+        return Ok(None);
+    }
+    let bytes = unsafe { std::slice::from_raw_parts(pointer.cast::<u8>(), size).to_vec() };
+    unsafe { GlobalUnlock(handle) };
+    Ok(Some(bytes))
+}
+
+fn dib_to_png(dib: &[u8]) -> Option<Vec<u8>> {
+    let le_u16 = |start: usize| {
+        Some(u16::from_le_bytes(
+            dib.get(start..start + 2)?.try_into().ok()?,
+        ))
+    };
+    let le_u32 = |start: usize| {
+        Some(u32::from_le_bytes(
+            dib.get(start..start + 4)?.try_into().ok()?,
+        ))
+    };
+    let header = le_u32(0)? as usize;
+    if header < 40 || header > dib.len() || le_u16(12)? != 1 {
+        return None;
+    }
+    let width = i32::from_le_bytes(dib.get(4..8)?.try_into().ok()?);
+    let height = i32::from_le_bytes(dib.get(8..12)?.try_into().ok()?);
+    let bpp = le_u16(14)?;
+    let compression = le_u32(16)?;
+    if width <= 0
+        || height == 0
+        || height == i32::MIN
+        || !(bpp == 24 || bpp == 32)
+        || !(compression == 0 || (compression == 3 && bpp == 32 && header >= 56))
+    {
+        return None;
+    }
+    let width = width as usize;
+    let rows = height.unsigned_abs() as usize;
+    if width > 16384 || rows > 16384 || width.checked_mul(rows)? > 64_000_000 {
+        return None;
+    }
+    if compression == 3
+        && (le_u32(40)?, le_u32(44)?, le_u32(48)?) != (0x00ff0000, 0x0000ff00, 0x000000ff)
+    {
+        return None;
+    }
+    let pixel_offset = header.checked_add(if compression == 3 && header == 40 {
+        12
+    } else {
+        0
+    })?;
+    let stride = width
+        .checked_mul(bpp as usize)?
+        .checked_add(31)?
+        .checked_div(32)?
+        .checked_mul(4)?;
+    let pixels = dib.get(pixel_offset..pixel_offset.checked_add(stride.checked_mul(rows)?)?)?;
+    let mut rgba = vec![0u8; width.checked_mul(rows)?.checked_mul(4)?];
+    let has_alpha = bpp == 32
+        && (0..rows).any(|y| {
+            pixels[y * stride + 3..y * stride + width * 4]
+                .chunks_exact(4)
+                .any(|p| p[0] != 0)
+        });
+    for y in 0..rows {
+        let src_y = if height > 0 { rows - 1 - y } else { y };
+        for x in 0..width {
+            let source = src_y * stride + x * (bpp as usize / 8);
+            let dest = (y * width + x) * 4;
+            rgba[dest..dest + 4].copy_from_slice(&[
+                pixels[source + 2],
+                pixels[source + 1],
+                pixels[source],
+                if has_alpha { pixels[source + 3] } else { 255 },
+            ]);
+        }
+    }
+    let mut output = Vec::new();
+    let mut encoder = png::Encoder::new(&mut output, width as u32, rows as u32);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.write_header().ok()?.write_image_data(&rgba).ok()?;
+    valid_png_header(&output).then_some(output)
+}
+
+fn png_to_dibv5(bytes: &[u8]) -> Option<Vec<u8>> {
+    if !valid_png_header(bytes) {
+        return None;
+    }
+    let mut decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+    decoder.set_transformations(png::Transformations::EXPAND | png::Transformations::STRIP_16);
+    let mut reader = decoder.read_info().ok()?;
+    let size = reader.output_buffer_size()?;
+    if size > 64 * 1024 * 1024 {
+        return None;
+    }
+    let mut decoded = vec![0; size];
+    let info = reader.next_frame(&mut decoded).ok()?;
+    let width = info.width as usize;
+    let height = info.height as usize;
+    let pixels = width.checked_mul(height)?;
+    if pixels == 0 || pixels > 16_000_000 {
+        return None;
+    }
+    let channels = match info.color_type {
+        png::ColorType::Grayscale => 1,
+        png::ColorType::GrayscaleAlpha => 2,
+        png::ColorType::Rgb => 3,
+        png::ColorType::Rgba => 4,
+        png::ColorType::Indexed => return None,
+    };
+    let source = decoded.get(..pixels.checked_mul(channels)?)?;
+    let mut dib = vec![0u8; 124 + pixels.checked_mul(4)?];
+    dib[0..4].copy_from_slice(&124u32.to_le_bytes());
+    dib[4..8].copy_from_slice(&info.width.to_le_bytes());
+    dib[8..12].copy_from_slice(&(-(info.height as i32)).to_le_bytes());
+    dib[12..14].copy_from_slice(&1u16.to_le_bytes());
+    dib[14..16].copy_from_slice(&32u16.to_le_bytes());
+    dib[16..20].copy_from_slice(&3u32.to_le_bytes());
+    dib[20..24].copy_from_slice(&((pixels * 4) as u32).to_le_bytes());
+    for (start, mask) in [
+        (40, 0x00ff0000u32),
+        (44, 0x0000ff00),
+        (48, 0x000000ff),
+        (52, 0xff000000),
+    ] {
+        dib[start..start + 4].copy_from_slice(&mask.to_le_bytes());
+    }
+    dib[56..60].copy_from_slice(&0x73524742u32.to_le_bytes()); // sRGB
+    for (index, pixel) in source.chunks_exact(channels).enumerate() {
+        let (r, g, b, a) = match pixel {
+            [gray] => (*gray, *gray, *gray, 255),
+            [gray, alpha] => (*gray, *gray, *gray, *alpha),
+            [red, green, blue] => (*red, *green, *blue, 255),
+            [red, green, blue, alpha] => (*red, *green, *blue, *alpha),
+            _ => return None,
+        };
+        dib[124 + index * 4..124 + index * 4 + 4].copy_from_slice(&[b, g, r, a]);
+    }
+    Some(dib)
+}
+
 impl Default for WindowsClipboard {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod image_tests {
+    use super::*;
+
+    #[test]
+    fn windows_bitmap_converts_to_png_and_back_without_swapping_channels() {
+        let mut dib = vec![0u8; 48];
+        dib[0..4].copy_from_slice(&40u32.to_le_bytes());
+        dib[4..8].copy_from_slice(&2i32.to_le_bytes());
+        dib[8..12].copy_from_slice(&1i32.to_le_bytes());
+        dib[12..14].copy_from_slice(&1u16.to_le_bytes());
+        dib[14..16].copy_from_slice(&24u16.to_le_bytes());
+        dib[40..48].copy_from_slice(&[10, 20, 30, 40, 50, 60, 0, 0]);
+        let png = dib_to_png(&dib).expect("supported DIB");
+        assert!(valid_png_header(&png));
+        let round_trip = png_to_dibv5(&png).expect("supported PNG");
+        assert_eq!(&round_trip[8..12], &(-1i32).to_le_bytes());
+        assert_eq!(&round_trip[124..132], &[10, 20, 30, 255, 40, 50, 60, 255]);
     }
 }

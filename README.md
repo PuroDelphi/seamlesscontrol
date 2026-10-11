@@ -4,6 +4,8 @@
 
 [See what's new in 0.24.4](docs/RELEASE-0.24.4.md) · [0.24.0 feature release](docs/RELEASE-0.24.0.md)
 
+The `alpha` branch is preparing text and image clipboard sharing plus file drops onto the sender's app. See the [alpha validation record](docs/ALPHA-IMAGE-DROP.md); the latest tagged release remains 0.24.4.
+
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
 You can also share text during a connection and copy **files and folders** between connected computers. The receiver chooses how to approve files; they become available only after verification.
@@ -11,7 +13,7 @@ You can also share text during a connection and copy **files and folders** betwe
 ![SeamlessControl: mouse, keyboard, clipboard and files across Omarchy and Windows](preview.png)
 
 - **Move naturally:** cross the screen edge and return the same way. Choose fluid crossing, a deliberate double crossing, or protection while a window is full-screen.
-- **Keep control of trust:** compare a six-digit pairing code on both computers, then set Control, Text and Files permissions for each paired computer.
+- **Keep control of trust:** compare a six-digit pairing code on both computers, then set Control, Clipboard and Files permissions for each paired computer.
 - **Copy a whole group:** select several files or a folder with nested files, approve one offer on the receiver, and paste the verified group there.
 - **Share only while connected:** a saved pairing never starts file sharing by itself. Ending the control session ends new file offers and transfers.
 - **Recover smoothly:** local input returns after a lock, sleep or stopped receiver; a fresh edge crossing resumes remote control.
@@ -71,7 +73,7 @@ Images show interfaces with fictional documentation data; each platform guide ex
 
 | Feature | What you need | Port on the receiver |
 |---|---|---|
-| Mouse, keyboard and text clipboard | Pair + Receive control + Connect | TCP `47832` by default |
+| Mouse, keyboard and text/image clipboard | Pair + Receive control + Connect | TCP `47832` by default |
 | Copy in one file manager and paste in the other | Apps open + pairing + active control connection; approve the offer when required and wait for verification before Paste | TCP `47834` |
 | Send to a chosen folder | Active control connection + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
 | Find nearby receivers | Active receiving and discovery allowed on the LAN | UDP `5353` (mDNS) |

@@ -36,7 +36,7 @@ use windows_sys::Win32::UI::Shell::ShellExecuteW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     MB_ICONERROR, MB_ICONQUESTION, MB_OK, MB_SETFOREGROUND, MB_TOPMOST, MB_YESNO, MessageBoxW,
 };
-use wry::{WebView, WebViewBuilder};
+use wry::{DragDropEvent, WebView, WebViewBuilder};
 
 const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const HTML: &str = include_str!("windows_ui.html");
@@ -330,6 +330,7 @@ enum UiEvent {
     Menu(MenuEvent),
     ClipboardDecision(String, bool),
     CopiedBundle(u64, Result<PathBuf, String>),
+    DroppedPaths(Vec<PathBuf>),
 }
 
 struct Process {
@@ -922,6 +923,43 @@ impl Controller {
             )),
             Err(error) => self.log(format!("Agent unavailable: {error}")),
         }
+    }
+
+    fn accept_dropped_paths(&mut self, paths: Vec<PathBuf>, proxy: &EventLoopProxy<UiEvent>) {
+        if paths.is_empty() || paths.len() > 256 {
+            self.log("Drop up to 256 local files or folders into SeamlessControl.");
+            return;
+        }
+        if !self.peers.keys().any(|ip| self.active_file_peer(*ip)) {
+            self.log("Connect to a paired computer before dropping files.");
+            return;
+        }
+        if self.copied_send_active {
+            self.stop(Slot::SendFile);
+        }
+        self.copied_generation = self.copied_generation.wrapping_add(1);
+        self.copied_file = None;
+        self.last_copied_send = None;
+        let staging = self.clipboard_staging.clone();
+        let limit = self.file_limit_mib * 1024 * 1024;
+        if paths.len() == 1 && paths[0].is_file() {
+            match seamlesscontrol_core::clipboard_file::local_regular_file(&paths[0], limit) {
+                Ok(true) if !paths[0].starts_with(&staging) => {
+                    self.copied_file = paths.into_iter().next();
+                    self.log("Dropped file is ready for one approved offer.");
+                }
+                _ => self.log("Dropped file is invalid, a link, or exceeds the size limit."),
+            }
+            return;
+        }
+        let generation = self.copied_generation;
+        let proxy = proxy.clone();
+        thread::spawn(move || {
+            let result = seamlesscontrol_core::file_bundle::create_bundle(&paths, limit, &staging)
+                .map_err(|error| error.to_string());
+            let _ = proxy.send_event(UiEvent::CopiedBundle(generation, result));
+        });
+        self.log("Preparing dropped files or folder for one approved offer…");
     }
 
     fn send_copied_file(
@@ -1781,8 +1819,15 @@ fn run_app() -> Result<(), Box<dyn Error>> {
         .with_window_icon(Some(window_icon))
         .build(&event_loop)?;
     let ipc_proxy = proxy.clone();
+    let drop_proxy = proxy.clone();
     let webview = WebViewBuilder::new()
         .with_html(HTML)
+        .with_drag_drop_handler(move |event| {
+            if let DragDropEvent::Drop { paths, .. } = event {
+                let _ = drop_proxy.send_event(UiEvent::DroppedPaths(paths));
+            }
+            true
+        })
         .with_ipc_handler(move |request| {
             let _ = ipc_proxy.send_event(UiEvent::Command(request.body().clone()));
         })
@@ -1887,6 +1932,10 @@ fn run_app() -> Result<(), Box<dyn Error>> {
                     }
                     push_state(&webview, &controller);
                 }
+            }
+            Event::UserEvent(UiEvent::DroppedPaths(paths)) => {
+                controller.accept_dropped_paths(paths, &proxy);
+                push_state(&webview, &controller);
             }
             Event::UserEvent(UiEvent::Discovery(items)) => {
                 controller.discovered = items;

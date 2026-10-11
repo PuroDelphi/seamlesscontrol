@@ -2481,6 +2481,25 @@ mod linux {
             }
             return Ok(());
         }
+        if args.len() >= 3 && args.len() <= 258 && args[1] == "prepare-dropped-files" {
+            let mut paths = Vec::with_capacity(args.len() - 2);
+            for uri in &args[2..] {
+                let path = clipboard_file::parse_one_file_uri(uri.as_bytes())?
+                    .ok_or("drop only local files or folders")?;
+                paths.push(path);
+            }
+            let staging = clipboard_staging_dir()?;
+            let path = clipboard_omarchy::prepare_copied_paths(
+                paths,
+                file_session::configured_limit()?,
+                &staging,
+            )?;
+            println!(
+                "{}",
+                serde_json::to_string(&path.and_then(|path| path.to_str().map(str::to_owned)))?
+            );
+            return Ok(());
+        }
         if args.len() == 3 && args[1] == "receive-file-clipboard-ui" {
             let port: u16 = args[2].parse()?;
             let address = discovery::auto_lan_address(port)?;

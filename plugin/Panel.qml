@@ -820,7 +820,7 @@ Panel {
 
         Text {
           Layout.fillWidth: true
-          text: root.t("Elija qué puede hacer cada identidad emparejada. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.")
+          text: root.t("Elija qué puede hacer cada identidad emparejada. Control y portapapeles cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.")
           textFormat: Text.PlainText
           wrapMode: Text.WordWrap
           color: root.muted
@@ -877,7 +877,7 @@ Panel {
                 model: ["control", "text", "files"]
                 delegate: StateButton {
                   required property string modelData
-                  text: (peerRow.policy[modelData] ? "● " : "○ ") + root.t(modelData === "control" ? "Control" : modelData === "text" ? "Texto" : "Archivos")
+                  text: (peerRow.policy[modelData] ? "● " : "○ ") + root.t(modelData === "control" ? "Control" : modelData === "text" ? "Portapapeles" : "Archivos")
                   bordered: true
                   focusable: true
                   enabled: root.backend && !root.backend.peerPolicyBusy
@@ -1804,6 +1804,36 @@ Panel {
           color: root.muted
           font.family: root.face
           font.pixelSize: Style.font.caption
+        }
+
+        Rectangle {
+          Layout.fillWidth: true
+          implicitHeight: Style.space(72)
+          radius: 8
+          color: dropFilesArea.containsDrag ? Color.accent : Color.background
+          border.color: Color.accent
+          border.width: 1
+
+          Text {
+            anchors.centerIn: parent
+            width: parent.width - Style.space(24)
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.WordWrap
+            text: root.t("Suelte aquí archivos o carpetas desde el explorador. Se enviarán solo durante una conexión y con la aprobación del receptor.")
+            textFormat: Text.PlainText
+            color: dropFilesArea.containsDrag ? Color.background : root.ink
+            font.family: root.face
+            font.pixelSize: Style.font.caption
+          }
+
+          DropArea {
+            id: dropFilesArea
+            anchors.fill: parent
+            onDropped: function(drop) {
+              if (root.backend) root.backend.prepareDroppedUrls(drop.urls)
+              drop.accepted = true
+            }
+          }
         }
 
         Text {

@@ -1,6 +1,9 @@
 //! Omarchy clipboard adapter using wl-clipboard's selection notifications.
 
-use crate::clipboard::{ClipboardEvent, ClipboardPacket, ClipboardSync, MAX_TEXT_BYTES};
+use crate::clipboard::{
+    ClipboardEvent, ClipboardPacket, ClipboardSync, MAX_IMAGE_BYTES, MAX_TEXT_BYTES,
+    valid_png_header,
+};
 use crate::clipboard_file::{file_uri, local_regular_file, parse_file_uris, parse_one_file_uri};
 use crate::file_bundle;
 use std::io::{self, Read, Write};
@@ -20,17 +23,27 @@ const FILE_ACTION_MIMES: [&str; 3] = [
 pub fn emit_watched_event() -> io::Result<()> {
     let event = match std::env::var("CLIPBOARD_STATE").as_deref() {
         Ok("data") => {
-            let mut bytes = Vec::new();
-            io::stdin()
-                .take((MAX_TEXT_BYTES + 1) as u64)
-                .read_to_end(&mut bytes)?;
-            if bytes.len() > MAX_TEXT_BYTES
-                || std::str::from_utf8(&bytes).is_err()
-                || has_file_clipboard_type()
+            let types = clipboard_types();
+            if types
+                .iter()
+                .any(|mime| mime == "text/uri-list" || FILE_ACTION_MIMES.contains(&mime.as_str()))
             {
                 ClipboardEvent::Ignore
+            } else if types.iter().any(|mime| mime == "image/png") {
+                match wl_paste_bounded(&["--no-newline", "--type", "image/png"], MAX_IMAGE_BYTES)? {
+                    Some(bytes) if valid_png_header(&bytes) => ClipboardEvent::ImagePng(bytes),
+                    _ => ClipboardEvent::Ignore,
+                }
             } else {
-                ClipboardEvent::Text(bytes)
+                let mut bytes = Vec::new();
+                io::stdin()
+                    .take((MAX_TEXT_BYTES + 1) as u64)
+                    .read_to_end(&mut bytes)?;
+                if bytes.len() > MAX_TEXT_BYTES || std::str::from_utf8(&bytes).is_err() {
+                    ClipboardEvent::Ignore
+                } else {
+                    ClipboardEvent::Text(bytes)
+                }
             }
         }
         Ok("clear") => ClipboardEvent::Clear,
@@ -52,12 +65,6 @@ fn clipboard_types() -> Vec<String> {
                 .collect()
         })
         .unwrap_or_default()
-}
-
-fn has_file_clipboard_type() -> bool {
-    clipboard_types()
-        .iter()
-        .any(|mime| mime == "text/uri-list" || FILE_ACTION_MIMES.contains(&mime.as_str()))
 }
 
 fn wl_paste_bounded(args: &[&str], limit: usize) -> io::Result<Option<Vec<u8>>> {
@@ -125,7 +132,7 @@ pub fn copied_file(limit: u64, staging: &Path) -> io::Result<Option<PathBuf>> {
     prepare_copied_paths(paths, limit, staging)
 }
 
-fn prepare_copied_paths(
+pub fn prepare_copied_paths(
     paths: Vec<PathBuf>,
     limit: u64,
     staging: &Path,
@@ -253,6 +260,26 @@ pub fn apply(event: &ClipboardEvent) -> io::Result<()> {
                 .write_all(bytes)?;
             wait_child(child)
         }
+        ClipboardEvent::ImagePng(bytes) => {
+            if !valid_png_header(bytes) {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "invalid clipboard PNG",
+                ));
+            }
+            let mut child = Command::new("wl-copy")
+                .args(["--type", "image/png"])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .spawn()?;
+            child
+                .stdin
+                .take()
+                .ok_or_else(|| io::Error::other("wl-copy stdin missing"))?
+                .write_all(bytes)?;
+            wait_child(child)
+        }
         ClipboardEvent::Clear => wait_child(
             Command::new("wl-copy")
                 .arg("--clear")
@@ -324,7 +351,7 @@ impl ClipboardWatch {
     ) -> io::Result<Self> {
         let executable = std::env::current_exe()?;
         let mut child = Command::new("wl-paste")
-            .args(["--type", "text/plain", "--watch"])
+            .arg("--watch")
             .arg(executable)
             .arg("clipboard-helper")
             .stdin(Stdio::null())

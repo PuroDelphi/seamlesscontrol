@@ -2,6 +2,14 @@
 
 // Spanish source strings are kept here so both languages share the same UI layout.
 var english = {
+  "Elija qué puede hacer cada identidad emparejada. Control y portapapeles cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.": "Choose what each paired identity may do. Control and clipboard permissions take effect on the next connection; file permissions on the next offer. Revoke removes trust immediately.",
+  "Portapapeles": "Clipboard",
+  "Suelte aquí archivos o carpetas desde el explorador. Se enviarán solo durante una conexión y con la aprobación del receptor.": "Drop files or folders here from the file manager. They are sent only during a connection and with the receiver's approval.",
+  "Conecte con un equipo emparejado antes de arrastrar archivos.": "Connect to a paired computer before dropping files.",
+  "Arrastre hasta 256 archivos o carpetas locales a la vez.": "Drop up to 256 local files or folders at a time.",
+  "Solo se aceptan archivos o carpetas locales.": "Only local files or folders are accepted.",
+  "No se pudo preparar el archivo arrastrado. Revise el límite y los enlaces simbólicos.": "Could not prepare the dropped file. Check the size limit and symbolic links.",
+  "No se pudo preparar el archivo arrastrado.": "Could not prepare the dropped file.",
   "Elija qué puede hacer cada identidad emparejada. Control y texto cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.": "Choose what each paired identity may do. Control and text change on the next connection; files on the next offer. Revoke removes trust immediately.",
   "Control": "Control",
   "Texto": "Text",

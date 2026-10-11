@@ -2275,6 +2275,7 @@ dependencies = [
  "futures-util",
  "if-addrs",
  "mdns-sd",
+ "png",
  "reis",
  "serde_json",
  "sha2",

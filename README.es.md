@@ -4,6 +4,8 @@
 
 [Novedades de la versión 0.24.4](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows) · [Características de 0.24.0](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows)
 
+La rama `alpha` prepara el portapapeles de texto e imágenes y la zona para soltar archivos en la app del emisor. Consulta el [registro de validación alpha](docs/ALPHA-IMAGE-DROP.es.md); el último lanzamiento con tag sigue siendo 0.24.4.
+
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
 También puedes compartir texto durante la conexión y copiar **archivos y carpetas** entre equipos conectados. El receptor decide cómo aprobar los archivos; solo quedan disponibles después de verificarse.
@@ -11,7 +13,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 ![SeamlessControl: ratón, teclado, portapapeles y archivos entre Omarchy y Windows](preview.png)
 
 - **Muévete con naturalidad:** cruza el borde de la pantalla y regresa igual. Elige cruce fluido, doble cruce deliberado o protección al usar pantalla completa.
-- **Decide en quién confías:** compara un código de seis cifras en ambos equipos y configura por separado los permisos Control, Texto y Archivos de cada equipo emparejado.
+- **Decide en quién confías:** compara un código de seis cifras en ambos equipos y configura por separado los permisos Control, Portapapeles y Archivos de cada equipo emparejado.
 - **Copia un grupo completo:** selecciona varios archivos o una carpeta con archivos anidados, aprueba una sola oferta en el receptor y pega allí el grupo verificado.
 - **Comparte solo durante la conexión:** guardar un emparejamiento no inicia el intercambio de archivos. Al terminar la sesión de control cesan las ofertas y transferencias nuevas.
 - **Recupera el control:** la entrada local vuelve tras bloqueo, suspensión o parada del receptor; un cruce nuevo reanuda el control remoto.
@@ -71,7 +73,7 @@ Las imágenes muestran interfaces con datos ficticios de documentación; la guí
 
 | Función | Qué necesitas | Puerto en el receptor |
 |---|---|---|
-| Ratón, teclado y texto del portapapeles | Emparejar + Recibir control + Conectar | TCP `47832` por defecto |
+| Ratón, teclado y portapapeles de texto/imagen | Emparejar + Recibir control + Conectar | TCP `47832` por defecto |
 | Copiar en un explorador y pegar en el otro | Apps abiertas + emparejamiento + conexión de control activa; aprobar la oferta si corresponde y esperar la verificación antes de Pegar | TCP `47834` |
 | Enviar a una carpeta elegida | Conexión de control activa + Archivos → Esperar un archivo en el receptor; elegir y enviar en el origen | TCP `47833` por defecto |
 | Encontrar receptores cercanos | Recepción activa y descubrimiento permitido en la LAN | UDP `5353` (mDNS) |

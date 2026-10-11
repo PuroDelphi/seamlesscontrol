@@ -490,6 +490,29 @@ Item {
     sendFile(address, copiedFilePath, true)
   }
 
+  function prepareDroppedUrls(urls) {
+    if (!fileSessionActive) {
+      clipboardFileError = t("Conecte con un equipo emparejado antes de arrastrar archivos.")
+      return
+    }
+    if (!urls || urls.length < 1 || urls.length > 256 || droppedFilesProcess.running) {
+      clipboardFileError = t("Arrastre hasta 256 archivos o carpetas locales a la vez.")
+      return
+    }
+    var args = ["prepare-dropped-files"]
+    for (var i = 0; i < urls.length; i++) {
+      var uri = String(urls[i])
+      if (!uri.startsWith("file://") || /[\r\n\0]/.test(uri)) {
+        clipboardFileError = t("Solo se aceptan archivos o carpetas locales.")
+        return
+      }
+      args.push(uri)
+    }
+    clipboardFileError = ""
+    droppedFilesProcess.command = fileCommand(args)
+    droppedFilesProcess.running = true
+  }
+
   function maybeSendCopiedFile() {
     if (fileSessionActive && copiedFilePath && copiedFilePath !== lastClipboardSentPath
         && peers.length === 1 && peers[0].ip === peer && !sendFileProcess.running)
@@ -1173,6 +1196,35 @@ Item {
           root.clipboardFileError = root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
         else if (message !== "")
           root.clipboardFileError = root.t("No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.")
+      }
+    }
+  }
+
+  Process {
+    id: droppedFilesProcess
+    stdout: SplitParser {
+      onRead: function(line) {
+        try {
+          var path = JSON.parse(String(line).trim())
+          if (typeof path !== "string" || !path.startsWith("/") || !root.fileSessionActive) {
+            root.clipboardFileError = root.t("No se pudo preparar el archivo arrastrado. Revise el límite y los enlaces simbólicos.")
+            return
+          }
+          root.copiedFilePath = path
+          root.lastClipboardSentPath = ""
+          root.clipboardFileError = ""
+          root.maybeSendCopiedFile()
+        } catch (error) {
+          root.clipboardFileError = root.t("No se pudo preparar el archivo arrastrado.")
+        }
+      }
+    }
+    stderr: SplitParser {
+      onRead: function(line) {
+        var message = String(line || "")
+        root.clipboardFileError = message.indexOf("bundle contains a symlink") !== -1
+          ? root.t("La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.")
+          : root.t("No se pudo preparar el archivo arrastrado. Revise el límite y los enlaces simbólicos.")
       }
     }
   }

@@ -9,8 +9,9 @@ use crate::topology::Edge;
 
 pub const PROTOCOL_VERSION: u16 = 1;
 /// Application handshake shared by the Omarchy and Windows agents.
-pub const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/5";
-pub const MAX_PAYLOAD: usize = 1024 * 1024;
+pub const AGENT_PROTOCOL: &[u8] = b"seamlesscontrol/6";
+pub const MAX_PAYLOAD: usize = crate::clipboard::MAX_CLIPBOARD_BYTES + 45;
+const MAX_GENERAL_PAYLOAD: usize = 1024 * 1024;
 const HEADER_LEN: usize = 20;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -212,9 +213,17 @@ impl From<io::Error> for FrameError {
 }
 
 impl Frame {
+    fn payload_limit(kind: Kind) -> usize {
+        if kind == Kind::Clipboard {
+            MAX_PAYLOAD
+        } else {
+            MAX_GENERAL_PAYLOAD
+        }
+    }
+
     pub fn encode(&self) -> Result<Vec<u8>, FrameError> {
         let len = self.payload.len();
-        if len > MAX_PAYLOAD {
+        if len > Self::payload_limit(self.kind) {
             return Err(FrameError::Oversized(len));
         }
         let mut out = Vec::with_capacity(4 + HEADER_LEN + len);
@@ -232,14 +241,14 @@ impl Frame {
         if body.len() < HEADER_LEN {
             return Err(FrameError::Truncated(body.len()));
         }
-        if body.len() - HEADER_LEN > MAX_PAYLOAD {
-            return Err(FrameError::Oversized(body.len() - HEADER_LEN));
-        }
         let version = u16::from_be_bytes([body[0], body[1]]);
         if version != PROTOCOL_VERSION {
             return Err(FrameError::UnsupportedVersion(version));
         }
         let kind = Kind::try_from(body[2])?;
+        if body.len() - HEADER_LEN > Self::payload_limit(kind) {
+            return Err(FrameError::Oversized(body.len() - HEADER_LEN));
+        }
         if body[3] != 0 {
             return Err(FrameError::NonzeroReserved(body[3]));
         }
@@ -264,7 +273,12 @@ impl Frame {
             return Err(FrameError::Oversized(size - HEADER_LEN));
         }
         let mut body = vec![0; size];
-        reader.read_exact(&mut body)?;
+        reader.read_exact(&mut body[..HEADER_LEN])?;
+        let kind = Kind::try_from(body[2])?;
+        if size - HEADER_LEN > Self::payload_limit(kind) {
+            return Err(FrameError::Oversized(size - HEADER_LEN));
+        }
+        reader.read_exact(&mut body[HEADER_LEN..])?;
         Self::decode_body(&body)
     }
 
