@@ -12,6 +12,15 @@ Este documento registra las pruebas físicas pendientes antes de considerar esto
 
 ## Pruebas físicas pendientes
 
+### Dos equipos Omarchy · 2026-10-11
+
+- [x] Ambos equipos ejecutaron el plugin 0.25.2 (`2030496`) y el protocolo 7 del agente durante una conexión de control autenticada.
+- [x] Un JPEG de 3×2 y un SVG de 4×3 copiados en el otro Omarchy llegaron aquí como PNG con dimensiones y colores de píxel correctos.
+- [x] Un WebP de 5×4 copiado aquí llegó al otro Omarchy como PNG con dimensiones y colores correctos. Por su tamaño parecía vacío en la aplicación de destino; después se pegó visiblemente un WebP de 640×360 con degradado verde y borde oscuro.
+- [x] El usuario copió una imagen desde una aplicación normal del otro Omarchy y la pegó correctamente en una aplicación de este.
+
+### Comprobaciones pendientes
+
 - [ ] Omarchy → Windows: copiar una captura/imagen desde una aplicación y pegar sus píxeles en un editor de imágenes o chat. Comprobar que el texto sigue sincronizándose después.
 - [ ] Windows → Omarchy: probar una imagen de Recortes y copias JPEG, GIF, WebP y SVG del navegador. Pegar sus píxeles y comprobar transparencia si la hay.
 - [ ] Con el permiso Portapapeles desactivado, comprobar que no llegan texto ni imágenes. Sin conexión de control, comprobar que tampoco llegan.

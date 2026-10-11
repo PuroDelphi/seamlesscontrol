@@ -12,6 +12,15 @@ This document tracks the remaining physical checks before these changes can be c
 
 ## Verify on physical computers
 
+### Two Omarchy computers · 2026-10-11
+
+- [x] Both computers ran plugin 0.25.2 (`2030496`) and agent protocol 7 during an authenticated control connection.
+- [x] A 3×2 JPEG and 4×3 SVG copied on the other Omarchy arrived here as PNG with the expected dimensions and pixel colors.
+- [x] A 5×4 WebP copied here arrived there as PNG with the expected dimensions and pixel colors. Its tiny size made it look blank in the target app; a 640×360 WebP then pasted visibly with its green gradient and dark border.
+- [x] A user copied an image from an ordinary application on the other Omarchy and pasted it successfully in an application here.
+
+### Remaining checks
+
 - [ ] Omarchy → Windows: copy a screenshot/image from an application and paste its pixels into an image editor or chat composer. Verify text still syncs after the image.
 - [ ] Windows → Omarchy: test a Snipping Tool image and browser copies of JPEG, GIF, WebP and SVG images. Paste pixels into an application. Verify transparency where the source has it.
 - [ ] With Clipboard permission off, confirm image and text do not arrive. With no active control connection, confirm neither arrives.
