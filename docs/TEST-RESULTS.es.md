@@ -2,6 +2,12 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Portapapeles de imágenes y archivos soltados en la app 0.25.2 · 2026-10-11/12
+
+Dos Omarchy físicos ejecutaron el plugin 0.25.2 en `2030496`, con protocolo 7 del agente, durante una conexión de control autenticada. Un JPEG de 3×2 y un SVG de 4×3 copiados en uno llegaron al otro como PNG con dimensiones y colores muestreados correctos. Un WebP de 5×4 funcionó al revés; parecía vacío en la interfaz por su tamaño, así que se envió un WebP de 640×360 con degradado verde que se pegó visiblemente. Luego el usuario copió una imagen desde una aplicación normal de un Omarchy y la pegó correctamente en una aplicación del otro. Pasaron las pruebas Linux y CI Windows x64 en `af34669`. Esto verifica el transporte y un pegado en aplicaciones entre Omarchy; no afirma una prueba física de imágenes en Windows.
+
+Las páginas Archivos aceptan archivos y carpetas locales soltados en la app con la transferencia aprobada existente. Quedan pendientes las pruebas físicas entre equipos de este origen por arrastre y del pegado de imágenes en Windows. Arrastrar directamente de un explorador a otro cruzando el borde no está implementado en este lanzamiento.
+
 ## Verificación de revocación activa Windows 0.24.4 · 2026-10-10
 
 El revisor encontró que la consola Windows eliminaba una clave del almacén de confianza sin terminar un canal receptor ya autenticado. CI de Windows ahora abre un socket de recepción local, revoca su clave fijada mediante el almacén de confianza compartido, comprueba que el vigilante lo detecta y cierra el socket, y comprueba los cambios de permisos Control/Texto. Una prueba integrada de entrada local verifica que se liberan una tecla y un botón retenidos en esa conexión activa. Es una prueba de regresión de código, no una nueva sesión física Windows/Omarchy.

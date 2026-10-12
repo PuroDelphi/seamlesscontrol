@@ -2,9 +2,9 @@
 
 [![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [English](README.md) · [MIT](LICENSE)
 
-[Novedades de la versión 0.24.4](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows) · [Características de 0.24.0](docs/RELEASE-0.24.0.md#seamlesscontrol-0240--un-espacio-de-trabajo-entre-omarchy-y-windows)
+[Novedades de la versión 0.25.2](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app) · [Actualización de seguridad 0.24.4](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows)
 
-La rama `alpha` prepara el portapapeles de texto e imágenes (PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG) y la zona para soltar archivos en la app del emisor. Consulta el [registro de validación alpha](docs/ALPHA-IMAGE-DROP.es.md); el último lanzamiento con tag sigue siendo 0.24.4.
+**Nuevo en 0.25.2:** copia una imagen en una aplicación y pégala en otro equipo Omarchy o Windows conectado. SeamlessControl admite datos de imagen PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG en el portapapeles y los convierte a PNG para el otro equipo. También puedes soltar archivos y carpetas en la página **Archivos** del emisor para ofrecerlos con la aprobación habitual.
 
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
@@ -15,6 +15,8 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 - **Muévete con naturalidad:** cruza el borde de la pantalla y regresa igual. Elige cruce fluido, doble cruce deliberado o protección al usar pantalla completa.
 - **Decide en quién confías:** compara un código de seis cifras en ambos equipos y configura por separado los permisos Control, Portapapeles y Archivos de cada equipo emparejado.
 - **Copia un grupo completo:** selecciona varios archivos o una carpeta con archivos anidados, aprueba una sola oferta en el receptor y pega allí el grupo verificado.
+- **Comparte imágenes:** copia una imagen desde una aplicación y pega sus píxeles en el otro equipo durante la conexión, bajo el permiso Portapapeles del par.
+- **Suelta archivos en la app:** arrastra archivos o carpetas locales a la página Archivos de SeamlessControl; el receptor mantiene su permiso Archivos, modo de aprobación y límite de tamaño.
 - **Comparte solo durante la conexión:** guardar un emparejamiento no inicia el intercambio de archivos. Al terminar la sesión de control cesan las ofertas y transferencias nuevas.
 - **Recupera el control:** la entrada local vuelve tras bloqueo, suspensión o parada del receptor; un cruce nuevo reanuda el control remoto.
 
@@ -26,7 +28,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 | Instalar la app, recibir o controlar desde Windows | [Guía ilustrada Windows](docs/WINDOWS.es.md) |
 | Copiar y pegar archivos o enviarlos a una carpeta | [Guía Omarchy](docs/USER-GUIDE.es.md) / [Guía Windows](docs/WINDOWS.es.md), sección Archivos |
 | Resolver un problema de conexión | Sección de problemas de cada guía; [pedir ayuda](SUPPORT.es.md) |
-| Ver la última corrección y las pruebas físicas | [Notas de 0.24.4](docs/RELEASE-0.24.4.md#seamlesscontrol-0244--la-revocación-cierra-las-sesiones-windows) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
+| Ver el último lanzamiento y las pruebas físicas | [Notas de 0.25.2](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
 | Usar comandos o conocer permisos y límites | [Guía técnica](docs/TECHNICAL.es.md) |
 
 **Origen** es el equipo donde están el ratón y el teclado físicos que vas a usar. **Receptor** es el equipo que quieres controlar. Los papeles pueden cambiar para otra sesión; no necesitas emparejar de nuevo por invertirlos.
@@ -73,12 +75,14 @@ Las imágenes muestran interfaces con datos ficticios de documentación; la guí
 
 | Función | Qué necesitas | Puerto en el receptor |
 |---|---|---|
-| Ratón, teclado y portapapeles de texto/imagen | Emparejar + Recibir control + Conectar | TCP `47832` por defecto |
+| Ratón, teclado y portapapeles de texto/imagen | Emparejar + Recibir control + Conectar; el par debe permitir Portapapeles | TCP `47832` por defecto |
 | Copiar en un explorador y pegar en el otro | Apps abiertas + emparejamiento + conexión de control activa; aprobar la oferta si corresponde y esperar la verificación antes de Pegar | TCP `47834` |
 | Enviar a una carpeta elegida | Conexión de control activa + Archivos → Esperar un archivo en el receptor; elegir y enviar en el origen | TCP `47833` por defecto |
 | Encontrar receptores cercanos | Recepción activa y descubrimiento permitido en la LAN | UDP `5353` (mDNS) |
 
 **Ambos flujos de archivos requieren una conexión de control activa.** Emparejar guarda la confianza; detener el control termina el intercambio. **Esperar un archivo** no activa la copia y pegado: es el envío manual, de una oferta cada vez. Abrir el puerto de control tampoco abre los de archivos.
+
+También puedes **soltar un archivo o carpeta local en la página Archivos del equipo emisor**. Inicia la misma oferta de archivo con aprobación que la copia. Arrastrar directamente a través del borde hasta el explorador del otro equipo no forma parte de este lanzamiento.
 
 En **Ajustes → Aprobación de archivos entrantes**, puedes preguntar por cada oferta (predeterminado), aceptar automáticamente desde equipos emparejados o aprobar por un tiempo. El modo temporal pregunta por el primer archivo de cada equipo y vuelve a **Preguntar siempre** al vencer o reiniciar. Las [guías ilustradas](docs/USER-GUIDE.es.md) explican el límite de tamaño, la selección del destino y qué hacer si no llega una oferta.
 
@@ -107,7 +111,7 @@ Para desinstalar, primero desactiva **Ajustes → Iniciar con Windows**, sal des
 
 ## Alcance y documentación del proyecto
 
-El [registro de pruebas](docs/TEST-RESULTS.es.md) recoge control, regreso, portapapeles y grupos de archivos en ambos sentidos entre Omarchy y Windows 11 x64 físicos, además de bloqueo, suspensión e interrupción del receptor. La malla de varios equipos sigue siendo experimental; el registro detalla el alcance de otras disposiciones y condiciones de red.
+El [registro de pruebas](docs/TEST-RESULTS.es.md) recoge control, regreso, portapapeles de texto y grupos de archivos en ambos sentidos entre Omarchy y Windows 11 x64 físicos, además de bloqueo, suspensión e interrupción del receptor. El portapapeles de imágenes también se transfirió y pegó entre dos Omarchy físicos; aún falta la prueba física de imágenes con Windows y de archivos soltados en la app. La malla de varios equipos sigue siendo experimental.
 
 Las guías anteriores describen el uso actual. Las notas `docs/RELEASE-*.md`, el changelog y el registro de viabilidad conservan **historia de versiones**, no instrucciones actuales de instalación.
 

@@ -4,6 +4,12 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.2) — 2026-10-12
+
+- Share image clipboard pixels over an authenticated control session under the peer Clipboard permission. Accept PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld, SVG and compatible Windows bitmap clipboard data; convert to bounded PNG.
+- Drop local files and folders onto the sender's Files page on Omarchy or Windows. Keep the existing peer permission, receiver approval, size limit and verified transfer.
+- Update the control protocol to `seamlesscontrol/7`; both agents must be updated. Validate JPEG, SVG, WebP and ordinary-app image copy/paste on two physical Omarchy computers. See the [release notes](docs/RELEASE-0.25.2.md).
+
 ## [0.24.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.4) — 2026-10-10
 
 - Close active Windows receiver and source sessions when their pinned peer is revoked or Control/Text permissions change, including revocation from the console. Release held input, stop text sharing and invalidate file transfers on the old trust.

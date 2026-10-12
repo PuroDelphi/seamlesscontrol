@@ -4,6 +4,12 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.2) — 2026-10-12
+
+- Comparte píxeles del portapapeles de imágenes durante una sesión de control autenticada bajo el permiso Portapapeles del par. Admite PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld, SVG y mapas de bits compatibles de Windows; los convierte a PNG acotado.
+- Suelta archivos y carpetas locales en la página Archivos del emisor en Omarchy o Windows. Conserva permiso, aprobación, límite y transferencia verificada.
+- Actualiza el protocolo a `seamlesscontrol/7`; hay que actualizar ambos agentes. Valida JPEG, SVG, WebP y la copia/pegado desde una aplicación normal entre dos Omarchy físicos. Consulta las [notas del lanzamiento](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app).
+
 ## [0.24.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.24.4) — 2026-10-10
 
 - Cierra las sesiones Windows activas de recepción y origen cuando se revoca la clave fijada o cambian los permisos Control/Texto, incluso al revocar desde consola. Libera la entrada retenida, detiene el intercambio de texto e invalida las transferencias de archivos con la confianza anterior.

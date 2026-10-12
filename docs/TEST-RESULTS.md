@@ -2,6 +2,12 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.2 image clipboard and app file drop · 2026-10-11/12
+
+Two physical Omarchy computers ran plugin 0.25.2 at `2030496` with agent protocol 7 over an authenticated control connection. A 3×2 JPEG and 4×3 SVG copied on one arrived on the other as PNG with the expected dimensions and sampled pixel colors. A 5×4 WebP worked in reverse; it looked blank in a GUI because it was tiny, so a 640×360 green-gradient WebP was sent and pasted visibly. The user then copied an image from an ordinary application on one Omarchy and pasted it successfully in an application on the other. Linux tests and Windows x64 CI passed at `af34669`. This verifies image transport and an application paste on the Omarchy pair; it does not claim a physical Windows image test.
+
+The Files pages accept local file and folder drops using the existing approved transfer. Physical cross-computer checks for this drop source and image paste on Windows remain pending. Direct dragging from one computer's file manager across the screen edge into the other file manager is not implemented in this release.
+
 ## 0.24.4 Windows live revocation check · 2026-10-10
 
 The marketplace reviewer found that the Windows console removed a trust-store entry without ending an already authenticated receiver channel. Windows CI now opens a local receiver socket, revokes its pinned key through the shared trust store, checks that the watcher detects it and closes the socket, and checks Control/Text permission changes. A combined loopback input test verifies that a held key and mouse button are released on that live connection. This is a code-level regression check, not a new physical Windows/Omarchy session.

@@ -2,9 +2,9 @@
 
 [![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Download Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Español](README.es.md) · [MIT](LICENSE)
 
-[See what's new in 0.24.4](docs/RELEASE-0.24.4.md) · [0.24.0 feature release](docs/RELEASE-0.24.0.md)
+[See what's new in 0.25.2](docs/RELEASE-0.25.2.md) · [0.24.4 security update](docs/RELEASE-0.24.4.md)
 
-The `alpha` branch is preparing text and image clipboard sharing (PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld and SVG) plus file drops onto the sender's app. See the [alpha validation record](docs/ALPHA-IMAGE-DROP.md); the latest tagged release remains 0.24.4.
+**New in 0.25.2:** Copy an image in an app and paste it on a connected Omarchy or Windows computer. SeamlessControl accepts PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld and SVG image clipboard data, converting it to PNG for the other computer. You can also drop files and folders onto the sender's **Files** page to offer them through the existing approval flow.
 
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
@@ -15,6 +15,8 @@ You can also share text during a connection and copy **files and folders** betwe
 - **Move naturally:** cross the screen edge and return the same way. Choose fluid crossing, a deliberate double crossing, or protection while a window is full-screen.
 - **Keep control of trust:** compare a six-digit pairing code on both computers, then set Control, Clipboard and Files permissions for each paired computer.
 - **Copy a whole group:** select several files or a folder with nested files, approve one offer on the receiver, and paste the verified group there.
+- **Share pictures in place:** copy an image from an app and paste its pixels on the other computer during the active control session, under the peer's Clipboard permission.
+- **Drop files into the app:** drop local files or folders onto SeamlessControl's Files page; the receiver keeps its Files permission, approval mode and size limit.
 - **Share only while connected:** a saved pairing never starts file sharing by itself. Ending the control session ends new file offers and transfers.
 - **Recover smoothly:** local input returns after a lock, sleep or stopped receiver; a fresh edge crossing resumes remote control.
 
@@ -26,7 +28,7 @@ You can also share text during a connection and copy **files and folders** betwe
 | Install the app, receive or control from Windows | [Illustrated Windows guide](docs/WINDOWS.md) |
 | Copy and paste files or send to a chosen folder | [Omarchy guide](docs/USER-GUIDE.md) / [Windows guide](docs/WINDOWS.md), Files section |
 | Resolve a connection problem | Troubleshooting in each guide; [get support](SUPPORT.md) |
-| See the latest fix and physical verification | [0.24.4 release notes](docs/RELEASE-0.24.4.md) / [test record](docs/TEST-RESULTS.md) |
+| See the latest release and physical verification | [0.25.2 release notes](docs/RELEASE-0.25.2.md) / [test record](docs/TEST-RESULTS.md) |
 | Use commands or understand permissions and limits | [Technical guide](docs/TECHNICAL.md) |
 
 The **source** is the computer with the physical mouse and keyboard you will use. The **receiver** is the computer you want to control. Roles can change for another session; reversing them does not require pairing again.
@@ -73,12 +75,14 @@ Images show interfaces with fictional documentation data; each platform guide ex
 
 | Feature | What you need | Port on the receiver |
 |---|---|---|
-| Mouse, keyboard and text/image clipboard | Pair + Receive control + Connect | TCP `47832` by default |
+| Mouse, keyboard and text/image clipboard | Pair + Receive control + Connect; the peer must allow Clipboard sharing | TCP `47832` by default |
 | Copy in one file manager and paste in the other | Apps open + pairing + active control connection; approve the offer when required and wait for verification before Paste | TCP `47834` |
 | Send to a chosen folder | Active control connection + Files → Wait for a file on the receiver; choose and send on the source | TCP `47833` by default |
 | Find nearby receivers | Active receiving and discovery allowed on the LAN | UDP `5353` (mDNS) |
 
 **Both file flows require an active control connection.** Pairing saves trust; stopping control ends sharing. **Wait for a file** does not enable copy and paste: it is the manual send flow, one offer at a time. Opening the control port does not open the file ports.
+
+You may also **drop a local file or folder onto the Files page on the sending computer**. This starts the same approved file offer as copying a file. Dragging directly across the screen edge into the other computer's file manager is not part of this release.
 
 Under **Settings → Incoming file approval**, you can ask for every offer (default), accept automatically from paired computers, or approve for a while. Temporary mode asks for the first file from each computer and returns to **Ask every time** on expiry or restart. The [illustrated guides](docs/USER-GUIDE.md) explain size limits, destination selection and missing offers.
 
@@ -107,7 +111,7 @@ To uninstall, first disable **Settings → Start with Windows**, exit from the t
 
 ## Scope and project documentation
 
-The [test record](docs/TEST-RESULTS.md) covers physical Omarchy ↔ Windows 11 x64 control, return, clipboard and grouped files in both directions, plus lock, sleep and receiver interruption. Multi-computer mesh remains experimental; see the test record for the scope of other layouts and network conditions.
+The [test record](docs/TEST-RESULTS.md) covers physical Omarchy ↔ Windows 11 x64 control, return, text clipboard and grouped files in both directions, plus lock, sleep and receiver interruption. Image clipboard transfer and paste have also passed between two physical Omarchy computers; Windows image paste and app file drops still need a physical cross-computer check. Multi-computer mesh remains experimental.
 
 The guides above describe current use. The `docs/RELEASE-*.md` notes, changelog and feasibility log preserve **version history**, not current installation instructions.
 
