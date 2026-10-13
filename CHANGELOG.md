@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.4) — 2026-10-13
+
+- Keep SVG clipboard rendering vector-only. Disable embedded image resolution for both data URLs and paths, and remove the SVG renderer's raster decoder so embedded animated WebP cannot bypass the normal image limits.
+- Preserve ordinary raster clipboard formats through the bounded decoder, along with saved pairings and protocol 7. See the [release notes](docs/RELEASE-0.25.4.md).
+
 ## [0.25.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.3) — 2026-10-12
 
 - Close an incomplete inbound pairing preface or Noise handshake after a ten-second total transport deadline. A slow unauthenticated LAN client can no longer hold one of the eight Linux receiver slots by trickling handshake bytes across repeated per-read timeouts.

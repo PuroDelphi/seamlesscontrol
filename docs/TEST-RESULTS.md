@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.4 vector-only SVG clipboard · 2026-10-13
+
+The marketplace reviewer identified that a clipboard SVG could embed animated WebP data, which resvg decoded outside the separate raster clipboard limits. The SVG path now disables both image href resolvers and builds resvg without its raster-images feature. A local regression test renders an SVG with a vector background and embedded WebP, verifying that the vector survives and the WebP is omitted. All 98 core tests, 7 Linux binary tests and Clippy pass. Windows x64 CI is tracked in the linked release workflow. A new physical cross-system SVG test has not been performed for this targeted change.
+
 ## 0.25.3 Omarchy receiver handshake deadline · 2026-10-12
 
 The marketplace reviewer identified that eight unauthenticated connections could occupy all Linux receiver slots for many hours by trickling an incomplete Noise handshake body under the 330-second per-read timeout. The receiver now closes pre-authentication transport after ten seconds total and restores the longer pairing timeout only after Noise completes, before human code approval. A local loopback test fills all eight permits with incomplete declared Noise bodies, verifies a ninth permit is unavailable, then verifies every blocked reader exits and all eight permits return; another verifies that cancelling the deadline keeps the socket usable. The 97 core tests, 7 Linux binary tests and Clippy pass. A physical LAN saturation test has not been performed for this targeted fix.

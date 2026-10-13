@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.4) — 2026-10-13
+
+- Conserva la representación vectorial del SVG copiado. Desactiva las imágenes incrustadas mediante URL de datos y rutas, y elimina el decodificador ráster del renderizador SVG para impedir que un WebP animado eluda los límites normales.
+- Los formatos ráster habituales siguen usando el decodificador acotado. Se conservan los emparejamientos y el protocolo 7. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.4.md#seamlesscontrol-0254--imágenes-incrustadas-en-svg).
+
 ## [0.25.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.3) — 2026-10-12
 
 - Cierra el prefacio de emparejamiento o handshake Noise incompleto tras un plazo total de diez segundos. Un cliente no autenticado de la LAN ya no puede ocupar uno de los ocho cupos del receptor Linux enviando lentamente fragmentos del handshake.

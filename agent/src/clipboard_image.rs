@@ -70,7 +70,9 @@ fn svg_to_wire_png(bytes: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let mut options = resvg::usvg::Options::default();
-    // Clipboard SVG must never read arbitrary paths mentioned in an image tag.
+    // SVG raster images bypass the limits of the separate raster clipboard decoder.
+    // Refuse both data URLs and local paths, including images inside SVG filters.
+    options.image_href_resolver.resolve_data = Box::new(|_, _, _| None);
     options.image_href_resolver.resolve_string = Box::new(|_, _| None);
     let tree = resvg::usvg::Tree::from_data(bytes, &options).ok()?;
     let size = tree.size().to_int_size();
@@ -179,5 +181,21 @@ mod tests {
         assert!(valid_png_header(&png));
         let decoded = image::load_from_memory_with_format(&png, ImageFormat::Png).unwrap();
         assert_eq!((decoded.width(), decoded.height()), (2, 2));
+    }
+
+    #[test]
+    fn svg_clipboard_ignores_embedded_webp_and_keeps_vector_shapes() {
+        let mut webp = Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(1, 1)
+            .write_to(&mut webp, ImageFormat::WebP)
+            .unwrap();
+        let encoded =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, webp.get_ref());
+        let svg = format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2\" height=\"2\"><rect width=\"2\" height=\"2\" fill=\"green\"/><image width=\"2\" height=\"2\" href=\"data:image/webp;base64,{encoded}\"/></svg>"
+        );
+        let png = to_wire_png_for_mime("image/svg+xml", svg.as_bytes()).expect("SVG render");
+        let decoded = image::load_from_memory_with_format(&png, ImageFormat::Png).unwrap();
+        assert_eq!(decoded.to_rgba8().get_pixel(0, 0).0, [0, 128, 0, 255]);
     }
 }

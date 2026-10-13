@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## SVG solo vectorial en el portapapeles 0.25.4 · 2026-10-13
+
+El revisor del marketplace detectó que un SVG copiado podía incluir un WebP animado, que resvg decodificaba fuera de los límites del portapapeles ráster independiente. La ruta SVG desactiva ambos resolutores de imágenes y compila resvg sin la función raster-images. Una prueba local representa un SVG con fondo vectorial y WebP incrustado, y verifica que el vector permanece y el WebP se omite. Pasan las 98 pruebas del núcleo, las 7 pruebas del binario Linux y Clippy. La CI de Windows x64 queda registrada en el flujo del lanzamiento. No se ha hecho una nueva prueba física de SVG entre sistemas para esta corrección concreta.
+
 ## Plazo del handshake en el receptor Omarchy 0.25.3 · 2026-10-12
 
 El revisor del marketplace detectó que ocho conexiones sin autenticar podían ocupar todos los cupos del receptor Linux durante muchas horas enviando lentamente un cuerpo Noise incompleto bajo el plazo de 330 segundos por lectura. El receptor cierra ahora el transporte previo a la autenticación tras diez segundos en total y recupera el plazo largo solo después de completar Noise, antes de aprobar el código. Una prueba local de loopback ocupa los ocho permisos con cuerpos Noise declarados pero incompletos, comprueba que no hay un noveno cupo y después verifica que terminan todas las lecturas bloqueadas y regresan los ocho permisos; otra comprueba que cancelar el plazo mantiene utilizable el socket. Pasan las 97 pruebas del núcleo, las 7 del binario Linux y Clippy. Esta corrección específica aún no se ha sometido a una prueba física de saturación en la LAN.
