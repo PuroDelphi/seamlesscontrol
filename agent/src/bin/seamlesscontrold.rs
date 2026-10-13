@@ -58,8 +58,28 @@ mod linux {
     use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
     const PAIRING_SOCKET_TIMEOUT: Duration = Duration::from_secs(330);
+    // Noise and the optional pairing preface are automatic LAN exchanges.
+    // Human SAS approval starts only after this deadline is cancelled.
+    const PRE_AUTH_TRANSPORT_TIMEOUT: Duration = Duration::from_secs(10);
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
+
+    fn pre_auth_deadline(
+        stream: &TcpStream,
+        timeout: Duration,
+    ) -> io::Result<tokio::sync::oneshot::Sender<()>> {
+        let shutdown = stream.try_clone()?;
+        let (done, cancelled) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            tokio::select! {
+                _ = tokio::time::sleep(timeout) => {
+                    let _ = shutdown.shutdown(Shutdown::Both);
+                }
+                _ = cancelled => {}
+            }
+        });
+        Ok(done)
+    }
 
     async fn wait_for_local_stop(control: &ControlHandle) {
         while !control.shutdown_requested() {
@@ -1551,6 +1571,7 @@ mod linux {
         identity: &Identity,
         config: &std::path::Path,
         control: &ControlHandle,
+        mut pre_auth_done: Option<tokio::sync::oneshot::Sender<()>>,
     ) -> Result<(), Box<dyn Error>> {
         if std::env::var_os("SEAMLESSCONTROL_TEST_OBSERVE").is_some() {
             if !cfg!(debug_assertions) {
@@ -1570,14 +1591,22 @@ mod linux {
         let mut previous_ip = None;
         let mut reapproved_revoked = false;
         stream.set_nodelay(true)?;
-        stream.set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
-        stream.set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
+        stream.set_read_timeout(Some(PRE_AUTH_TRANSPORT_TIMEOUT))?;
+        stream.set_write_timeout(Some(PRE_AUTH_TRANSPORT_TIMEOUT))?;
         let explicit_pair = negotiate_pairing(&mut stream, Role::Responder, false)?;
-        let (mut channel, peer) = SecureChannel::connect(
+        let (mut channel, peer) = SecureChannel::connect_with_handshake_hook(
             stream,
             Role::Responder,
             identity,
             if explicit_pair { None } else { pinned.as_ref() },
+            |stream| {
+                if let Some(done) = pre_auth_done.take() {
+                    let _ = done.send(());
+                }
+                stream.set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
+                stream.set_write_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
+                Ok(())
+            },
             |peer| {
                 if is_revoked(&peers, &peer.public_key).unwrap_or(true) {
                     if !explicit_pair {
@@ -2348,6 +2377,7 @@ mod linux {
                         let stream = stream.into_std()?;
                         stream.set_nonblocking(false)?;
                         let shutdown = stream.try_clone()?;
+                        let pre_auth_done = pre_auth_deadline(&stream, PRE_AUTH_TRANSPORT_TIMEOUT)?;
                         next_connection_id = next_connection_id
                             .checked_add(1)
                             .ok_or("connection identifier exhausted")?;
@@ -2359,7 +2389,7 @@ mod linux {
                         let connection_control = control.clone();
                         workers.spawn_blocking(move || {
                             let _permit = permit;
-                            let result = serve_connection(stream, ip, &identity, &config, &connection_control);
+                            let result = serve_connection(stream, ip, &identity, &config, &connection_control, Some(pre_auth_done));
                             registry.lock().expect("connection registry lock").remove(&id);
                             if let Err(error) = result {
                                 eprintln!("Conexión con {ip} terminada: {error}");
@@ -3009,6 +3039,59 @@ mod linux {
         use std::io::Read;
         use std::net::Ipv4Addr;
 
+        #[tokio::test]
+        async fn incomplete_noise_body_releases_connection_slot() {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let slots = Arc::new(tokio::sync::Semaphore::new(MAX_INBOUND_CONNECTIONS));
+            let mut clients = Vec::new();
+            let mut workers = Vec::new();
+            let mut deadlines = Vec::new();
+            for _ in 0..MAX_INBOUND_CONNECTIONS {
+                let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+                let (server, _) = listener.accept().await.unwrap();
+                let mut server = server.into_std().unwrap();
+                server.set_nonblocking(false).unwrap();
+                let permit = Arc::clone(&slots).try_acquire_owned().unwrap();
+                deadlines.push(pre_auth_deadline(&server, Duration::from_millis(250)).unwrap());
+                workers.push(tokio::task::spawn_blocking(move || {
+                    let _permit = permit;
+                    assert!(!negotiate_pairing(&mut server, Role::Responder, false).unwrap());
+                    let identity = Identity::generate().unwrap();
+                    SecureChannel::connect(server, Role::Responder, &identity, None, |_| false)
+                        .err()
+                        .expect("the incomplete Noise body must be disconnected")
+                }));
+                client.write_all(&[0x01, 0x00, 0x42]).unwrap();
+                clients.push(client);
+            }
+            assert!(Arc::clone(&slots).try_acquire_owned().is_err());
+            for worker in workers {
+                tokio::time::timeout(Duration::from_secs(2), worker)
+                    .await
+                    .expect("deadline must close an incomplete Noise body")
+                    .unwrap();
+            }
+            assert_eq!(slots.available_permits(), MAX_INBOUND_CONNECTIONS);
+            drop(deadlines);
+            drop(clients);
+        }
+
+        #[tokio::test]
+        async fn completed_handshake_cancels_pre_auth_transport_deadline() {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let mut client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+            let (server, _) = listener.accept().await.unwrap();
+            let mut server = server.into_std().unwrap();
+            server.set_nonblocking(false).unwrap();
+            let done = pre_auth_deadline(&server, Duration::from_millis(100)).unwrap();
+            done.send(()).unwrap();
+            tokio::time::sleep(Duration::from_millis(150)).await;
+            client.write_all(&[7]).unwrap();
+            let mut byte = [0];
+            server.read_exact(&mut byte).unwrap();
+            assert_eq!(byte, [7]);
+        }
+
         #[test]
         fn portal_selection_accepts_only_local_file_paths() {
             assert_eq!(
@@ -3215,9 +3298,16 @@ mod linux {
                 for _ in 0..2 {
                     let (stream, _) = listener.accept().unwrap();
                     errors.push(
-                        serve_connection(stream, loopback, &server_identity, &config, &control)
-                            .unwrap_err()
-                            .to_string(),
+                        serve_connection(
+                            stream,
+                            loopback,
+                            &server_identity,
+                            &config,
+                            &control,
+                            None,
+                        )
+                        .unwrap_err()
+                        .to_string(),
                     );
                 }
                 errors

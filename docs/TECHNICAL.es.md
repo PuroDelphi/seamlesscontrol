@@ -24,6 +24,8 @@ El CI Windows compila la GUI con entorno C estático. El workflow del release co
 
 El receptor de control Windows admite un máximo de ocho conexiones TCP simultáneas y cierra las sobrantes antes de crear otro hilo. El intercambio inicial previo a la autenticación tiene un tiempo de espera de E/S de diez segundos; el plazo mayor para confirmar el código empieza solo cuando termina el intercambio Noise.
 
+El receptor de control Omarchy también admite como máximo ocho conexiones TCP simultáneas. Un plazo absoluto de diez segundos empieza al reservar un cupo y cierra la conexión si no terminó el prefacio opcional de emparejamiento o el intercambio Noise; enviar fragmentos no puede prolongar indefinidamente un tiempo de espera por lectura. Al terminar Noise, se cancela el vigilante y se restablece el plazo largo para la aprobación humana del código de seis cifras. No cambian el protocolo autenticado ni la confianza guardada.
+
 Esta guía reúne la operación manual, los paquetes, la seguridad y los límites actuales. Las direcciones siguientes son **ejemplos ficticios**: origen `192.168.50.10`, receptor `192.168.50.20`, LAN `192.168.50.0/24`, interfaz `wlan0`.
 
 ## Paquetes y actualizaciones

@@ -4,6 +4,12 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.3) — 2026-10-12
+
+- Close an incomplete inbound pairing preface or Noise handshake after a ten-second total transport deadline. A slow unauthenticated LAN client can no longer hold one of the eight Linux receiver slots by trickling handshake bytes across repeated per-read timeouts.
+- Cancel that deadline before the six-digit code needs human approval. Existing pairings, protocol 7, Windows interoperability and active-session behavior remain compatible. See the [release notes](docs/RELEASE-0.25.3.md).
+- Remove demonstration banners from the Omarchy and Windows guide images; example network addresses remain fictional.
+
 ## [0.25.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.2) — 2026-10-12
 
 - Share image clipboard pixels over an authenticated control session under the peer Clipboard permission. Accept PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld, SVG and compatible Windows bitmap clipboard data; convert to bounded PNG.

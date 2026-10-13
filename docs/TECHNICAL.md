@@ -18,6 +18,8 @@ Windows CI builds the GUI with a static C runtime. The release workflow builds t
 
 The Windows control receiver caps concurrent TCP connections at eight and closes excess connections before spawning a worker. The initial preauthentication exchange has a ten-second I/O timeout; the longer code-confirmation timeout begins only after Noise completes.
 
+The Omarchy control receiver also caps concurrent TCP connections at eight. A single absolute ten-second deadline starts when a slot is assigned and shuts down a connection whose optional pairing preface or Noise exchange has not completed; this prevents a trickle of bytes from extending a per-read timeout indefinitely. Once Noise completes, the watchdog is cancelled and the longer timeout for human six-digit code confirmation is restored. The authenticated protocol and stored trust remain unchanged.
+
 An active Windows receiver checks its pinned peer identity and Control/Text permissions every 50 ms from a separate watcher. Trust-store read errors fail closed; a changed or revoked identity shuts down the TCP socket even if no frames arrive. The input receiver releases held keys and buttons before the connection worker exits. The Windows source checks the same state in its capture loop. Console `revoke` waits for the active-session lease to disappear and reports an error if an older running receiver does not close.
 
 The portable file-transfer path checks the pinned key, revocation marker, live control lease and Files permission before accepting an offer and between chunks. It checks again before publishing a completed file. A leftover lease cannot authorize a revoked identity.

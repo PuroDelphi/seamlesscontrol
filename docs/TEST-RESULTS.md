@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.3 Omarchy receiver handshake deadline · 2026-10-12
+
+The marketplace reviewer identified that eight unauthenticated connections could occupy all Linux receiver slots for many hours by trickling an incomplete Noise handshake body under the 330-second per-read timeout. The receiver now closes pre-authentication transport after ten seconds total and restores the longer pairing timeout only after Noise completes, before human code approval. A local loopback test fills all eight permits with incomplete declared Noise bodies, verifies a ninth permit is unavailable, then verifies every blocked reader exits and all eight permits return; another verifies that cancelling the deadline keeps the socket usable. The 97 core tests, 7 Linux binary tests and Clippy pass. A physical LAN saturation test has not been performed for this targeted fix.
+
 ## 0.25.2 image clipboard and app file drop · 2026-10-11/12
 
 Two physical Omarchy computers ran plugin 0.25.2 at `2030496` with agent protocol 7 over an authenticated control connection. A 3×2 JPEG and 4×3 SVG copied on one arrived on the other as PNG with the expected dimensions and sampled pixel colors. A 5×4 WebP worked in reverse; it looked blank in a GUI because it was tiny, so a 640×360 green-gradient WebP was sent and pasted visibly. The user then copied an image from an ordinary application on one Omarchy and pasted it successfully in an application on the other. Linux tests and Windows x64 CI passed at `af34669`. This verifies image transport and an application paste on the Omarchy pair; it does not claim a physical Windows image test.

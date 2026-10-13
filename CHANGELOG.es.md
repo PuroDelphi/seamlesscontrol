@@ -4,6 +4,12 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.3](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.3) — 2026-10-12
+
+- Cierra el prefacio de emparejamiento o handshake Noise incompleto tras un plazo total de diez segundos. Un cliente no autenticado de la LAN ya no puede ocupar uno de los ocho cupos del receptor Linux enviando lentamente fragmentos del handshake.
+- Cancela ese plazo antes de la aprobación humana del código de seis cifras. Se conservan los emparejamientos, el protocolo 7, la compatibilidad con Windows y las sesiones activas. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.3.md#seamlesscontrol-0253--plazo-de-autenticación-en-el-receptor-omarchy).
+- Retira las bandas de demostración de las imágenes de las guías Omarchy y Windows; las direcciones de ejemplo siguen siendo ficticias.
+
 ## [0.25.2](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.2) — 2026-10-12
 
 - Comparte píxeles del portapapeles de imágenes durante una sesión de control autenticada bajo el permiso Portapapeles del par. Admite PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld, SVG y mapas de bits compatibles de Windows; los convierte a PNG acotado.

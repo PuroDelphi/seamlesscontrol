@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Plazo del handshake en el receptor Omarchy 0.25.3 · 2026-10-12
+
+El revisor del marketplace detectó que ocho conexiones sin autenticar podían ocupar todos los cupos del receptor Linux durante muchas horas enviando lentamente un cuerpo Noise incompleto bajo el plazo de 330 segundos por lectura. El receptor cierra ahora el transporte previo a la autenticación tras diez segundos en total y recupera el plazo largo solo después de completar Noise, antes de aprobar el código. Una prueba local de loopback ocupa los ocho permisos con cuerpos Noise declarados pero incompletos, comprueba que no hay un noveno cupo y después verifica que terminan todas las lecturas bloqueadas y regresan los ocho permisos; otra comprueba que cancelar el plazo mantiene utilizable el socket. Pasan las 97 pruebas del núcleo, las 7 del binario Linux y Clippy. Esta corrección específica aún no se ha sometido a una prueba física de saturación en la LAN.
+
 ## Portapapeles de imágenes y archivos soltados en la app 0.25.2 · 2026-10-11/12
 
 Dos Omarchy físicos ejecutaron el plugin 0.25.2 en `2030496`, con protocolo 7 del agente, durante una conexión de control autenticada. Un JPEG de 3×2 y un SVG de 4×3 copiados en uno llegaron al otro como PNG con dimensiones y colores muestreados correctos. Un WebP de 5×4 funcionó al revés; parecía vacío en la interfaz por su tamaño, así que se envió un WebP de 640×360 con degradado verde que se pegó visiblemente. Luego el usuario copió una imagen desde una aplicación normal de un Omarchy y la pegó correctamente en una aplicación del otro. Pasaron las pruebas Linux y CI Windows x64 en `af34669`. Esto verifica el transporte y un pegado en aplicaciones entre Omarchy; no afirma una prueba física de imágenes en Windows.
