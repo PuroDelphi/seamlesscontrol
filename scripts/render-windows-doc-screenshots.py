@@ -7,7 +7,6 @@ The injected states are fictional documentation examples. Focused views only
 hide surrounding interface sections; they use the same HTML and render functions.
 """
 
-import html as html_module
 import json
 from pathlib import Path
 import re
@@ -83,14 +82,7 @@ def render(chromium: str, language: str, view: str, directory: Path) -> None:
     page_html = page_html.replace(
         "<script>", "<script>window.ipc={postMessage:()=>{}};</script><script>", 1
     )
-    provenance = (
-        "SeamlessControl for Windows · fictional example data"
-        if language == "en" else
-        "SeamlessControl para Windows · datos de ejemplo ficticios"
-    )
     css = (
-        ".doc-provenance{padding:12px 20px;background:#243644;color:#f1eee5;"
-        "font:14px/1.5 sans-serif;border-bottom:1px solid #90c7cd}"
         ".main{max-height:none;overflow:visible}.app{min-height:0}"
     )
     if view in FOCUS_CSS:
@@ -99,9 +91,6 @@ def render(chromium: str, language: str, view: str, directory: Path) -> None:
             ".content{padding:24px;max-width:none}"
         ) + FOCUS_CSS[view]
     page_html = page_html.replace("</head>", f"<style>{css}</style></head>")
-    page_html = page_html.replace(
-        "<body>", f'<body><div class="doc-provenance">{html_module.escape(provenance)}</div>', 1
-    )
     injected = (
         "<script>\n"
         f"language={json.dumps(language)};applyLanguage();\n"
@@ -110,8 +99,7 @@ def render(chromium: str, language: str, view: str, directory: Path) -> None:
         + (f"selectedPeer={json.dumps(FINGERPRINT)};lastDevices='';renderDevices();\n"
            if view == "layout" else "")
         + "document.body.dataset.docHeight=String(Math.ceil("
-        "document.querySelector('.app').getBoundingClientRect().height+"
-        "document.querySelector('.doc-provenance').getBoundingClientRect().height));\n"
+        "document.querySelector('.app').getBoundingClientRect().height));\n"
         "</script></body>"
     )
     page_html = page_html.replace("</body>", injected)

@@ -9,7 +9,7 @@ into a temporary shell. Only KeyboardPanel (the layer-shell window container)
 is replaced by an offscreen Item. AgentBackend is NOT instantiated. Its property
 names are used to create a read-only documentation fixture, with no networking,
 clipboard monitoring, installation, firewall or input-capture processes.
-Each image carries an explicit fictional-data/offscreen-render label.
+The fixture keeps example addresses and names out of the real network.
 """
 import argparse
 import json
@@ -59,12 +59,7 @@ ShellRoot {
       id: image
       anchors.fill: parent
       Rectangle { anchors.fill: parent; color: "#101315" }
-      Text {
-        x: 12; y: 10; width: 454
-        text: LANG === "es" ? "QML real · datos ficticios · vista aislada" : "Real QML · fictional data · isolated preview"
-        color: "#9bbcff"; font.pixelSize: 12; font.family: "DejaVu Sans"
-      }
-      Plugin.ControlPanel { id: panel; x: 24; y: 40; backend: fixture }
+      Plugin.ControlPanel { id: panel; x: 24; y: 16; backend: fixture }
     }
     FIXTURE
     property var shots: SHOTS
