@@ -501,7 +501,6 @@ mod tests {
     use crate::storage::{remember_peer_key, revoke_peer_key};
     use std::fs;
     use std::thread;
-    use std::time::Instant;
 
     fn connected(
         sender_peers: &Path,
@@ -967,27 +966,38 @@ mod tests {
         });
         let mut impostor = TcpStream::connect(address).unwrap();
         impostor.write_all(&100u16.to_be_bytes()).unwrap();
-        let start = Instant::now();
+        let (finished, received) = mpsc::channel();
         let sender_worker = thread::spawn(move || {
-            send_once(
+            let result = send_once(
                 address,
                 &source,
                 &sender,
                 &sender_peers,
                 DEFAULT_MAX_FILE_BYTES,
             )
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.to_string());
+            let _ = finished.send(result);
         });
-        // The impostor keeps sending within the per-read timeout while the
-        // legitimate sender waits. Its incomplete body must still be closed.
-        for _ in 0..5 {
-            thread::sleep(Duration::from_millis(100));
-            if impostor.write_all(&[0]).is_err() {
-                break;
+        let (stop_attack, stopped) = mpsc::channel();
+        let attacker = thread::spawn(move || {
+            // Keep the incomplete body alive until the real transfer finishes.
+            // Without a total deadline, the receiver cannot reach the sender.
+            while stopped
+                .recv_timeout(Duration::from_millis(100))
+                .is_err_and(|error| error == mpsc::RecvTimeoutError::Timeout)
+            {
+                if impostor.write_all(&[0]).is_err() {
+                    break;
+                }
             }
-        }
-        sender_worker.join().unwrap().unwrap();
-        assert!(start.elapsed() < Duration::from_secs(4));
+        });
+        let outcome = received.recv_timeout(Duration::from_secs(15));
+        let _ = stop_attack.send(());
+        attacker.join().unwrap();
+        sender_worker.join().unwrap();
+        outcome
+            .expect("trickled handshake must not hold the receiver")
+            .unwrap();
         assert!(worker.join().unwrap().is_some());
         fs::remove_dir_all(dir).unwrap();
     }
