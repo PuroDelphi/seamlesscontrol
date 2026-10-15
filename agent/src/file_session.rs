@@ -12,14 +12,35 @@ use crate::secure::{Identity, Role, SecureChannel};
 use crate::storage::{is_revoked, key_fingerprint, load_peer_key};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
-use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
+use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const GREETING: &[u8] = b"seamlesscontrol-file/1";
 const FILE_TIMEOUT: Duration = Duration::from_secs(300);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const HANDSHAKE_DEADLINE: Duration = Duration::from_secs(10);
+
+// A socket timeout applies to each read, so a client can keep a partial Noise
+// message alive indefinitely by sending another byte before every timeout.
+// Close the transport after a total deadline until the pinned key and file
+// protocol greeting are proven.
+fn pre_auth_deadline(stream: &TcpStream, timeout: Duration) -> io::Result<mpsc::Sender<()>> {
+    let shutdown = stream.try_clone()?;
+    let (done, cancelled) = mpsc::channel();
+    thread::spawn(move || {
+        if cancelled
+            .recv_timeout(timeout)
+            .is_err_and(|error| error == mpsc::RecvTimeoutError::Timeout)
+        {
+            let _ = shutdown.shutdown(Shutdown::Both);
+        }
+    });
+    Ok(done)
+}
 
 struct BundleStage(std::path::PathBuf);
 
@@ -295,6 +316,29 @@ fn receive_with_listener_progress(
     approve: &mut impl FnMut(&FileOffer, IpAddr, &[u8; 32]) -> io::Result<bool>,
     progress: &mut impl FnMut(u8),
 ) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
+    receive_with_listener_progress_deadline(
+        listener,
+        directory,
+        identity,
+        peers,
+        limit,
+        HANDSHAKE_DEADLINE,
+        approve,
+        progress,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn receive_with_listener_progress_deadline(
+    listener: TcpListener,
+    directory: &Path,
+    identity: &Identity,
+    peers: &Path,
+    limit: u64,
+    handshake_deadline: Duration,
+    approve: &mut impl FnMut(&FileOffer, IpAddr, &[u8; 32]) -> io::Result<bool>,
+    progress: &mut impl FnMut(u8),
+) -> Result<Option<std::path::PathBuf>, Box<dyn Error>> {
     let (mut channel, peer_address, peer_key, files_allowed) = loop {
         let (stream, peer_address) = listener.accept()?;
         let Some(pinned) = load_peer_key(peers, peer_address.ip())? else {
@@ -306,6 +350,7 @@ fn receive_with_listener_progress(
         stream.set_read_timeout(Some(HANDSHAKE_TIMEOUT))?;
         stream.set_write_timeout(Some(HANDSHAKE_TIMEOUT))?;
         stream.set_nodelay(true)?;
+        let deadline = pre_auth_deadline(&stream, handshake_deadline)?;
         let Ok((mut channel, _)) =
             SecureChannel::connect(stream, Role::Responder, identity, Some(&pinned), |_| false)
         else {
@@ -316,6 +361,7 @@ fn receive_with_listener_progress(
             eprintln!("SeamlessControl: protocolo de archivo incompatible desde {peer_address}");
             continue;
         }
+        let _ = deadline.send(());
         channel.stream_mut().set_read_timeout(Some(FILE_TIMEOUT))?;
         channel.stream_mut().set_write_timeout(Some(FILE_TIMEOUT))?;
         let config = peers.parent().ok_or("peer directory has no parent")?;
@@ -455,6 +501,7 @@ mod tests {
     use crate::storage::{remember_peer_key, revoke_peer_key};
     use std::fs;
     use std::thread;
+    use std::time::Instant;
 
     fn connected(
         sender_peers: &Path,
@@ -880,6 +927,118 @@ mod tests {
         .unwrap();
         let saved = worker.join().unwrap().unwrap().unwrap();
         assert_eq!(fs::read(saved).unwrap(), fs::read(&source).unwrap());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn trickled_noise_body_cannot_hold_file_receiver() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-file-trickle-{}-{:?}",
+            std::process::id(),
+            thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let downloads = dir.join("downloads");
+        fs::create_dir_all(&downloads).unwrap();
+        let source = dir.join("example.txt");
+        fs::write(&source, b"authenticated contents").unwrap();
+        let sender = Identity::generate().unwrap();
+        let receiver = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let sender_peers = dir.join("sender-peers");
+        let receiver_peers = dir.join("receiver-peers");
+        remember_peer_key(&sender_peers, ip, &receiver.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &sender.public).unwrap();
+        let _sessions = connected(&sender_peers, &receiver_peers, ip, &sender, &receiver);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let worker = thread::spawn(move || {
+            receive_with_listener_progress_deadline(
+                listener,
+                &downloads,
+                &receiver,
+                &receiver_peers,
+                DEFAULT_MAX_FILE_BYTES,
+                Duration::from_millis(750),
+                &mut |_, _, _| Ok(true),
+                &mut |_| {},
+            )
+            .unwrap()
+        });
+        let mut impostor = TcpStream::connect(address).unwrap();
+        impostor.write_all(&100u16.to_be_bytes()).unwrap();
+        let start = Instant::now();
+        let sender_worker = thread::spawn(move || {
+            send_once(
+                address,
+                &source,
+                &sender,
+                &sender_peers,
+                DEFAULT_MAX_FILE_BYTES,
+            )
+            .map_err(|error| error.to_string())
+        });
+        // The impostor keeps sending within the per-read timeout while the
+        // legitimate sender waits. Its incomplete body must still be closed.
+        for _ in 0..5 {
+            thread::sleep(Duration::from_millis(100));
+            if impostor.write_all(&[0]).is_err() {
+                break;
+            }
+        }
+        sender_worker.join().unwrap().unwrap();
+        assert!(start.elapsed() < Duration::from_secs(4));
+        assert!(worker.join().unwrap().is_some());
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn authenticated_file_offer_can_wait_for_local_approval() {
+        let dir = std::env::temp_dir().join(format!(
+            "seamlesscontrol-file-approval-deadline-{}-{:?}",
+            std::process::id(),
+            thread::current().id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        let downloads = dir.join("downloads");
+        fs::create_dir_all(&downloads).unwrap();
+        let source = dir.join("example.txt");
+        fs::write(&source, b"approved after waiting").unwrap();
+        let sender = Identity::generate().unwrap();
+        let receiver = Identity::generate().unwrap();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let sender_peers = dir.join("sender-peers");
+        let receiver_peers = dir.join("receiver-peers");
+        remember_peer_key(&sender_peers, ip, &receiver.public).unwrap();
+        remember_peer_key(&receiver_peers, ip, &sender.public).unwrap();
+        let _sessions = connected(&sender_peers, &receiver_peers, ip, &sender, &receiver);
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let worker = thread::spawn(move || {
+            receive_with_listener_progress_deadline(
+                listener,
+                &downloads,
+                &receiver,
+                &receiver_peers,
+                DEFAULT_MAX_FILE_BYTES,
+                Duration::from_secs(1),
+                &mut |_, _, _| {
+                    thread::sleep(Duration::from_millis(1200));
+                    Ok(true)
+                },
+                &mut |_| {},
+            )
+            .unwrap()
+        });
+        send_once(
+            address,
+            &source,
+            &sender,
+            &sender_peers,
+            DEFAULT_MAX_FILE_BYTES,
+        )
+        .unwrap();
+        assert!(worker.join().unwrap().is_some());
         fs::remove_dir_all(dir).unwrap();
     }
 

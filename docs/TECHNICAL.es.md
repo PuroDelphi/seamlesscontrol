@@ -18,6 +18,8 @@ Un receptor Windows activo comprueba cada 50 ms, mediante un vigilante independi
 
 La transferencia portable verifica la clave fijada, la marca de revocación, el comprobante de control activo y el permiso Archivos antes de aceptar una oferta y entre las partes. Repite la comprobación antes de publicar el archivo completo. Un comprobante que aún exista no autoriza una identidad revocada.
 
+El receptor de archivos de un solo envío también cierra cada socket nuevo si no terminan la autenticación Noise y el saludo cifrado del protocolo de archivos en diez segundos en total. Se mantiene el plazo de cinco segundos por lectura, pero una secuencia de fragmentos no autenticados no puede reiniciar el plazo total. Este se cancela antes de esperar la aprobación humana de una oferta verificada. La misma ruta se usa en Omarchy y Windows.
+
 Los botones de firewall elevan el agente para agregar reglas TCP entrantes de control, envío manual y archivos copiados, y una regla UDP `5353` para mDNS. Se limitan al perfil Privado y LocalSubnet. La interfaz informa que solicitó autorización; el comando elevado informa si la regla se aplicó.
 
 El CI Windows compila la GUI con entorno C estático. El workflow del release compila el commit etiquetado y adjunta un ZIP con ambos ejecutables y un SHA-256 del ZIP como asset contiguo. El hijo oculto usa una ventana invisible como propietario del portapapeles, sin depender de una consola visible.

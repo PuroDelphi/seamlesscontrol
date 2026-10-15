@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Plazo previo a la autenticación de archivos 0.25.6 · 2026-10-15
+
+El revisor del marketplace encontró que el receptor de un archivo atendía las conexiones en serie antes de autenticar con Noise. Una espera de cinco segundos por lectura permitía a un proceso sin la clave emparejada mantener incompleto el saludo enviando fragmentos. El receptor compartido por Omarchy y Windows impone ahora un plazo total de diez segundos hasta terminar Noise y el saludo cifrado de archivos. Una prueba de loopback envía fragmentos de un cuerpo incompleto y comprueba que después un remitente autenticado completa la transferencia. Otra espera más que el plazo de prueba para la aprobación local y también completa el envío. Pasaron localmente 101 pruebas del núcleo, 7 del binario Linux, Clippy y la prueba de notificaciones con D-Bus privado; la CI Windows x64 queda enlazada desde el flujo del lanzamiento. No se ha realizado una nueva prueba física entre dos equipos para esta corrección concreta.
+
 ## Avisos privados de archivos 0.25.5 · 2026-10-14
 
 El revisor del marketplace detectó que el aviso de archivos entrantes en Omarchy pasaba el nombre remoto entre los argumentos de `notify-send`, visibles para otra cuenta local en `/proc/<pid>/cmdline`. El auxiliar nuevo lee JSON acotado desde stdin y envía la oferta por la sesión D-Bus del usuario. Una prueba con un bus privado comprueba que el servicio recibe el nombre original, devuelve la acción Rechazar y `/proc` no contiene el nombre. Las rutas y la lista de URI arrastradas en las interfaces de Omarchy y Windows también pasan por stdin y no por los argumentos del agente. Pasan localmente las 99 pruebas del núcleo, las 7 pruebas del binario Linux y Clippy; la CI Windows x64 se enlaza desde el flujo del lanzamiento. No se ha hecho una nueva prueba física de transferencia entre dos equipos para esta corrección concreta.

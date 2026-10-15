@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.6 file receiver preauthentication deadline · 2026-10-15
+
+The marketplace reviewer found that the one-shot file listener serialized connections before Noise authentication. A five-second per-read timeout allowed a process without the paired key to keep an incomplete handshake alive by trickling bytes. The shared Omarchy and Windows receiver now applies a ten-second total deadline through Noise and the encrypted file greeting. A loopback regression test trickles an incomplete body, then confirms that an authenticated sender completes a file transfer after the stalled connection closes. Another test waits beyond the test deadline for local approval and still completes. Locally, 101 core tests, 7 Linux binary tests, Clippy and the private D-Bus notification test passed; Windows x64 CI is linked from the release workflow. No new physical two-computer file test has been performed for this targeted change.
+
 ## 0.25.5 private file notification transport · 2026-10-14
 
 The marketplace reviewer found that the Omarchy incoming-offer notification passed the remote filename in `notify-send` arguments, visible to another local account through `/proc/<pid>/cmdline`. The replacement helper reads bounded JSON from stdin and sends the offer over the user's D-Bus session. A private-bus test verifies that the notification service receives the original filename, the Reject action returns, and `/proc` contains no filename. The graphical Omarchy and Windows file paths and dropped URI list now also use stdin rather than agent arguments. The 99 core tests, 7 Linux binary tests and Clippy pass locally; Windows x64 CI is linked from the release workflow. A new physical two-computer file-transfer test has not been performed for this targeted change.

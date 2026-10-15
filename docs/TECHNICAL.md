@@ -24,6 +24,8 @@ An active Windows receiver checks its pinned peer identity and Control/Text perm
 
 The portable file-transfer path checks the pinned key, revocation marker, live control lease and Files permission before accepting an offer and between chunks. It checks again before publishing a completed file. A leftover lease cannot authorize a revoked identity.
 
+The one-shot file receiver also closes a new socket after ten seconds total unless Noise authentication and the encrypted file-protocol greeting have completed. Its five-second per-read timeout still applies, but a stream of small unauthenticated fragments cannot reset the total deadline. The deadline is cancelled before a verified offer waits for the user's approval. This shared file path is used by Omarchy and Windows.
+
 This guide covers manual operation, packaging, security, and current limits. The addresses below are **fictional examples**: source `192.168.50.10`, receiver `192.168.50.20`, LAN `192.168.50.0/24`, interface `wlan0`.
 
 ## Packaging and updates

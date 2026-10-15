@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.6](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.6) — 2026-10-15
+
+- Close an inbound file connection after ten seconds total if its Noise authentication and file greeting have not completed. A process without the paired key can no longer keep the one-shot file receiver occupied by trickling bytes within repeated read timeouts.
+- Apply the shared fix to Omarchy and Windows while keeping existing pairings, file approval, encrypted transfer and protocol 7 compatible. See the [release notes](docs/RELEASE-0.25.6.md).
+
 ## [0.25.5](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.5) — 2026-10-14
 
 - Send incoming file-offer details to the Omarchy notification service over D-Bus using stdin, keeping the filename, sender and size out of process arguments while retaining one-click Accept/Reject.

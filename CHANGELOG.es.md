@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.6](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.6) — 2026-10-15
+
+- Cierra una conexión entrante de archivos tras diez segundos en total si no termina la autenticación Noise y el saludo del protocolo. Un proceso sin la clave emparejada ya no puede ocupar el receptor enviando lentamente fragmentos dentro de cada espera de lectura.
+- Aplica la corrección compartida a Omarchy y Windows sin cambiar emparejamientos, aprobación, transferencia cifrada ni protocolo 7. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.6.md#seamlesscontrol-0256--protección-del-receptor-de-archivos).
+
 ## [0.25.5](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.5) — 2026-10-14
 
 - Envía los detalles de un archivo entrante al servicio de notificaciones de Omarchy por D-Bus mediante stdin. El nombre, remitente y tamaño no figuran en los argumentos del proceso y se conservan Aceptar/Rechazar en un solo aviso.
