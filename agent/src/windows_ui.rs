@@ -612,6 +612,22 @@ impl Controller {
         Ok(())
     }
 
+    fn start_with_private_path(
+        &mut self,
+        slot: Slot,
+        args: &[&str],
+        path: &Path,
+        proxy: &EventLoopProxy<UiEvent>,
+    ) -> io::Result<()> {
+        let payload = serde_json::to_string(&path.to_string_lossy()).map_err(io::Error::other)?;
+        self.start(slot, args, proxy)?;
+        if let Err(error) = self.reply(slot, &payload) {
+            self.stop(slot);
+            return Err(error);
+        }
+        Ok(())
+    }
+
     fn stop(&mut self, slot: Slot) {
         if let Some(mut process) = self.processes.remove(&slot) {
             let _ = process.child.kill();
@@ -984,13 +1000,13 @@ impl Controller {
             return Err("copied file is no longer valid or exceeds the limit".into());
         }
         self.last_copied_send = Some(path.clone());
-        self.start(
+        self.start_with_private_path(
             Slot::SendFile,
             &[
-                "send-file",
+                "send-file-ui-stdin",
                 &SocketAddr::new(ip, 47834).to_string(),
-                &path.to_string_lossy(),
             ],
+            &path,
             proxy,
         )?;
         self.copied_send_active = true;
@@ -1364,13 +1380,10 @@ impl Controller {
                     if !directory.is_dir() {
                         return Err("choose an existing destination folder".into());
                     }
-                    self.start(
+                    self.start_with_private_path(
                         Slot::ReceiveFile,
-                        &[
-                            "receive-file-ui",
-                            &format!("0.0.0.0:{port}"),
-                            &directory.to_string_lossy(),
-                        ],
+                        &["receive-file-ui-stdin", &format!("0.0.0.0:{port}")],
+                        &directory,
                         proxy,
                     )?;
                 }
@@ -1387,9 +1400,10 @@ impl Controller {
                         return Err("selected file is no longer available".into());
                     }
                     self.copied_send_active = false;
-                    self.start(
+                    self.start_with_private_path(
                         Slot::SendFile,
-                        &["send-file", &address.to_string(), &path.to_string_lossy()],
+                        &["send-file-ui-stdin", &address.to_string()],
+                        &path,
                         proxy,
                     )?;
                 }

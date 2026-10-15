@@ -18,6 +18,7 @@ pub mod secure;
 pub mod state;
 pub mod storage;
 pub mod topology;
+pub mod ui_stdin;
 pub mod windows_keymap;
 
 pub const PRODUCT_VERSION: &str = env!("SEAMLESSCONTROL_PRODUCT_VERSION");
@@ -41,5 +42,7 @@ pub mod control;
 pub mod discovery;
 #[cfg(target_os = "linux")]
 pub mod hypr_ipc;
+#[cfg(target_os = "linux")]
+pub mod notification;
 #[cfg(target_os = "linux")]
 pub mod omarchy;

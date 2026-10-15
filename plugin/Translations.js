@@ -100,6 +100,7 @@ var english = {
   "La selección contiene un enlace simbólico. Quite el enlace y vuelva a copiar.": "The selection contains a symbolic link. Remove the link and copy again.",
   "No se pudo preparar la selección copiada. Revise los archivos, el límite de tamaño y vuelva a copiar.": "Could not prepare the copied selection. Check the files and size limit, then copy again.",
   "Archivo copiado desde otro equipo": "Copied file from another computer",
+  "Abra SeamlessControl para revisar y responder la oferta.": "Open SeamlessControl to review and respond to the offer.",
   "Aceptar": "Accept",
   "Archivo listo para pegar: ": "File ready to paste: ",
   "Archivo listo para pegar.": "File ready to paste.",

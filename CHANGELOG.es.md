@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.5](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.5) — 2026-10-14
+
+- Envía los detalles de un archivo entrante al servicio de notificaciones de Omarchy por D-Bus mediante stdin. El nombre, remitente y tamaño no figuran en los argumentos del proceso y se conservan Aceptar/Rechazar en un solo aviso.
+- Quita de los argumentos del agente las rutas elegidas o arrastradas desde las interfaces de Omarchy y Windows. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.5.md#seamlesscontrol-0255--avisos-de-archivos-privados).
+
 ## [0.25.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.4) — 2026-10-13
 
 - Conserva la representación vectorial del SVG copiado. Desactiva las imágenes incrustadas mediante URL de datos y rutas, y elimina el decodificador ráster del renderizador SVG para impedir que un WebP animado eluda los límites normales.

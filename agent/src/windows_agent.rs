@@ -806,7 +806,14 @@ fn usage() {
 }
 
 pub fn run() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = std::env::args().collect();
+    let mut args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == "send-file-ui-stdin" {
+        args[1] = "send-file".into();
+        args.push(crate::ui_stdin::read_path()?);
+    } else if args.len() == 3 && args[1] == "receive-file-ui-stdin" {
+        args[1] = "receive-file-ui".into();
+        args.push(crate::ui_stdin::read_path()?);
+    }
     match args.as_slice() {
         [_, command] if command == "version" => {
             println!("{}", crate::PRODUCT_VERSION);

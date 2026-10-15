@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.5](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.5) — 2026-10-14
+
+- Send incoming file-offer details to the Omarchy notification service over D-Bus using stdin, keeping the filename, sender and size out of process arguments while retaining one-click Accept/Reject.
+- Keep paths selected or dropped in the Omarchy and Windows interfaces out of their agent command lines. See the [release notes](docs/RELEASE-0.25.5.md).
+
 ## [0.25.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.4) — 2026-10-13
 
 - Keep SVG clipboard rendering vector-only. Disable embedded image resolution for both data URLs and paths, and remove the SVG renderer's raster decoder so embedded animated WebP cannot bypass the normal image limits.

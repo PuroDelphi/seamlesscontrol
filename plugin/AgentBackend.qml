@@ -426,7 +426,8 @@ Item {
     fileListenEndpoint = ""
     fileReceiveError = ""
     stoppingFileReceiver = false
-    receiveFileProcess.command = fileCommand(["receive-file-ui", address, directory])
+    receiveFileProcess.pendingPayload = JSON.stringify(directory)
+    receiveFileProcess.command = fileCommand(["receive-file-ui-stdin", address])
     receiveFileProcess.running = true
     receivingFile = true
   }
@@ -441,7 +442,8 @@ Item {
     fileListenEndpoint = ""
     fileReceiveError = ""
     stoppingFileReceiver = false
-    receiveFileProcess.command = fileCommand(["receive-file-auto-ui", "47833", directory])
+    receiveFileProcess.pendingPayload = JSON.stringify(directory)
+    receiveFileProcess.command = fileCommand(["receive-file-auto-ui-stdin", "47833"])
     receiveFileProcess.running = true
     receivingFile = true
   }
@@ -475,7 +477,8 @@ Item {
     fileError = ""
     fileSendError = ""
     sendingCopiedFile = copied === true
-    sendFileProcess.command = fileCommand(["send-file", address, path])
+    sendFileProcess.pendingPayload = JSON.stringify(path)
+    sendFileProcess.command = fileCommand(["send-file-ui-stdin", address])
     sendFileProcess.running = true
     sendingFile = true
   }
@@ -499,7 +502,7 @@ Item {
       clipboardFileError = t("Arrastre hasta 256 archivos o carpetas locales a la vez.")
       return
     }
-    var args = ["prepare-dropped-files"]
+    var args = []
     for (var i = 0; i < urls.length; i++) {
       var uri = String(urls[i])
       if (!uri.startsWith("file://") || /[\r\n\0]/.test(uri)) {
@@ -509,7 +512,8 @@ Item {
       args.push(uri)
     }
     clipboardFileError = ""
-    droppedFilesProcess.command = fileCommand(args)
+    droppedFilesProcess.pendingPayload = JSON.stringify(args)
+    droppedFilesProcess.command = fileCommand(["prepare-dropped-files-ui-stdin"])
     droppedFilesProcess.running = true
   }
 
@@ -526,6 +530,7 @@ Item {
     if (accept) rememberApproval(fingerprint)
     clipboardOffer = null
     if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
+    if (clipboardFallbackNotificationProcess.running) clipboardFallbackNotificationProcess.running = false
   }
 
   function choosePath(kind) {
@@ -1063,7 +1068,12 @@ Item {
 
   Process {
     id: receiveFileProcess
+    property string pendingPayload: ""
     stdinEnabled: true
+    onStarted: {
+      write(pendingPayload + "\n")
+      pendingPayload = ""
+    }
     stdout: SplitParser {
       onRead: function(line) {
         var fields = String(line).split("\t")
@@ -1128,6 +1138,12 @@ Item {
 
   Process {
     id: sendFileProcess
+    property string pendingPayload: ""
+    stdinEnabled: true
+    onStarted: {
+      write(pendingPayload + "\n")
+      pendingPayload = ""
+    }
     stdout: SplitParser {
       onRead: function(line) {
         var fields = String(line).split("\t")
@@ -1202,6 +1218,12 @@ Item {
 
   Process {
     id: droppedFilesProcess
+    property string pendingPayload: ""
+    stdinEnabled: true
+    onStarted: {
+      write(pendingPayload + "\n")
+      pendingPayload = ""
+    }
     stdout: SplitParser {
       onRead: function(line) {
         try {
@@ -1246,10 +1268,11 @@ Item {
             clipboardReceiveProcess.write("SI\n")
             root.clipboardOffer = null
           } else {
-            clipboardNotificationProcess.command = ["notify-send", "--urgency=critical",
-              "--app-name=SeamlessControl", "--action=accept=" + root.t("Aceptar"),
-              "--action=reject=" + root.t("Rechazar"), root.t("Archivo copiado desde otro equipo"),
-              fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes")]
+            clipboardNotificationProcess.pendingPayload = JSON.stringify({
+              summary: root.t("Archivo copiado desde otro equipo"),
+              body: fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes"),
+              accept: root.t("Aceptar"), reject: root.t("Rechazar")
+            })
             clipboardNotificationProcess.running = true
           }
         } else if (fields[0] === "FILE_READY" && fields.length === 2) {
@@ -1276,6 +1299,7 @@ Item {
       root.clipboardFileListening = false
       root.clipboardOffer = null
       if (clipboardNotificationProcess.running) clipboardNotificationProcess.running = false
+      if (clipboardFallbackNotificationProcess.running) clipboardFallbackNotificationProcess.running = false
       if (code !== 0 && root.installed && !root.stoppingClipboardReceiver && !root.setupBusy)
         root.clipboardFileError = root.t("No se pudo esperar el archivo copiado. Revise el puerto 47834.")
       root.stoppingClipboardReceiver = false
@@ -1284,12 +1308,33 @@ Item {
 
   Process {
     id: clipboardNotificationProcess
+    command: ["seamlesscontrold", "notify-file-offer"]
+    property string pendingPayload: ""
+    stdinEnabled: true
+    onStarted: {
+      write(pendingPayload + "\n")
+      pendingPayload = ""
+    }
     stdout: SplitParser {
       onRead: function(line) {
         if (String(line).trim() === "accept") root.decideClipboardFile(true)
         else if (String(line).trim() === "reject") root.decideClipboardFile(false)
       }
     }
+    onExited: function(code) {
+      if (code !== 0 && root.clipboardOffer !== null) {
+        // An older agent or unavailable notification service still gets a
+        // metadata-free alert; approval with full details remains in the panel.
+        clipboardFallbackNotificationProcess.running = true
+      }
+    }
+  }
+
+  Process {
+    id: clipboardFallbackNotificationProcess
+    command: ["notify-send", "--urgency=critical", "--app-name=SeamlessControl",
+      root.t("Archivo copiado desde otro equipo"),
+      root.t("Abra SeamlessControl para revisar y responder la oferta.")]
   }
 
   Process { id: clipboardReadyNotificationProcess }

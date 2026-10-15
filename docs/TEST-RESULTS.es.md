@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Avisos privados de archivos 0.25.5 · 2026-10-14
+
+El revisor del marketplace detectó que el aviso de archivos entrantes en Omarchy pasaba el nombre remoto entre los argumentos de `notify-send`, visibles para otra cuenta local en `/proc/<pid>/cmdline`. El auxiliar nuevo lee JSON acotado desde stdin y envía la oferta por la sesión D-Bus del usuario. Una prueba con un bus privado comprueba que el servicio recibe el nombre original, devuelve la acción Rechazar y `/proc` no contiene el nombre. Las rutas y la lista de URI arrastradas en las interfaces de Omarchy y Windows también pasan por stdin y no por los argumentos del agente. Pasan localmente las 99 pruebas del núcleo, las 7 pruebas del binario Linux y Clippy; la CI Windows x64 se enlaza desde el flujo del lanzamiento. No se ha hecho una nueva prueba física de transferencia entre dos equipos para esta corrección concreta.
+
 ## SVG solo vectorial en el portapapeles 0.25.4 · 2026-10-13
 
 El revisor del marketplace detectó que un SVG copiado podía incluir un WebP animado, que resvg decodificaba fuera de los límites del portapapeles ráster independiente. La ruta SVG desactiva ambos resolutores de imágenes y compila resvg sin la función raster-images. Una prueba local representa un SVG con fondo vectorial y WebP incrustado, y verifica que el vector permanece y el WebP se omite. Pasan las 98 pruebas del núcleo, las 7 pruebas del binario Linux y Clippy. La CI de Windows x64 queda registrada en el flujo del lanzamiento. No se ha hecho una nueva prueba física de SVG entre sistemas para esta corrección concreta.

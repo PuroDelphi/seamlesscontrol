@@ -2420,7 +2420,23 @@ mod linux {
     }
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
-        let args: Vec<String> = std::env::args().collect();
+        let mut args: Vec<String> = std::env::args().collect();
+        if args.len() == 2 && args[1] == "notify-file-offer" {
+            return seamlesscontrol_core::notification::show_file_offer_from_stdin().await;
+        }
+        if args.len() == 3 && args[1] == "send-file-ui-stdin" {
+            args[1] = "send-file".into();
+            args.push(seamlesscontrol_core::ui_stdin::read_path()?);
+        } else if args.len() == 3 && args[1] == "receive-file-ui-stdin" {
+            args[1] = "receive-file-ui".into();
+            args.push(seamlesscontrol_core::ui_stdin::read_path()?);
+        } else if args.len() == 3 && args[1] == "receive-file-auto-ui-stdin" {
+            args[1] = "receive-file-auto-ui".into();
+            args.push(seamlesscontrol_core::ui_stdin::read_path()?);
+        } else if args.len() == 2 && args[1] == "prepare-dropped-files-ui-stdin" {
+            args[1] = "prepare-dropped-files".into();
+            args.extend(seamlesscontrol_core::ui_stdin::read_uris()?);
+        }
         if args.len() == 2 && args[1] == "edge-policy" {
             println!("{}", EdgePolicy::load(&config_dir()?).as_str());
             return Ok(());

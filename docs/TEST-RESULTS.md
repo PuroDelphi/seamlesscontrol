@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.5 private file notification transport · 2026-10-14
+
+The marketplace reviewer found that the Omarchy incoming-offer notification passed the remote filename in `notify-send` arguments, visible to another local account through `/proc/<pid>/cmdline`. The replacement helper reads bounded JSON from stdin and sends the offer over the user's D-Bus session. A private-bus test verifies that the notification service receives the original filename, the Reject action returns, and `/proc` contains no filename. The graphical Omarchy and Windows file paths and dropped URI list now also use stdin rather than agent arguments. The 99 core tests, 7 Linux binary tests and Clippy pass locally; Windows x64 CI is linked from the release workflow. A new physical two-computer file-transfer test has not been performed for this targeted change.
+
 ## 0.25.4 vector-only SVG clipboard · 2026-10-13
 
 The marketplace reviewer identified that a clipboard SVG could embed animated WebP data, which resvg decoded outside the separate raster clipboard limits. The SVG path now disables both image href resolvers and builds resvg without its raster-images feature. A local regression test renders an SVG with a vector background and embedded WebP, verifying that the vector survives and the WebP is omitted. All 98 core tests, 7 Linux binary tests and Clippy pass. Windows x64 CI is tracked in the linked release workflow. A new physical cross-system SVG test has not been performed for this targeted change.
