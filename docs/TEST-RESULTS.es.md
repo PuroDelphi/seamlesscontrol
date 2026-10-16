@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Límite de memoria de filtros SVG 0.25.9 · 2026-10-16
+
+El revisor encontró que cada primitiva de filtro SVG puede conservar una superficie RGBA completa pese a los límites del lienzo final y de los bytes de entrada. La conversión compartida por Omarchy y Windows rechaza ahora un árbol SVG con filtros antes de llamar al renderizador. Una prueba usa un lienzo grande y primitivas de filtro referenciadas; el SVG vectorial normal y la prueba anterior de imagen incrustada siguen funcionando. Los resultados de CI Linux y Windows quedan enlazados desde el lanzamiento. No se realizó una nueva prueba física entre dos equipos para este cambio concreto.
+
 ## Plazo del saludo de control Windows 0.25.8 · 2026-10-15
 
 El revisor confirmó la corrección de avisos de 0.25.7, pero encontró que los ocho cupos del receptor de control Windows seguían expuestos a cuerpos Noise incompletos enviados lentamente. El receptor ahora inicia un plazo total de diez segundos en cuanto cada socket ocupa un cupo y lo cancela tras Noise, antes de la aprobación humana del código. La nueva prueba de loopback Windows intenta ocupar los ocho cupos, continúa enviando fragmentos, verifica el cierre de todos los trabajadores y cupos y después autentica un par con clave fijada; su saludo espera más que el plazo reducido de prueba para verificar la cancelación. Pasaron localmente 101 pruebas del núcleo, 7 del binario Linux y Clippy. La CI Windows x64 ejecuta la prueba exclusiva de Windows; véase el flujo del lanzamiento. No hubo una nueva prueba física entre dos equipos para esta corrección concreta.

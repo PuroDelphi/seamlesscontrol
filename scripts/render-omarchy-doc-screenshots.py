@@ -142,7 +142,7 @@ def fixture_qml(language):
     defaults = {"string": '""', "bool": "false", "int": "0", "var": "null"}
     properties = re.findall(r"^  (?:readonly )?property (string|bool|int|var) (\w+):", source, re.M)
     values = {
-        "language": language, "installed": True, "pluginVersion": "0.25.8", "agentVersion": "0.25.8",
+        "language": language, "installed": True, "pluginVersion": "0.25.9", "agentVersion": "0.25.9",
         "peers": [{"ip": "192.0.2.20", "key": "abcdef0123456789" * 4}],
         "peerPolicies": {"abcdef0123456789" * 4: {"control": True, "text": True, "files": True, "lastConnectedMs": 0}},
         "edgePolicy": "fluid",

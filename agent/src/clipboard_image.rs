@@ -75,6 +75,13 @@ fn svg_to_wire_png(bytes: &[u8]) -> Option<Vec<u8>> {
     options.image_href_resolver.resolve_data = Box::new(|_, _, _| None);
     options.image_href_resolver.resolve_string = Box::new(|_, _| None);
     let tree = resvg::usvg::Tree::from_data(bytes, &options).ok()?;
+    // resvg allocates a full RGBA surface for each filter primitive. A small
+    // SVG can contain enough primitives to exhaust the control agent's memory
+    // even when the final canvas is within our pixel limit. Use a raster
+    // clipboard alternative when available; do not render filtered SVGs.
+    if !tree.filters().is_empty() {
+        return None;
+    }
     let size = tree.size().to_int_size();
     let pixels = u64::from(size.width()) * u64::from(size.height());
     if size.width() > 16384 || size.height() > 16384 || pixels == 0 || pixels > 32_000_000 {
@@ -197,5 +204,11 @@ mod tests {
         let png = to_wire_png_for_mime("image/svg+xml", svg.as_bytes()).expect("SVG render");
         let decoded = image::load_from_memory_with_format(&png, ImageFormat::Png).unwrap();
         assert_eq!(decoded.to_rgba8().get_pixel(0, 0).0, [0, 128, 0, 255]);
+    }
+
+    #[test]
+    fn svg_clipboard_rejects_filter_surfaces_before_rendering() {
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="16384" height="1953"><defs><filter id="f"><feGaussianBlur stdDeviation="1"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter></defs><rect width="10" height="10" filter="url(#f)"/></svg>"#;
+        assert!(to_wire_png_for_mime("image/svg+xml", svg).is_none());
     }
 }

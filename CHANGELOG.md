@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.9](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.9) — 2026-10-16
+
+- Reject filtered SVG clipboard data before rendering: resvg can retain a full RGBA surface per filter primitive even when the final canvas and input bytes are bounded.
+- Preserve ordinary vector SVG and bounded raster clipboard formats on Omarchy and Windows. See the [release notes](docs/RELEASE-0.25.9.md).
+
 ## [0.25.8](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.8) — 2026-10-15
 
 - Close each inbound Windows control socket after ten seconds total if the pairing preface and Noise handshake have not completed; trickled bytes cannot occupy the eight connection slots indefinitely.
