@@ -1268,11 +1268,9 @@ Item {
             clipboardReceiveProcess.write("SI\n")
             root.clipboardOffer = null
           } else {
-            clipboardNotificationProcess.pendingPayload = JSON.stringify({
-              summary: root.t("Archivo copiado desde otro equipo"),
-              body: fields[2] + " · " + fields[1] + " · " + fields[3] + root.t(" bytes"),
-              accept: root.t("Aceptar"), reject: root.t("Rechazar")
-            })
+            // Omarchy persists notification text through subprocess argv.
+            // Keep remote file metadata in this panel, never in the system alert.
+            clipboardNotificationProcess.pendingPayload = JSON.stringify({ language: root.language })
             clipboardNotificationProcess.running = true
           }
         } else if (fields[0] === "FILE_READY" && fields.length === 2) {

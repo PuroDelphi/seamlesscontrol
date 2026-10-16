@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.7](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.7) — 2026-10-15
+
+- Keep private filenames, sender addresses and sizes out of the Omarchy notification body, which Omarchy persists through subprocess arguments. The alert remains bilingual and actionable; full offer details remain in the Files panel.
+- Restrict the notification helper to a fixed language selector and test both D-Bus and the simulated persistence command line. See the [release notes](docs/RELEASE-0.25.7.md).
+
 ## [0.25.6](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.6) — 2026-10-15
 
 - Close an inbound file connection after ten seconds total if its Noise authentication and file greeting have not completed. A process without the paired key can no longer keep the one-shot file receiver occupied by trickling bytes within repeated read timeouts.
@@ -11,7 +16,7 @@ This file summarizes published changes and changes not yet included in a release
 
 ## [0.25.5](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.5) — 2026-10-14
 
-- Send incoming file-offer details to the Omarchy notification service over D-Bus using stdin, keeping the filename, sender and size out of process arguments while retaining one-click Accept/Reject.
+- Send incoming file-offer details to the Omarchy notification service over D-Bus using stdin, keeping them out of the helper's arguments while retaining one-click Accept/Reject. Omarchy's later persistence arguments were found to expose the details; 0.25.7 replaces this path.
 - Keep paths selected or dropped in the Omarchy and Windows interfaces out of their agent command lines. See the [release notes](docs/RELEASE-0.25.5.md).
 
 ## [0.25.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.4) — 2026-10-13

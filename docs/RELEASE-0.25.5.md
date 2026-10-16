@@ -1,5 +1,7 @@
 # SeamlessControl 0.25.5 · Private file notifications
 
+**Historical release note:** The D-Bus notification body described below was subsequently found to reappear in Omarchy's persistence-process arguments. Version [0.25.7](RELEASE-0.25.7.md) replaces it with fixed text and keeps the private offer details in the Files panel.
+
 Incoming copied-file offers still show the filename, sender and size in one actionable Omarchy notification. Those details now travel to the desktop notification service over the user's D-Bus session through a helper that reads stdin. They no longer appear in `notify-send` arguments or `/proc/<pid>/cmdline`. If the notification helper cannot start, the fallback alert contains no file metadata or approval buttons; the full offer can be reviewed and answered in the Files page.
 
 Omarchy and Windows interfaces also pass selected local file paths, destination folders and dropped file URIs to their agents over stdin instead of process arguments. The existing approval choices, peer permissions, encrypted transfer, size limits and file verification are unchanged. The command-line interface remains available for people who explicitly type a path.
@@ -13,6 +15,8 @@ A private D-Bus test sends a filename through stdin, checks that it reaches the 
 ---
 
 # SeamlessControl 0.25.5 · Avisos de archivos privados
+
+**Nota histórica:** El cuerpo D-Bus descrito aquí reaparecía en los argumentos del proceso de persistencia de Omarchy. La versión [0.25.7](RELEASE-0.25.7.md#seamlesscontrol-0257--avisos-privados-de-archivos) lo reemplaza por texto fijo y conserva los datos privados de la oferta en Archivos.
 
 Las ofertas de archivos copiados siguen mostrando nombre, remitente y tamaño en un único aviso de Omarchy con botones de aprobación. Esos datos pasan ahora al servicio de notificaciones por la sesión D-Bus del usuario mediante un auxiliar que lee stdin. Ya no aparecen en los argumentos de `notify-send` ni en `/proc/<pid>/cmdline`. Si el auxiliar falla, el aviso alternativo no incluye metadatos ni botones de aprobación; la oferta completa se puede revisar y responder en la página Archivos.
 

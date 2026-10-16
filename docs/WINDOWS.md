@@ -121,7 +121,7 @@ Dragging onto the **sender's SeamlessControl Files page** is another way to star
 
 1. Keep both apps/plugin running and connect the paired computers. Copy **one local file, several files or a folder** in Explorer or the Omarchy file manager. Alternatively drag local files or folders onto the **Files** page of the sender’s SeamlessControl window.
 2. With exactly one connected computer, the file is offered automatically. With several, choose the destination under **Files → Copy here, paste there**. Expected result: the copied file is shown and an offer reaches the receiver.
-3. With the default approval mode, the receiver checks sender, filename and size, then chooses **Accept file** or **Decline**. Windows also shows a native approval dialog even when hidden in the tray; Omarchy uses an actionable desktop notification. The Files page has approval buttons too.
+3. With the default approval mode, the receiver checks sender, filename and size, then chooses **Accept file** or **Decline**. Windows shows those details in a native approval dialog even when hidden in the tray. Omarchy uses a generic actionable desktop notification; review the details in its Files page before accepting. The Files page has approval buttons too.
 4. Wait for verified completion in **Activity**. Then open the folder where you want the file and **Paste** in the receiver's file manager. Accepting prepares the local clipboard; it does not paste into your chosen folder for you.
 
 ![Files: copied file and destination action above the separate manual transfer cards](images/windows-files-en.png)

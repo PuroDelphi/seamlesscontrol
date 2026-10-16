@@ -121,7 +121,7 @@ Soltar archivos en la página **Archivos de SeamlessControl del emisor** tambié
 
 1. Mantén ambas apps/plugin en ejecución y conecta los equipos emparejados. Copia **un archivo local, varios archivos o una carpeta** en el Explorador o en el explorador Omarchy. Como alternativa, arrastra archivos o carpetas locales a la página **Archivos** de SeamlessControl en el equipo emisor.
 2. Con exactamente un equipo conectado, se ofrece automáticamente. Con varios, elige el destino en **Archivos → Copia aquí, pega allá**. Resultado esperado: aparece el archivo copiado y llega una oferta al receptor.
-3. Con el modo predeterminado, el receptor revisa remitente, nombre y tamaño y pulsa **Aceptar archivo** o **Rechazar**. Windows también muestra un diálogo nativo aunque esté oculto en la bandeja; Omarchy usa una notificación de escritorio con botones. La página Archivos también tiene botones de aprobación.
+3. Con el modo predeterminado, el receptor revisa remitente, nombre y tamaño y pulsa **Aceptar archivo** o **Rechazar**. Windows muestra esos datos en un diálogo nativo aunque esté oculto en la bandeja. Omarchy usa una notificación genérica con botones; revisa los detalles en Archivos antes de aceptar. La página Archivos también tiene botones de aprobación.
 4. Espera la finalización verificada en **Actividad**. Abre entonces la carpeta donde quieres el archivo y **Pega** en el explorador del receptor. Aceptar prepara el portapapeles local; no pega por ti en la carpeta elegida.
 
 ![Archivos: archivo copiado y acción de destino sobre las tarjetas separadas de envío manual](images/windows-files-es.png)

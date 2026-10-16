@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.7](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.7) — 2026-10-15
+
+- Evita que nombre, remitente y tamaño privados lleguen al cuerpo del aviso de Omarchy, que Omarchy guarda mediante argumentos de un subproceso. El aviso conserva los dos idiomas y los botones; los detalles completos quedan en Archivos.
+- Limita el auxiliar de avisos a un selector de idioma fijo y comprueba D-Bus y la línea de comandos de persistencia simulada. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.7.md#seamlesscontrol-0257--avisos-privados-de-archivos).
+
 ## [0.25.6](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.6) — 2026-10-15
 
 - Cierra una conexión entrante de archivos tras diez segundos en total si no termina la autenticación Noise y el saludo del protocolo. Un proceso sin la clave emparejada ya no puede ocupar el receptor enviando lentamente fragmentos dentro de cada espera de lectura.
@@ -11,7 +16,7 @@ Este archivo resume los cambios publicados y los cambios aún sin release. Consu
 
 ## [0.25.5](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.5) — 2026-10-14
 
-- Envía los detalles de un archivo entrante al servicio de notificaciones de Omarchy por D-Bus mediante stdin. El nombre, remitente y tamaño no figuran en los argumentos del proceso y se conservan Aceptar/Rechazar en un solo aviso.
+- Envía los detalles de un archivo entrante al servicio de notificaciones de Omarchy por D-Bus mediante stdin. Quedaban fuera de los argumentos del auxiliar y se conservaban Aceptar/Rechazar; después se descubrió que los argumentos de persistencia de Omarchy exponían esos datos. La versión 0.25.7 sustituye esta ruta.
 - Quita de los argumentos del agente las rutas elegidas o arrastradas desde las interfaces de Omarchy y Windows. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.5.md#seamlesscontrol-0255--avisos-de-archivos-privados).
 
 ## [0.25.4](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.4) — 2026-10-13

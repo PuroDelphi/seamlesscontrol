@@ -89,7 +89,7 @@ Files require paired computers **and an active control connection between them**
 
 1. **Connect the paired computers.** Then, on the receiver, allow TCP `47834` once through its LAN firewall. In Omarchy use **Home → Set up copied-file receiving · TCP 47834** or **Settings → Copied files · set up receiving**; preview and authorize the rule. Keep the Omarchy widget loaded (or the Windows app running).
 2. **Source:** copy **one local file, several files, or a folder** in your file manager. With exactly one connected computer, it is offered automatically. With several, choose **Files → Offer copied file to…**.
-3. **Receiver:** if its approval mode requires a prompt, select **Accept file** or **Decline**. An actionable desktop notification appears even with the panel closed or on another workspace; the offer also appears at the top of every panel tab and in Files. Rejection prevents content transfer.
+3. **Receiver:** if its approval mode requires a prompt, select **Accept file** or **Decline**. A generic actionable desktop notification appears even with the panel closed or on another workspace. Open SeamlessControl to review the filename, sender and size before accepting; the full offer appears at the top of every panel tab and in Files. Rejection prevents content transfer.
 4. Wait for transfer and verification to finish. Open the destination folder in the receiver's file manager and use **Paste**.
 
 ![Current Files panel: copied-file receiving, size limit and separate manual receiver](images/omarchy-files-receive-en.png)

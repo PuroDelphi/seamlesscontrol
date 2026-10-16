@@ -1,4 +1,4 @@
-"""Verify file metadata reaches notifications over D-Bus without entering argv."""
+"""Verify file metadata never enters desktop notifications or process argv."""
 
 import json
 import os
@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 import gi
@@ -73,21 +74,49 @@ def invoke_without_argv_secret(binary, arguments, payload, env=None):
 
 def main(binary):
     _connection, loop, received = start_mock_server()
-    offer = {
-        "summary": "Incoming file",
-        "body": f"{SECRET} · 192.0.2.7 · 123 bytes",
-        "accept": "Accept",
-        "reject": "Reject",
-    }
     try:
-        code, output, error = invoke_without_argv_secret(binary, ["notify-file-offer"], offer)
+        for language, summary, accept, reject in (
+            ("en", "Incoming file from another computer", "Accept", "Reject"),
+            ("es", "Archivo entrante desde otro equipo", "Aceptar", "Rechazar"),
+        ):
+            code, output, error = invoke_without_argv_secret(
+                binary, ["notify-file-offer"], {"language": language}
+            )
+            assert code == 0, error.decode()
+            assert output.strip() == b"reject", (output, error)
+            notice = received[-1]
+            assert notice[3] == summary, notice
+            assert notice[5] == ["accept", accept, "reject", reject], notice
+            assert SECRET not in str(notice), notice
+            assert "192.0.2.7" not in str(notice), notice
+
+            # Omarchy persists the notification by passing its serialized
+            # summary/body in a subprocess command line. Model that boundary
+            # and check that the private file name cannot reappear there.
+            persisted = subprocess.Popen([
+                sys.executable, "-c", "import time; time.sleep(2)",
+                notice[3], notice[4],
+            ])
+            try:
+                argv = b""
+                for _ in range(20):
+                    argv = Path(f"/proc/{persisted.pid}/cmdline").read_bytes()
+                    if argv:
+                        break
+                    time.sleep(0.01)
+                assert argv and SECRET.encode() not in argv, argv
+            finally:
+                persisted.terminate()
+                persisted.wait(timeout=3)
+
+        code, _output, _error = invoke_without_argv_secret(
+            binary, ["notify-file-offer"],
+            {"language": "en", "body": f"{SECRET} · 192.0.2.7"},
+        )
+        assert code != 0 and len(received) == 2
     finally:
         loop.quit()
-    assert code == 0, error.decode()
-    assert output.strip() == b"reject", (output, error)
-    assert received and SECRET in received[0][4], received
-    assert received[0][5] == ["accept", "Accept", "reject", "Reject"]
-    print("Private D-Bus notification delivered; action returned; filename absent from argv.")
+    print("Bilingual D-Bus actions work; private metadata absent from notification persistence argv.")
 
     with tempfile.TemporaryDirectory(prefix="seamlesscontrol-ui-stdin-") as work:
         source = Path(work) / SECRET

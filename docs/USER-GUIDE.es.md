@@ -89,7 +89,7 @@ Los archivos requieren equipos emparejados **y una conexión de control activa e
 
 1. **Conecta los equipos emparejados.** Luego, en el receptor, permite TCP `47834` una vez en su firewall LAN. En Omarchy usa **Inicio → Preparar recepción de archivos copiados · TCP 47834** o **Ajustes → Archivos copiados · preparar recepción**; prepara y autoriza la regla. Mantén cargado el widget de Omarchy (o abierta la app Windows).
 2. **Origen:** copia **un archivo local, varios archivos o una carpeta** en el explorador. Con exactamente un equipo conectado, se ofrece automáticamente. Con varios, elige **Archivos → Ofrecer archivo copiado a…**.
-3. **Receptor:** si su modo de aprobación requiere preguntar, pulsa **Aceptar archivo** o **Rechazar**. Aparece una notificación con acciones aunque el panel esté cerrado o estés en otro workspace; la oferta también aparece arriba de cualquier pestaña del panel y en Archivos. Rechazar impide transferir el contenido.
+3. **Receptor:** si su modo de aprobación requiere preguntar, pulsa **Aceptar archivo** o **Rechazar**. Aparece una notificación genérica con acciones aunque el panel esté cerrado o estés en otro workspace. Abre SeamlessControl para revisar el nombre, remitente y tamaño antes de aceptar; la oferta completa aparece arriba de cualquier pestaña del panel y en Archivos. Rechazar impide transferir el contenido.
 4. Espera a que terminen la transferencia y verificación. Abre la carpeta de destino en el explorador del receptor y usa **Pegar**.
 
 ![Panel Archivos actual: recepción de archivos copiados, límite de tamaño y receptor manual independiente](images/omarchy-files-receive-es.png)

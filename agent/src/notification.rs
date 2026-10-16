@@ -1,4 +1,4 @@
-//! Show an actionable desktop notification without putting file metadata in argv.
+//! Show an actionable, metadata-free desktop notification.
 
 use futures_util::StreamExt;
 use serde_json::Value;
@@ -6,54 +6,45 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::io::{self, BufRead, Read, Write};
 
-const MAX_REQUEST_BYTES: u64 = 4096;
+const MAX_REQUEST_BYTES: u64 = 64;
 
 struct FileOfferNotification {
-    summary: String,
-    body: String,
-    accept: String,
-    reject: String,
-}
-
-fn field(value: &Value, key: &str, max_chars: usize) -> io::Result<String> {
-    let text = value
-        .get(key)
-        .and_then(Value::as_str)
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "missing notification field"))?;
-    if text.is_empty() || text.chars().count() > max_chars {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            "notification field outside size limit",
-        ));
-    }
-    Ok(text.to_owned())
-}
-
-fn escape_markup(text: &str) -> String {
-    let mut escaped = String::with_capacity(text.len());
-    for character in text.chars() {
-        match character {
-            '&' => escaped.push_str("&amp;"),
-            '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
-            '"' => escaped.push_str("&quot;"),
-            '\'' => escaped.push_str("&#39;"),
-            '\n' | '\r' => escaped.push(' '),
-            _ => escaped.push(character),
-        }
-    }
-    escaped
+    summary: &'static str,
+    body: &'static str,
+    accept: &'static str,
+    reject: &'static str,
 }
 
 fn parse_request(data: &[u8]) -> io::Result<FileOfferNotification> {
     let value: Value = serde_json::from_slice(data)
         .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid notification request"))?;
-    Ok(FileOfferNotification {
-        summary: escape_markup(&field(&value, "summary", 120)?),
-        body: escape_markup(&field(&value, "body", 1024)?),
-        accept: escape_markup(&field(&value, "accept", 48)?),
-        reject: escape_markup(&field(&value, "reject", 48)?),
-    })
+    let fields = value.as_object().ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidInput, "invalid notification request")
+    })?;
+    if fields.len() != 1 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "unexpected notification field",
+        ));
+    }
+    match fields.get("language").and_then(Value::as_str) {
+        Some("en") => Ok(FileOfferNotification {
+            summary: "Incoming file from another computer",
+            body: "Review its name, sender and size in SeamlessControl before accepting.",
+            accept: "Accept",
+            reject: "Reject",
+        }),
+        Some("es") => Ok(FileOfferNotification {
+            summary: "Archivo entrante desde otro equipo",
+            body: "Revise su nombre, remitente y tamaño en SeamlessControl antes de aceptar.",
+            accept: "Aceptar",
+            reject: "Rechazar",
+        }),
+        _ => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "unsupported notification language",
+        )),
+    }
 }
 
 fn read_request() -> io::Result<FileOfferNotification> {
@@ -94,8 +85,8 @@ pub async fn show_file_offer_from_stdin() -> Result<(), Box<dyn Error>> {
                 "SeamlessControl",
                 0u32,
                 "",
-                &request.summary,
-                &request.body,
+                request.summary,
+                request.body,
                 &buttons,
                 &hints,
                 120_000i32,
@@ -118,12 +109,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn notification_request_escapes_untrusted_file_metadata() {
-        let request = parse_request(
-            br#"{"summary":"Incoming file","body":"<img src='x'> & a\nname.txt","accept":"Accept","reject":"Reject"}"#,
-        )
-        .unwrap();
-        assert_eq!(request.body, "&lt;img src=&#39;x&#39;&gt; &amp; a name.txt");
-        assert!(parse_request(br#"{"summary":"x","body":"","accept":"x","reject":"y"}"#).is_err());
+    fn notification_request_accepts_only_a_fixed_language() {
+        let english = parse_request(br#"{"language":"en"}"#).unwrap();
+        let spanish = parse_request(br#"{"language":"es"}"#).unwrap();
+        assert_eq!(english.accept, "Accept");
+        assert_eq!(spanish.reject, "Rechazar");
+        assert!(parse_request(br#"{"language":"en","body":"private-file.txt"}"#).is_err());
+        assert!(parse_request(br#"{"language":"fr"}"#).is_err());
+        assert!(parse_request(br#"{"language":123}"#).is_err());
     }
 }
