@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.8](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.8) — 2026-10-15
+
+- Close each inbound Windows control socket after ten seconds total if the pairing preface and Noise handshake have not completed; trickled bytes cannot occupy the eight connection slots indefinitely.
+- Cancel the deadline before human pairing approval. Test exhaustion of all eight slots, their release and a real authenticated connection afterwards. See the [release notes](docs/RELEASE-0.25.8.md).
+
 ## [0.25.7](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.7) — 2026-10-15
 
 - Keep private filenames, sender addresses and sizes out of the Omarchy notification body, which Omarchy persists through subprocess arguments. The alert remains bilingual and actionable; full offer details remain in the Files panel.

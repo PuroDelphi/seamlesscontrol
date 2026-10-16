@@ -9,14 +9,37 @@ use snow::{
 };
 use std::fmt;
 use std::io::{self, Read, Write};
-use std::net::TcpStream;
-use std::sync::Arc;
+use std::net::{Shutdown, TcpStream};
+use std::sync::{Arc, mpsc};
+use std::thread;
+use std::time::Duration;
 
 const PATTERN: &str = "Noise_XX_25519_ChaChaPoly_BLAKE2s";
 const RECORD_PLAINTEXT: usize = 16 * 1024;
 const RECORD_CIPHERTEXT: usize = RECORD_PLAINTEXT + 16;
 const MAX_HANDSHAKE: usize = 4096;
 const EXPLICIT_PAIR_PREFACE: &[u8; 8] = b"\xffSCPAIR1";
+
+/// A per-read socket timeout cannot bound a peer that trickles a Noise body.
+/// Close the transport after one total deadline until the caller proves the
+/// handshake (and any protocol greeting) is complete. Sending `done` cancels
+/// the timer before human approval or a long authenticated session begins.
+pub(crate) fn pre_auth_deadline(
+    stream: &TcpStream,
+    timeout: Duration,
+) -> io::Result<mpsc::Sender<()>> {
+    let shutdown = stream.try_clone()?;
+    let (done, cancelled) = mpsc::channel();
+    thread::spawn(move || {
+        if cancelled
+            .recv_timeout(timeout)
+            .is_err_and(|error| error == mpsc::RecvTimeoutError::Timeout)
+        {
+            let _ = shutdown.shutdown(Shutdown::Both);
+        }
+    });
+    Ok(done)
+}
 
 /// Mark an intentional Pair request before Noise starts. The marker grants no
 /// trust: it only forces a fresh SAS decision on both ends, including for a

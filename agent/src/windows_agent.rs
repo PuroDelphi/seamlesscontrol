@@ -9,7 +9,9 @@ use crate::file_session;
 use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{AGENT_PROTOCOL, EntryPosition, Frame, Kind, ReturnRequest};
 use crate::receiver::{ReceiverError, run_receiver_with_first_until};
-use crate::secure::{Identity, PeerInfo, Role, SecureChannel, SecureWriter, negotiate_pairing};
+use crate::secure::{
+    Identity, PeerInfo, Role, SecureChannel, SecureWriter, negotiate_pairing, pre_auth_deadline,
+};
 use crate::storage::{
     is_revoked, key_fingerprint, list_peer_keys, load_or_create_identity, load_peer_key,
     reapprove_peer_key, relocate_peer_key, remember_peer_key, revoke_peer_key,
@@ -25,7 +27,7 @@ use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::mpsc::{RecvTimeoutError, sync_channel};
+use std::sync::mpsc::{RecvTimeoutError, Sender, sync_channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -165,6 +167,7 @@ fn secure_connection(
     ip: IpAddr,
     prompt: &Mutex<()>,
     pair_request: bool,
+    mut pre_auth_done: Option<Sender<()>>,
 ) -> Result<SecureChannel<TcpStream>, Box<dyn Error>> {
     let peers = config.join("peers");
     let pinned = load_peer_key(&peers, ip)?;
@@ -191,6 +194,9 @@ fn secure_connection(
         if explicit_pair { None } else { pinned.as_ref() },
         |stream| {
             if role == Role::Responder {
+                if let Some(done) = pre_auth_done.take() {
+                    let _ = done.send(());
+                }
                 // Only a peer that completed Noise may hold this socket while
                 // a human compares the six-digit pairing code.
                 stream.set_read_timeout(Some(PAIRING_TIMEOUT))?;
@@ -345,12 +351,21 @@ fn serve_connection(
     config: &Path,
     occupied: &Arc<AtomicBool>,
     prompt: &Mutex<()>,
+    pre_auth_done: Sender<()>,
 ) -> Result<(), Box<dyn Error>> {
     if !local_address(ip) {
         return Err("remote control is restricted to LAN peers".into());
     }
-    let mut channel =
-        secure_connection(stream, Role::Responder, identity, config, ip, prompt, false)?;
+    let mut channel = secure_connection(
+        stream,
+        Role::Responder,
+        identity,
+        config,
+        ip,
+        prompt,
+        false,
+        Some(pre_auth_done),
+    )?;
     let first = Frame::read_from(&mut channel)?;
     if first.kind == Kind::Control
         && first.epoch == 0
@@ -498,6 +513,9 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
             // create an unbounded number of Windows threads or open sockets.
             continue;
         };
+        // Start before the worker reads the pairing preface or Noise body.
+        // Per-read timeouts alone let a LAN client occupy every slot forever.
+        let pre_auth_done = pre_auth_deadline(&stream, HANDSHAKE_TIMEOUT)?;
         let identity = identity.clone();
         let config = config.clone();
         let occupied = Arc::clone(&occupied);
@@ -506,9 +524,15 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
             .name("seamlesscontrol-receiver".into())
             .spawn(move || {
                 let _slot = slot;
-                if let Err(error) =
-                    serve_connection(stream, address.ip(), &identity, &config, &occupied, &prompt)
-                {
+                if let Err(error) = serve_connection(
+                    stream,
+                    address.ip(),
+                    &identity,
+                    &config,
+                    &occupied,
+                    &prompt,
+                    pre_auth_done,
+                ) {
                     eprintln!("SeamlessControl connection from {address}: {error}");
                 }
             })?;
@@ -527,6 +551,7 @@ fn pair(address: SocketAddr, identity: &Identity, config: &Path) -> Result<(), B
         address.ip(),
         &prompt,
         true,
+        None,
     )?;
     Frame {
         kind: Kind::Control,
@@ -1184,5 +1209,119 @@ mod tests {
         drop(slots);
         assert_eq!(active.load(Ordering::Acquire), 0);
         assert!(ConnectionSlot::acquire(&active).is_some());
+    }
+
+    #[test]
+    fn trickled_noise_bodies_release_all_windows_slots_and_allow_a_real_peer() {
+        let config = test_config();
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let receiver = Identity::generate().unwrap();
+        let sender = Identity::generate().unwrap();
+        remember_peer_key(&config.join("peers"), ip, &sender.public).unwrap();
+        let listener = TcpListener::bind((ip, 0)).unwrap();
+        let address = listener.local_addr().unwrap();
+        let active = Arc::new(AtomicUsize::new(0));
+        let mut attackers = Vec::new();
+        let mut workers = Vec::new();
+
+        for _ in 0..MAX_RECEIVER_CONNECTIONS {
+            let mut attacker = TcpStream::connect(address).unwrap();
+            let (stream, _) = listener.accept().unwrap();
+            let slot = ConnectionSlot::acquire(&active).unwrap();
+            let done = pre_auth_deadline(&stream, Duration::from_millis(500)).unwrap();
+            let identity = receiver.clone();
+            let config = config.clone();
+            workers.push(thread::spawn(move || {
+                let _slot = slot;
+                let prompt = Mutex::new(());
+                secure_connection(
+                    stream,
+                    Role::Responder,
+                    &identity,
+                    &config,
+                    ip,
+                    &prompt,
+                    false,
+                    Some(done),
+                )
+                .map(|_| ())
+                .map_err(|error| error.to_string())
+            }));
+            // Declare a Noise body and drip fewer bytes than its stated size.
+            attacker.write_all(&32u16.to_be_bytes()).unwrap();
+            attacker.write_all(&[7]).unwrap();
+            attackers.push(attacker);
+        }
+        assert_eq!(active.load(Ordering::Acquire), MAX_RECEIVER_CONNECTIONS);
+        assert!(ConnectionSlot::acquire(&active).is_none());
+        for _ in 0..7 {
+            thread::sleep(Duration::from_millis(80));
+            for attacker in &mut attackers {
+                let _ = attacker.write_all(&[7]);
+            }
+        }
+        for worker in workers {
+            assert!(
+                worker.join().unwrap().is_err(),
+                "incomplete Noise was accepted"
+            );
+        }
+        assert_eq!(active.load(Ordering::Acquire), 0);
+        drop(attackers);
+
+        // A pinned peer succeeds after the hostile slots expire. Delay the
+        // authenticated greeting past the test deadline: only pre-auth work
+        // should be subject to the absolute timer.
+        let client = TcpStream::connect(address).unwrap();
+        client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        client
+            .set_write_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let (stream, _) = listener.accept().unwrap();
+        let slot = ConnectionSlot::acquire(&active).unwrap();
+        let done = pre_auth_deadline(&stream, Duration::from_millis(400)).unwrap();
+        let receiver_key = receiver.public;
+        let cleanup = config.clone();
+        let worker = thread::spawn(move || {
+            let _slot = slot;
+            let prompt = Mutex::new(());
+            secure_connection(
+                stream,
+                Role::Responder,
+                &receiver,
+                &config,
+                ip,
+                &prompt,
+                false,
+                Some(done),
+            )
+            .map(|_| ())
+            .map_err(|error| error.to_string())
+        });
+        let (mut channel, _) = SecureChannel::connect(
+            client,
+            Role::Initiator,
+            &sender,
+            Some(&receiver_key),
+            |_| false,
+        )
+        .unwrap();
+        thread::sleep(Duration::from_millis(600));
+        Frame {
+            kind: Kind::Hello,
+            epoch: 0,
+            sequence: 0,
+            payload: AGENT_PROTOCOL.to_vec(),
+        }
+        .write_to(&mut channel)
+        .unwrap();
+        let reply = Frame::read_from(&mut channel).unwrap();
+        assert_eq!(reply.kind, Kind::Hello);
+        assert_eq!(reply.payload, AGENT_PROTOCOL);
+        assert!(worker.join().unwrap().is_ok());
+        assert_eq!(active.load(Ordering::Acquire), 0);
+        let _ = std::fs::remove_dir_all(cleanup);
     }
 }

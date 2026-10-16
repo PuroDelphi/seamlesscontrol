@@ -24,7 +24,7 @@ Los botones de firewall elevan el agente para agregar reglas TCP entrantes de co
 
 El CI Windows compila la GUI con entorno C estático. El workflow del release compila el commit etiquetado y adjunta un ZIP con ambos ejecutables y un SHA-256 del ZIP como asset contiguo. El hijo oculto usa una ventana invisible como propietario del portapapeles, sin depender de una consola visible.
 
-El receptor de control Windows admite un máximo de ocho conexiones TCP simultáneas y cierra las sobrantes antes de crear otro hilo. El intercambio inicial previo a la autenticación tiene un tiempo de espera de E/S de diez segundos; el plazo mayor para confirmar el código empieza solo cuando termina el intercambio Noise.
+El receptor de control Windows admite un máximo de ocho conexiones TCP simultáneas y cierra las sobrantes antes de crear otro hilo. Inicia un plazo absoluto de diez segundos en cuanto el socket ocupa un cupo. La espera de E/S por lectura sigue existiendo, pero una secuencia de bytes no puede prolongar el plazo total. Este se cancela únicamente al terminar Noise, antes de que una persona compare el código; el control autenticado usa después sus plazos normales.
 
 El receptor de control Omarchy también admite como máximo ocho conexiones TCP simultáneas. Un plazo absoluto de diez segundos empieza al reservar un cupo y cierra la conexión si no terminó el prefacio opcional de emparejamiento o el intercambio Noise; enviar fragmentos no puede prolongar indefinidamente un tiempo de espera por lectura. Al terminar Noise, se cancela el vigilante y se restablece el plazo largo para la aprobación humana del código de seis cifras. No cambian el protocolo autenticado ni la confianza guardada.
 

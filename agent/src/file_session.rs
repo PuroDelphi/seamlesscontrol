@@ -8,14 +8,12 @@ use crate::file_transfer::{
 };
 use crate::peer_policy::{Capability, PeerPolicy};
 use crate::protocol::{Frame, Kind};
-use crate::secure::{Identity, Role, SecureChannel};
+use crate::secure::{Identity, Role, SecureChannel, pre_auth_deadline};
 use crate::storage::{is_revoked, key_fingerprint, load_peer_key};
 use std::error::Error;
 use std::io::{self, BufRead, Write};
-use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::path::Path;
-use std::sync::mpsc;
-use std::thread;
 use std::time::Duration;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -23,24 +21,6 @@ const GREETING: &[u8] = b"seamlesscontrol-file/1";
 const FILE_TIMEOUT: Duration = Duration::from_secs(300);
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
 const HANDSHAKE_DEADLINE: Duration = Duration::from_secs(10);
-
-// A socket timeout applies to each read, so a client can keep a partial Noise
-// message alive indefinitely by sending another byte before every timeout.
-// Close the transport after a total deadline until the pinned key and file
-// protocol greeting are proven.
-fn pre_auth_deadline(stream: &TcpStream, timeout: Duration) -> io::Result<mpsc::Sender<()>> {
-    let shutdown = stream.try_clone()?;
-    let (done, cancelled) = mpsc::channel();
-    thread::spawn(move || {
-        if cancelled
-            .recv_timeout(timeout)
-            .is_err_and(|error| error == mpsc::RecvTimeoutError::Timeout)
-        {
-            let _ = shutdown.shutdown(Shutdown::Both);
-        }
-    });
-    Ok(done)
-}
 
 struct BundleStage(std::path::PathBuf);
 
@@ -500,6 +480,7 @@ mod tests {
     use crate::active_session::ActiveSession;
     use crate::storage::{remember_peer_key, revoke_peer_key};
     use std::fs;
+    use std::sync::mpsc;
     use std::thread;
 
     fn connected(

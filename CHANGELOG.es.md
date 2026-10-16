@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.8](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.8) — 2026-10-15
+
+- Cierra cada socket entrante de control Windows tras diez segundos en total si no terminan el prefacio y Noise; una secuencia de bytes ya no puede ocupar indefinidamente los ocho cupos.
+- Cancela el plazo antes de la aprobación humana. Prueba la ocupación y liberación de los ocho cupos y una conexión autenticada posterior. Consulta las [notas de lanzamiento](docs/RELEASE-0.25.8.md#seamlesscontrol-0258--protección-del-receptor-windows).
+
 ## [0.25.7](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.7) — 2026-10-15
 
 - Evita que nombre, remitente y tamaño privados lleguen al cuerpo del aviso de Omarchy, que Omarchy guarda mediante argumentos de un subproceso. El aviso conserva los dos idiomas y los botones; los detalles completos quedan en Archivos.

@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Plazo del saludo de control Windows 0.25.8 · 2026-10-15
+
+El revisor confirmó la corrección de avisos de 0.25.7, pero encontró que los ocho cupos del receptor de control Windows seguían expuestos a cuerpos Noise incompletos enviados lentamente. El receptor ahora inicia un plazo total de diez segundos en cuanto cada socket ocupa un cupo y lo cancela tras Noise, antes de la aprobación humana del código. La nueva prueba de loopback Windows intenta ocupar los ocho cupos, continúa enviando fragmentos, verifica el cierre de todos los trabajadores y cupos y después autentica un par con clave fijada; su saludo espera más que el plazo reducido de prueba para verificar la cancelación. Pasaron localmente 101 pruebas del núcleo, 7 del binario Linux y Clippy. La CI Windows x64 ejecuta la prueba exclusiva de Windows; véase el flujo del lanzamiento. No hubo una nueva prueba física entre dos equipos para esta corrección concreta.
+
 ## Privacidad de persistencia de avisos 0.25.7 · 2026-10-15
 
 El revisor confirmó que el servicio de notificaciones de Omarchy copia el cuerpo D-Bus a los argumentos de un proceso de persistencia: la prueba de 0.25.5 que miraba solo los argumentos del auxiliar omitió esa segunda exposición. El auxiliar ahora genera texto fijo localizado a partir de un selector de idioma acotado; nombre, remitente y tamaño quedan en Archivos. Una prueba con D-Bus privado verifica ambos idiomas y Rechazar, rechaza cuerpos arbitrarios y modela los argumentos posteriores de Omarchy mediante `/proc/<pid>/cmdline`. Pasaron localmente 101 pruebas del núcleo, 7 del binario Linux, Clippy y esta prueba D-Bus. La CI Windows x64 se enlaza desde el flujo del lanzamiento. Esta corrección de avisos no se ha vuelto a probar mediante transferencia entre dos equipos.

@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.8 Windows control handshake deadline · 2026-10-15
+
+The reviewer confirmed the 0.25.7 notification fix but found that the Windows control receiver's eight slots were still vulnerable to a trickled unauthenticated Noise body. The receiver now starts a total ten-second transport deadline as each socket takes a slot and cancels it after Noise, before human pairing approval. The new Windows loopback test attempts to occupy all eight slots, continues sending fragments, verifies all workers and slots close, and then authenticates a pinned peer; its greeting waits past the shortened test deadline to verify cancellation. Locally, 101 core tests, 7 Linux binary tests and Clippy passed. Windows x64 CI covers the new Windows-only test; see the release workflow. No new physical two-computer test was performed for this targeted change.
+
 ## 0.25.7 notification persistence privacy · 2026-10-15
 
 The reviewer confirmed that Omarchy's notification service copies the D-Bus body into persistence-process arguments, so the 0.25.5 helper-only argv test missed a second exposure. The offer helper now builds static localized text from a bounded language selector; the private name, sender and size remain in the Files panel. A private D-Bus test checks both languages and Reject, rejects arbitrary body injection, and models Omarchy's subsequent process arguments through `/proc/<pid>/cmdline`. Locally, 101 core tests, 7 Linux binary tests, Clippy and this D-Bus test passed. Windows x64 CI is linked from the release workflow. No new two-computer transfer test was performed for this notification-only change.

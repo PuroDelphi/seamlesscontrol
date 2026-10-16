@@ -16,7 +16,7 @@ Firewall buttons elevate the agent to add inbound TCP rules for control, manual 
 
 Windows CI builds the GUI with a static C runtime. The release workflow builds the tagged commit and attaches a ZIP containing both executables, with a SHA-256 of the ZIP as an adjacent asset. The hidden child uses an invisible clipboard owner window without depending on a visible console.
 
-The Windows control receiver caps concurrent TCP connections at eight and closes excess connections before spawning a worker. The initial preauthentication exchange has a ten-second I/O timeout; the longer code-confirmation timeout begins only after Noise completes.
+The Windows control receiver caps concurrent TCP connections at eight and closes excess connections before spawning a worker. It starts a ten-second absolute deadline as soon as a socket takes one of those slots. The initial exchange also has a per-read I/O timeout, but trickling bytes cannot extend the absolute deadline. The deadline is cancelled only after Noise completes, before a person compares the pairing code; authenticated control then uses its normal session timeouts.
 
 The Omarchy control receiver also caps concurrent TCP connections at eight. A single absolute ten-second deadline starts when a slot is assigned and shuts down a connection whose optional pairing preface or Noise exchange has not completed; this prevents a trickle of bytes from extending a per-read timeout indefinitely. Once Noise completes, the watchdog is cancelled and the longer timeout for human six-digit code confirmation is restored. The authenticated protocol and stored trust remain unchanged.
 
