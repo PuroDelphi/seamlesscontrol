@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.10](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.10) — 2026-10-16
+
+- Budget nested SVG opacity layers before rendering so a small clipboard payload cannot retain unbounded full-canvas RGBA surfaces.
+- Preflight SVG XML size, element count and depth; reject other recursive pixmap features (filters, masks, clips, patterns and embedded images) while preserving simple vector shapes and bounded raster formats. See the [release notes](docs/RELEASE-0.25.10.md).
+
 ## [0.25.9](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.9) — 2026-10-16
 
 - Reject filtered SVG clipboard data before rendering: resvg can retain a full RGBA surface per filter primitive even when the final canvas and input bytes are bounded.

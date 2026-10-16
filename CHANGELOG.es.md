@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.10](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.10) — 2026-10-16
+
+- Presupuesta las capas SVG de opacidad anidadas antes de renderizar para que un portapapeles pequeño no conserve superficies RGBA ilimitadas del tamaño del lienzo.
+- Comprueba tamaño, número de elementos y profundidad del XML; rechaza otras funciones que reservan superficies recursivas (filtros, máscaras, recortes, patrones e imágenes incrustadas), conservando formas vectoriales sencillas y formatos ráster acotados. Consulta las [notas](docs/RELEASE-0.25.10.md#seamlesscontrol-02510--límites-integrales-para-svg).
+
 ## [0.25.9](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.9) — 2026-10-16
 
 - Rechaza los SVG filtrados del portapapeles antes de renderizarlos: resvg puede conservar una superficie RGBA completa por cada primitiva aunque el lienzo final y los bytes de entrada estén acotados.

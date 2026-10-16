@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## Límites integrales del portapapeles SVG 0.25.10 · 2026-10-16
+
+El revisor confirmó el rechazo de filtros, pero encontró que los grupos de opacidad anidados del tamaño del lienzo aún conservaban capas RGBA durante el renderizado recursivo. La comprobación previa acota el XML a 2 MiB, 4.096 elementos y profundidad 64. El presupuesto compartido por Omarchy y Windows contabiliza la salida y las superficies de grupos aislados anidados hasta 128 MiB, limita nodos y profundidad del árbol expandido y rechaza filtros, máscaras, recortes, patrones y nodos de imagen. Las pruebas verifican el rechazo de capas anidadas, el renderizado de grupos modestos y las otras construcciones prohibidas. Los resultados locales y de CI se enlazan desde el lanzamiento. No se realizó una nueva prueba física entre dos equipos para esta corrección concreta.
+
 ## Límite de memoria de filtros SVG 0.25.9 · 2026-10-16
 
 El revisor encontró que cada primitiva de filtro SVG puede conservar una superficie RGBA completa pese a los límites del lienzo final y de los bytes de entrada. La conversión compartida por Omarchy y Windows rechaza ahora un árbol SVG con filtros antes de llamar al renderizador. Una prueba usa un lienzo grande y primitivas de filtro referenciadas; el SVG vectorial normal y la prueba anterior de imagen incrustada siguen funcionando. Los resultados de CI Linux y Windows quedan enlazados desde el lanzamiento. No se realizó una nueva prueba física entre dos equipos para este cambio concreto.

@@ -2668,6 +2668,7 @@ dependencies = [
  "png",
  "reis",
  "resvg",
+ "roxmltree 0.21.1",
  "serde_json",
  "sha2",
  "snow",

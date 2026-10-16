@@ -2,9 +2,9 @@
 
 [![Validate](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Download Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [Español](README.es.md) · [MIT](LICENSE)
 
-[0.25.9 SVG clipboard memory protection](docs/RELEASE-0.25.9.md) · [See what's new in 0.25.2](docs/RELEASE-0.25.2.md)
+[0.25.10 comprehensive SVG limits](docs/RELEASE-0.25.10.md) · [See what's new in 0.25.2](docs/RELEASE-0.25.2.md)
 
-**New in 0.25.2:** Copy an image in an app and paste it on a connected Omarchy or Windows computer. SeamlessControl accepts PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld and vector-only SVG image clipboard data, converting it to PNG for the other computer. You can also drop files and folders onto the sender's **Files** page to offer them through the existing approval flow.
+**New in 0.25.2:** Copy an image in an app and paste it on a connected Omarchy or Windows computer. SeamlessControl accepts PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld and simple vector SVG image clipboard data, converting it to PNG for the other computer. You can also drop files and folders onto the sender's **Files** page to offer them through the existing approval flow.
 
 **One mouse and keyboard for your Omarchy and Windows computers on a private LAN.** Cross the outer desktop edge to control another computer; return across the entry edge or press **Escape on the source's physical keyboard**.
 
@@ -28,7 +28,7 @@ You can also share text during a connection and copy **files and folders** betwe
 | Install the app, receive or control from Windows | [Illustrated Windows guide](docs/WINDOWS.md) |
 | Copy and paste files or send to a chosen folder | [Omarchy guide](docs/USER-GUIDE.md) / [Windows guide](docs/WINDOWS.md), Files section |
 | Resolve a connection problem | Troubleshooting in each guide; [get support](SUPPORT.md) |
-| See the latest release and physical verification | [0.25.9 release notes](docs/RELEASE-0.25.9.md) / [test record](docs/TEST-RESULTS.md) |
+| See the latest release and physical verification | [0.25.10 release notes](docs/RELEASE-0.25.10.md) / [test record](docs/TEST-RESULTS.md) |
 | Use commands or understand permissions and limits | [Technical guide](docs/TECHNICAL.md) |
 
 The **source** is the computer with the physical mouse and keyboard you will use. The **receiver** is the computer you want to control. Roles can change for another session; reversing them does not require pairing again.

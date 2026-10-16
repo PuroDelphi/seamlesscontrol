@@ -4,6 +4,13 @@ use crate::clipboard::{MAX_IMAGE_BYTES, valid_png_header};
 use image::{ImageFormat, ImageReader, Limits};
 use std::io::{self, Cursor, Seek, SeekFrom, Write};
 
+// This covers SVG pixmaps kept live while resvg recursively renders isolated
+// groups. The final output already uses up to 32 million RGBA pixels.
+const MAX_SVG_LIVE_RGBA_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_SVG_SOURCE_BYTES: usize = 2 * 1024 * 1024;
+const MAX_SVG_NODES: usize = 4096;
+const MAX_SVG_DEPTH: usize = 64;
+
 struct LimitedCursor(Cursor<Vec<u8>>);
 
 impl Write for LimitedCursor {
@@ -66,7 +73,7 @@ pub fn to_wire_png_for_mime(mime: &str, bytes: &[u8]) -> Option<Vec<u8>> {
 }
 
 fn svg_to_wire_png(bytes: &[u8]) -> Option<Vec<u8>> {
-    if bytes.is_empty() || bytes.len() > MAX_IMAGE_BYTES {
+    if !svg_source_within_parse_budget(bytes) {
         return None;
     }
     let mut options = resvg::usvg::Options::default();
@@ -75,16 +82,12 @@ fn svg_to_wire_png(bytes: &[u8]) -> Option<Vec<u8>> {
     options.image_href_resolver.resolve_data = Box::new(|_, _, _| None);
     options.image_href_resolver.resolve_string = Box::new(|_, _| None);
     let tree = resvg::usvg::Tree::from_data(bytes, &options).ok()?;
-    // resvg allocates a full RGBA surface for each filter primitive. A small
-    // SVG can contain enough primitives to exhaust the control agent's memory
-    // even when the final canvas is within our pixel limit. Use a raster
-    // clipboard alternative when available; do not render filtered SVGs.
-    if !tree.filters().is_empty() {
-        return None;
-    }
     let size = tree.size().to_int_size();
     let pixels = u64::from(size.width()) * u64::from(size.height());
     if size.width() > 16384 || size.height() > 16384 || pixels == 0 || pixels > 32_000_000 {
+        return None;
+    }
+    if !svg_tree_within_render_budget(&tree, size.width(), size.height()) {
         return None;
     }
     let mut pixmap = resvg::tiny_skia::Pixmap::new(size.width(), size.height())?;
@@ -95,6 +98,123 @@ fn svg_to_wire_png(bytes: &[u8]) -> Option<Vec<u8>> {
     );
     let png = pixmap.encode_png().ok()?;
     valid_png_header(&png).then_some(png)
+}
+
+fn svg_source_within_parse_budget(bytes: &[u8]) -> bool {
+    if bytes.is_empty() || bytes.len() > MAX_SVG_SOURCE_BYTES {
+        return false;
+    }
+    let Ok(source) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    let options = roxmltree::ParsingOptions {
+        nodes_limit: (MAX_SVG_NODES * 2) as u32,
+        ..Default::default()
+    };
+    let Ok(document) = roxmltree::Document::parse_with_options(source, options) else {
+        return false;
+    };
+    let mut elements = 0usize;
+    let mut stack = vec![(document.root_element(), 1usize)];
+    while let Some((node, depth)) = stack.pop() {
+        elements += 1;
+        if elements > MAX_SVG_NODES || depth > MAX_SVG_DEPTH {
+            return false;
+        }
+        for child in node.children().filter(|child| child.is_element()) {
+            stack.push((child, depth + 1));
+        }
+    }
+    true
+}
+
+fn svg_tree_within_render_budget(tree: &resvg::usvg::Tree, width: u32, height: u32) -> bool {
+    use resvg::usvg::Node;
+
+    // Filters hold one or more full RGBA results. Clip paths, masks and
+    // patterns can recursively allocate extra pixmaps, sometimes larger than
+    // the output canvas. They need a separate bounded renderer before they
+    // can be accepted from another computer's clipboard.
+    if !tree.filters().is_empty()
+        || !tree.clip_paths().is_empty()
+        || !tree.masks().is_empty()
+        || !tree.patterns().is_empty()
+    {
+        return false;
+    }
+
+    let output_bytes = u64::from(width) * u64::from(height) * 4;
+    if output_bytes > MAX_SVG_LIVE_RGBA_BYTES {
+        return false;
+    }
+    let mut nodes = 0usize;
+    // Include the live output pixmap in every branch. Sibling layers are
+    // released between nodes, whereas nested isolated layers stay live.
+    let mut stack = vec![(tree.root(), 0usize, output_bytes)];
+    while let Some((group, depth, live_bytes)) = stack.pop() {
+        if depth > MAX_SVG_DEPTH {
+            return false;
+        }
+        for node in group.children() {
+            nodes += 1;
+            if nodes > MAX_SVG_NODES {
+                return false;
+            }
+            let child = match node {
+                Node::Group(child) => Some(child.as_ref()),
+                Node::Text(text) => Some(text.flattened()),
+                Node::Path(_) => None,
+                // Embedded images should already be omitted by the resolvers.
+                Node::Image(_) => return false,
+            };
+            if let Some(child) = child {
+                if !child.filters().is_empty()
+                    || child.clip_path().is_some()
+                    || child.mask().is_some()
+                {
+                    return false;
+                }
+                let child_bytes = if child.should_isolate() {
+                    // resvg 0.48.1 expands isolated layers for antialiasing
+                    // and clamps them to a rectangle five canvas lengths in
+                    // each direction. Use the transformed layer bounds and
+                    // round up conservatively before that clamp.
+                    let bbox = child.abs_layer_bounding_box();
+                    let bound = |extent: f32, canvas: u32| -> Option<u64> {
+                        if !extent.is_finite() {
+                            return None;
+                        }
+                        Some(
+                            ((f64::from(extent).ceil() as u64).saturating_add(8))
+                                .min(u64::from(canvas) * 5),
+                        )
+                    };
+                    let w = match bound(bbox.width(), width) {
+                        Some(w) => w,
+                        None => return false,
+                    };
+                    let h = match bound(bbox.height(), height) {
+                        Some(h) => h,
+                        None => return false,
+                    };
+                    match w.checked_mul(h).and_then(|area| area.checked_mul(4)) {
+                        Some(bytes) => bytes,
+                        None => return false,
+                    }
+                } else {
+                    0
+                };
+                let Some(next_live) = live_bytes.checked_add(child_bytes) else {
+                    return false;
+                };
+                if next_live > MAX_SVG_LIVE_RGBA_BYTES {
+                    return false;
+                }
+                stack.push((child, depth + 1, next_live));
+            }
+        }
+    }
+    true
 }
 
 pub fn to_wire_png(format: ImageFormat, bytes: &[u8]) -> Option<Vec<u8>> {
@@ -210,5 +330,74 @@ mod tests {
     fn svg_clipboard_rejects_filter_surfaces_before_rendering() {
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="16384" height="1953"><defs><filter id="f"><feGaussianBlur stdDeviation="1"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0"/></filter></defs><rect width="10" height="10" filter="url(#f)"/></svg>"#;
         assert!(to_wire_png_for_mime("image/svg+xml", svg).is_none());
+    }
+
+    #[test]
+    fn nested_full_canvas_opacity_layers_exceed_svg_surface_budget() {
+        let mut svg = String::from(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"2048\" height=\"2048\">",
+        );
+        for _ in 0..16 {
+            svg.push_str("<g opacity=\"0.9\">");
+        }
+        svg.push_str("<rect width=\"2048\" height=\"2048\" fill=\"red\"/>");
+        for _ in 0..16 {
+            svg.push_str("</g>");
+        }
+        svg.push_str("</svg>");
+        let tree = resvg::usvg::Tree::from_data(svg.as_bytes(), &Default::default()).unwrap();
+        assert!(matches!(
+            tree.root().children().first(),
+            Some(resvg::usvg::Node::Group(_))
+        ));
+        assert!(!svg_tree_within_render_budget(&tree, 2048, 2048));
+        assert!(to_wire_png_for_mime("image/svg+xml", svg.as_bytes()).is_none());
+    }
+
+    #[test]
+    fn modest_opacity_layers_still_render() {
+        let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><g opacity="0.8"><g opacity="0.8"><rect width="32" height="32" fill="red"/></g></g></svg>"#;
+        assert!(to_wire_png_for_mime("image/svg+xml", svg).is_some());
+    }
+
+    #[test]
+    fn svg_clip_masks_and_patterns_do_not_reach_renderer() {
+        let variants = [
+            r#"<clipPath id="c"><rect width="4" height="4"/></clipPath>"#,
+            r#"<mask id="m"><rect width="4" height="4" fill="white"/></mask>"#,
+            r#"<pattern id="p" width="4" height="4" patternUnits="userSpaceOnUse"><rect width="4" height="4" fill="red"/></pattern>"#,
+        ];
+        let attributes = [
+            "clip-path=\"url(#c)\"",
+            "mask=\"url(#m)\"",
+            "fill=\"url(#p)\"",
+        ];
+        for (definition, attribute) in variants.into_iter().zip(attributes) {
+            let svg = format!(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"4\" height=\"4\"><defs>{definition}</defs><rect width=\"4\" height=\"4\" {attribute}/></svg>"
+            );
+            assert!(to_wire_png_for_mime("image/svg+xml", svg.as_bytes()).is_none());
+        }
+    }
+
+    #[test]
+    fn svg_parse_budget_rejects_deep_and_many_element_sources() {
+        let mut deep = String::from("<svg>");
+        for _ in 0..MAX_SVG_DEPTH {
+            deep.push_str("<g>");
+        }
+        for _ in 0..MAX_SVG_DEPTH {
+            deep.push_str("</g>");
+        }
+        deep.push_str("</svg>");
+        assert!(!svg_source_within_parse_budget(deep.as_bytes()));
+
+        let many = format!("<svg>{}</svg>", "<path/>".repeat(MAX_SVG_NODES));
+        assert!(!svg_source_within_parse_budget(many.as_bytes()));
+        assert!(!svg_source_within_parse_budget(&vec![
+            b' ';
+            MAX_SVG_SOURCE_BYTES
+                + 1
+        ]));
     }
 }

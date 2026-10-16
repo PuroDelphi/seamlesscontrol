@@ -16,6 +16,7 @@ serde_json = "1.0"
 png = "0.18"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "tiff", "bmp", "ico", "dds", "exr", "ff", "hdr", "pnm", "qoi", "tga"] }
 resvg = { version = "0.48.1", default-features = false, features = ["text", "system-fonts"] }
+roxmltree = "0.21"
 
 [build-dependencies]
 winres = "0.1.12"
