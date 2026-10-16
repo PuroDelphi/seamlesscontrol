@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [dependencies]
 snow = "0.10"
-sha2 = "0.10"
+sha2 = "0.11"
 serde_json = "1.0"
 png = "0.18"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "tiff", "bmp", "ico", "dds", "exr", "ff", "hdr", "pnm", "qoi", "tga"] }
