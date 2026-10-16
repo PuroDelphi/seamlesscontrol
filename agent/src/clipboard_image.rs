@@ -7,6 +7,7 @@ use std::io::{self, Cursor, Seek, SeekFrom, Write};
 // This covers SVG pixmaps kept live while resvg recursively renders isolated
 // groups. The final output already uses up to 32 million RGBA pixels.
 const MAX_SVG_LIVE_RGBA_BYTES: u64 = 128 * 1024 * 1024;
+const MAX_SVG_TOTAL_LAYER_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_SVG_SOURCE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_SVG_NODES: usize = 4096;
 const MAX_SVG_DEPTH: usize = 64;
@@ -148,6 +149,7 @@ fn svg_tree_within_render_budget(tree: &resvg::usvg::Tree, width: u32, height: u
         return false;
     }
     let mut nodes = 0usize;
+    let mut total_layer_bytes = output_bytes;
     // Include the live output pixmap in every branch. Sibling layers are
     // released between nodes, whereas nested isolated layers stay live.
     let mut stack = vec![(tree.root(), 0usize, output_bytes)];
@@ -210,6 +212,13 @@ fn svg_tree_within_render_budget(tree: &resvg::usvg::Tree, width: u32, height: u
                 if next_live > MAX_SVG_LIVE_RGBA_BYTES {
                     return false;
                 }
+                let Some(next_total) = total_layer_bytes.checked_add(child_bytes) else {
+                    return false;
+                };
+                if next_total > MAX_SVG_TOTAL_LAYER_BYTES {
+                    return false;
+                }
+                total_layer_bytes = next_total;
                 stack.push((child, depth + 1, next_live));
             }
         }
@@ -358,6 +367,22 @@ mod tests {
     fn modest_opacity_layers_still_render() {
         let svg = br#"<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><g opacity="0.8"><g opacity="0.8"><rect width="32" height="32" fill="red"/></g></g></svg>"#;
         assert!(to_wire_png_for_mime("image/svg+xml", svg).is_some());
+    }
+
+    #[test]
+    fn many_sibling_layers_exceed_svg_total_work_budget() {
+        let mut svg = String::from(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1024\" height=\"1024\">",
+        );
+        for _ in 0..80 {
+            svg.push_str(
+                "<g opacity=\"0.9\"><rect width=\"1024\" height=\"1024\" fill=\"red\"/></g>",
+            );
+        }
+        svg.push_str("</svg>");
+        let tree = resvg::usvg::Tree::from_data(svg.as_bytes(), &Default::default()).unwrap();
+        assert!(!svg_tree_within_render_budget(&tree, 1024, 1024));
+        assert!(to_wire_png_for_mime("image/svg+xml", svg.as_bytes()).is_none());
     }
 
     #[test]

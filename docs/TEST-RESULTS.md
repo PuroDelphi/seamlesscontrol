@@ -4,7 +4,7 @@
 
 ## 0.25.10 comprehensive SVG clipboard limits · 2026-10-16
 
-The reviewer confirmed filter rejection but found that nested full-canvas opacity groups still retained RGBA layers during recursive rendering. The new preflight caps XML input at 2 MiB, 4,096 elements and depth 64. The shared Omarchy/Windows renderer budget counts output and live nested isolated-group surfaces up to 128 MiB, caps expanded nodes and depth, and rejects filters, masks, clips, patterns and embedded image nodes. Tests verify the nested-layer rejection, modest group rendering and the other forbidden constructs. Local and CI results are linked from the release. No new physical two-computer test was performed for this targeted fix.
+The reviewer confirmed filter rejection but found that nested full-canvas opacity groups still retained RGBA layers during recursive rendering. The new preflight caps XML input at 2 MiB, 4,096 elements and depth 64. The shared Omarchy/Windows renderer budget counts output and live nested isolated-group surfaces up to 128 MiB, caps cumulative isolated layers at 256 MiB, caps expanded nodes and depth, and rejects filters, masks, clips, patterns and embedded image nodes. Tests verify nested and numerous sibling layers are rejected, modest group rendering and the other forbidden constructs. Local and CI results are linked from the release. No new physical two-computer test was performed for this targeted fix.
 
 ## 0.25.9 SVG clipboard filter memory bound · 2026-10-16
 
