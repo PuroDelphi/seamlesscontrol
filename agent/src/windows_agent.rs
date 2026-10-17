@@ -1192,28 +1192,29 @@ mod tests {
         let client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
         let (stream, _) = listener.accept().unwrap();
         let server_config = config.clone();
+        let occupied = Arc::new(AtomicBool::new(false));
         let server = thread::spawn(move || {
             let prompt = Mutex::new(());
-            let (mut channel, authenticated_key) = secure_connection(
+            let (pre_auth_done, _) = sync_channel(1);
+            let result = serve_connection(
                 stream,
-                Role::Responder,
+                ip,
                 &receiver_identity,
                 &server_config,
-                ip,
+                &occupied,
                 &prompt,
-                false,
-                None,
-            )
-            .unwrap();
-            let claim = Frame::read_from(&mut channel).unwrap();
-            assert_eq!(claim.payload, b"CLAIM");
-            assert_eq!(authenticated_key, old_key);
+                pre_auth_done,
+            );
             assert_eq!(
                 load_peer_key(&server_config.join("peers"), ip).unwrap(),
                 Some(new_key)
             );
-            assert!(authenticated_control_policy(&server_config, ip, &authenticated_key).is_err());
-            assert!(!active_peer_allowed(&server_config, ip, &authenticated_key, true).unwrap());
+            let error = result.expect_err("old connection received control after replacement");
+            assert!(
+                error.to_string().contains("identity changed"),
+                "unexpected rejection: {error}"
+            );
+            assert!(!active_peer_allowed(&server_config, ip, &old_key, true).unwrap());
         });
         let (mut channel, _) = SecureChannel::connect(
             client,
@@ -1234,6 +1235,10 @@ mod tests {
         }
         .write_to(&mut channel)
         .unwrap();
+        assert!(
+            Frame::read_from(&mut channel).is_err(),
+            "the replaced peer received READY"
+        );
         server.join().unwrap();
         let _ = std::fs::remove_dir_all(config);
     }
