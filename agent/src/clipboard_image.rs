@@ -11,6 +11,9 @@ const MAX_SVG_TOTAL_LAYER_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_SVG_SOURCE_BYTES: usize = 2 * 1024 * 1024;
 const MAX_SVG_NODES: usize = 4096;
 const MAX_SVG_DEPTH: usize = 64;
+const MAX_SVG_TEXT_BYTES: usize = 16 * 1024;
+const MAX_SVG_GEOMETRY_BYTES: usize = 256 * 1024;
+const MAX_SVG_ATTRIBUTE_BYTES: usize = 512 * 1024;
 
 struct LimitedCursor(Cursor<Vec<u8>>);
 
@@ -116,14 +119,42 @@ fn svg_source_within_parse_budget(bytes: &[u8]) -> bool {
         return false;
     };
     let mut elements = 0usize;
+    let mut text_bytes = 0usize;
+    let mut geometry_bytes = 0usize;
+    let mut attribute_bytes = 0usize;
     let mut stack = vec![(document.root_element(), 1usize)];
     while let Some((node, depth)) = stack.pop() {
         elements += 1;
         if elements > MAX_SVG_NODES || depth > MAX_SVG_DEPTH {
             return false;
         }
-        for child in node.children().filter(|child| child.is_element()) {
-            stack.push((child, depth + 1));
+        // usvg expands <use> references and path markers into separate owned
+        // geometry before our render-tree budget runs. Refuse these and the
+        // pixmap-producing features before handing the source to usvg.
+        if matches!(
+            node.tag_name().name(),
+            "use" | "marker" | "filter" | "mask" | "clipPath" | "pattern"
+        ) {
+            return false;
+        }
+        for attr in node.attributes() {
+            attribute_bytes = attribute_bytes.saturating_add(attr.value().len());
+            if matches!(attr.name(), "d" | "points") {
+                geometry_bytes = geometry_bytes.saturating_add(attr.value().len());
+            }
+        }
+        if attribute_bytes > MAX_SVG_ATTRIBUTE_BYTES || geometry_bytes > MAX_SVG_GEOMETRY_BYTES {
+            return false;
+        }
+        for child in node.children() {
+            if child.is_element() {
+                stack.push((child, depth + 1));
+            } else if child.is_text() {
+                text_bytes = text_bytes.saturating_add(child.text().unwrap_or("").len());
+                if text_bytes > MAX_SVG_TEXT_BYTES {
+                    return false;
+                }
+            }
         }
     }
     true
@@ -424,5 +455,30 @@ mod tests {
             MAX_SVG_SOURCE_BYTES
                 + 1
         ]));
+    }
+
+    #[test]
+    fn svg_references_and_markers_are_rejected_before_usvg_expands_them() {
+        let use_svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><defs><path id="shape" d="M0 0h8v8z"/></defs><use href="#shape"/></svg>"##;
+        let marker_svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><defs><marker id="m"><path d="M0 0h1v1z"/></marker></defs><path d="M0 0h8" marker-end="url(#m)"/></svg>"##;
+        for svg in [use_svg.as_slice(), marker_svg.as_slice()] {
+            assert!(!svg_source_within_parse_budget(svg));
+            assert!(to_wire_png_for_mime("image/svg+xml", svg).is_none());
+        }
+    }
+
+    #[test]
+    fn svg_preflight_bounds_text_and_geometry_before_usvg() {
+        let long_text = format!(
+            "<svg><text>{}</text></svg>",
+            "a".repeat(MAX_SVG_TEXT_BYTES + 1)
+        );
+        assert!(!svg_source_within_parse_budget(long_text.as_bytes()));
+
+        let long_path = format!(
+            "<svg><path d=\"{}\"/></svg>",
+            "M0 0 ".repeat(MAX_SVG_GEOMETRY_BYTES / 5 + 1)
+        );
+        assert!(!svg_source_within_parse_budget(long_path.as_bytes()));
     }
 }

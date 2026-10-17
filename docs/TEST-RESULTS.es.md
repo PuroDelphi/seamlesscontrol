@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## 0.25.11 · Referencias SVG y lectura de archivos soltados · 2026-10-16
+
+El revisor detectó dos rutas previas a los límites existentes: expansión de `<use>` y marcadores por usvg, y lectura síncrona de `drop.urls` por Qt en el shell compartido. El preanálisis XML rechaza las referencias y marcadores antes de usvg y limita texto, geometría y atributos. El panel Omarchy ya no acepta archivos soltados; Copiar y Pegar y Elegir siguen funcionando. Una prueba estática impide restaurar la lectura QML de `drop.urls`. El arrastre en la app Windows no cambia. Las pruebas de Rust, Clippy y CI se enlazan desde las notas del lanzamiento; no se realizó una nueva prueba física entre equipos para esta corrección concreta.
+
 ## Límites integrales del portapapeles SVG 0.25.10 · 2026-10-16
 
 El revisor confirmó el rechazo de filtros, pero encontró que los grupos de opacidad anidados del tamaño del lienzo aún conservaban capas RGBA durante el renderizado recursivo. La comprobación previa acota el XML a 2 MiB, 4.096 elementos y profundidad 64. El presupuesto compartido por Omarchy y Windows contabiliza la salida y las superficies de grupos aislados anidados hasta 128 MiB, acota las capas aisladas acumuladas a 256 MiB, limita nodos y profundidad del árbol expandido y rechaza filtros, máscaras, recortes, patrones y nodos de imagen. Las pruebas verifican el rechazo de capas anidadas y numerosas capas hermanas, el renderizado de grupos modestos y las otras construcciones prohibidas. Los resultados locales y de CI se enlazan desde el lanzamiento. No se realizó una nueva prueba física entre dos equipos para esta corrección concreta.

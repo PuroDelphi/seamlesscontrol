@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.11 SVG references and Omarchy file-drop read · 2026-10-16
+
+The reviewer identified two paths ahead of existing budgets: usvg expansion of `<use>` and markers, and Qt’s synchronous materialization of `drop.urls` inside the shared shell. XML preflight now rejects references and markers before usvg and caps text, geometry and attribute data. The Omarchy file-drop target is removed; file-manager Copy and Paste and Choose remain available. A static regression test prevents reintroducing the QML `drop.urls` read. Windows app drops are unchanged. Rust, Clippy and CI results are linked from the release; no new physical two-computer test was performed for this targeted fix.
+
 ## 0.25.10 comprehensive SVG clipboard limits · 2026-10-16
 
 The reviewer confirmed filter rejection but found that nested full-canvas opacity groups still retained RGBA layers during recursive rendering. The new preflight caps XML input at 2 MiB, 4,096 elements and depth 64. The shared Omarchy/Windows renderer budget counts output and live nested isolated-group surfaces up to 128 MiB, caps cumulative isolated layers at 256 MiB, caps expanded nodes and depth, and rejects filters, masks, clips, patterns and embedded image nodes. Tests verify nested and numerous sibling layers are rejected, modest group rendering and the other forbidden constructs. Local and CI results are linked from the release. No new physical two-computer test was performed for this targeted fix.

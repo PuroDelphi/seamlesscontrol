@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.11](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.11) — 2026-10-16
+
+- Reject SVG `<use>` references and markers before usvg expands retained geometry; cap text, attributes and path data before graphical parsing.
+- Remove the Omarchy file-drop target because Qt read unbounded foreign URL streams before selection validation. File-manager Copy and Paste and the manual chooser remain; the Windows app retains Files-page drops. See the [release notes](docs/RELEASE-0.25.11.md).
+
 ## [0.25.10](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.10) — 2026-10-16
 
 - Budget nested SVG opacity layers before rendering so a small clipboard payload cannot retain unbounded full-canvas RGBA surfaces.

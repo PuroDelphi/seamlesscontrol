@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.11](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.11) — 2026-10-16
+
+- Rechaza referencias `<use>` y marcadores SVG antes de la expansión de geometría en usvg; acota también texto, atributos y datos de trazados antes de analizar el árbol gráfico.
+- Retira la zona de archivos soltados del panel Omarchy: Qt leía sin límite el flujo de URL ajenas antes de validar la selección. Siguen disponibles Copiar y Pegar y el selector de archivos; la app Windows conserva el arrastre a su página Archivos. Consulta las [notas](docs/RELEASE-0.25.11.md#seamlesscontrol-02511--seguridad-del-portapapeles-y-del-panel).
+
 ## [0.25.10](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.10) — 2026-10-16
 
 - Presupuesta las capas SVG de opacidad anidadas antes de renderizar para que un portapapeles pequeño no conserve superficies RGBA ilimitadas del tamaño del lienzo.

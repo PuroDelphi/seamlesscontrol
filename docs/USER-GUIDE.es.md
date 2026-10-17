@@ -100,7 +100,7 @@ Con varios archivos o una carpeta, el receptor ve **una sola oferta** con la can
 
 Una oferta sin aprobar caduca a los **dos minutos**. Vuelve a copiar el archivo o usa el botón de oferta para reintentar. Archivos de GNOME permite copiar desde **Recientes** y desde carpetas normales. Otros exploradores deben publicar un archivo local en formatos de portapapeles compatibles; archivos remotos, enlaces simbólicos y operaciones de cortar/mover no se ofrecen. Un grupo copiado se muestra como una sola oferta, con cantidad de elementos y tamaño total; después de aprobarlo, pega la carpeta recibida para conservar su contenido junto. Ambos equipos necesitan una versión compatible con grupos. Se admiten hasta 256 archivos y carpetas (incluidos los elementos internos) por grupo; el límite de tamaño configurado se aplica al grupo completo. Cambia el nombre de un archivo que contenga `:` antes de enviarlo: ese carácter se rechaza por seguridad compatible con Windows.
 
-También puedes arrastrar archivos o carpetas locales desde el explorador hasta la página **Archivos** del panel SeamlessControl del emisor. Se inicia la misma oferta aprobada y el original no se mueve. Todavía no está disponible arrastrar de forma continua desde el explorador de un equipo, cruzar el borde y soltar en el explorador del otro; usa la zona del panel o Copiar y Pegar.
+En Omarchy, copia archivos o carpetas en el explorador para ofrecerlos durante la conexión, o usa **Elegir** en Archivos para enviar un archivo a una carpeta. La app Windows también acepta archivos locales soltados en su página Archivos. No se puede arrastrar de forma continua entre exploradores cruzando el borde; usa Copiar y Pegar.
 
 ### Enviar directamente a una carpeta · TCP 47833 predeterminado
 

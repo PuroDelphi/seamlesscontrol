@@ -1,5 +1,7 @@
 # SeamlessControl 0.25.2 · Images in the clipboard and file drops into the app
 
+> Historical release note: the Omarchy file-drop target was removed in [0.25.11](RELEASE-0.25.11.md) because Qt read unbounded foreign URI data. File-manager Copy and Paste remains available; Windows in-app drops remain available.
+
 Copy an image in an application on one connected computer and paste it on the other. SeamlessControl accepts image clipboard data in PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld and SVG formats, plus compatible Windows bitmap clipboard representations. It converts the image to a bounded PNG for the authenticated control session. Animations use their first frame; high-depth images become 8-bit PNG. An image that is too large or cannot be decoded is ignored without interrupting mouse and keyboard control. To preserve an original image file in any format, send the file instead.
 
 The **Files** page on Omarchy and Windows now accepts local files and folders dropped onto the sending app. This uses the existing file offer, peer Files permission, receiver approval mode, size limit, checksum verification and private staging. The source is copied, never moved. Dropping a file across the screen edge directly into the other computer's file manager is a separate feature and is not included in 0.25.2.
@@ -13,6 +15,8 @@ Two physical Omarchy computers running 0.25.2 exchanged JPEG, SVG and WebP test 
 ---
 
 # SeamlessControl 0.25.2 · Imágenes en el portapapeles y archivos arrastrados a la app
+
+> Nota histórica: la zona de archivos soltados del panel Omarchy se retiró en [0.25.11](RELEASE-0.25.11.md) porque Qt leía URI ajenas sin límite. Sigue disponible Copiar y Pegar; la app Windows conserva el arrastre a su página Archivos.
 
 Copia una imagen en una aplicación de un equipo conectado y pégala en el otro. SeamlessControl admite datos de imagen PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG, además de mapas de bits compatibles del portapapeles Windows. La convierte a un PNG acotado para la sesión de control autenticada. De las animaciones usa el primer fotograma; las imágenes de alta profundidad pasan a PNG de 8 bits. Una imagen demasiado grande o incompatible se ignora sin interrumpir el ratón ni el teclado. Para conservar el archivo original de una imagen de cualquier formato, envíalo como archivo.
 

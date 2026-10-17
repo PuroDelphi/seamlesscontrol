@@ -2,9 +2,9 @@
 
 [![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [English](README.md) · [MIT](LICENSE)
 
-[Límites integrales para SVG 0.25.10](docs/RELEASE-0.25.10.md#seamlesscontrol-02510--límites-integrales-para-svg) · [Novedades de la versión 0.25.2](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app)
+[Seguridad del portapapeles y panel 0.25.11](docs/RELEASE-0.25.11.md#seamlesscontrol-02511--seguridad-del-portapapeles-y-del-panel) · [Novedades de la versión 0.25.2](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app)
 
-**Nuevo en 0.25.2:** copia una imagen en una aplicación y pégala en otro equipo Omarchy o Windows conectado. SeamlessControl admite datos de imagen PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG vectorial sencillo en el portapapeles y los convierte a PNG para el otro equipo. También puedes soltar archivos y carpetas en la página **Archivos** del emisor para ofrecerlos con la aprobación habitual.
+**Nuevo en 0.25.2:** copia una imagen en una aplicación y pégala en otro equipo Omarchy o Windows conectado. SeamlessControl admite datos de imagen PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG vectorial sencillo en el portapapeles y los convierte a PNG para el otro equipo. En Windows también puedes soltar archivos y carpetas en la página **Archivos** del emisor para ofrecerlos con la aprobación habitual.
 
 **Un ratón y un teclado para tus equipos Omarchy y Windows en una LAN privada.** Cruza el borde exterior del escritorio para controlar otro equipo; vuelve por el borde de entrada o pulsa **Escape en el teclado físico del origen**.
 
@@ -16,7 +16,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 - **Decide en quién confías:** compara un código de seis cifras en ambos equipos y configura por separado los permisos Control, Portapapeles y Archivos de cada equipo emparejado.
 - **Copia un grupo completo:** selecciona varios archivos o una carpeta con archivos anidados, aprueba una sola oferta en el receptor y pega allí el grupo verificado.
 - **Comparte imágenes:** copia una imagen desde una aplicación y pega sus píxeles en el otro equipo durante la conexión, bajo el permiso Portapapeles del par.
-- **Suelta archivos en la app:** arrastra archivos o carpetas locales a la página Archivos de SeamlessControl; el receptor mantiene su permiso Archivos, modo de aprobación y límite de tamaño.
+- **Ofrece archivos a tu manera:** copia y pega archivos o carpetas en ambos sistemas; la app Windows también acepta archivos locales soltados en Archivos. El receptor mantiene su permiso Archivos, modo de aprobación y límite de tamaño.
 - **Comparte solo durante la conexión:** guardar un emparejamiento no inicia el intercambio de archivos. Al terminar la sesión de control cesan las ofertas y transferencias nuevas.
 - **Recupera el control:** la entrada local vuelve tras bloqueo, suspensión o parada del receptor; un cruce nuevo reanuda el control remoto.
 
@@ -28,7 +28,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 | Instalar la app, recibir o controlar desde Windows | [Guía ilustrada Windows](docs/WINDOWS.es.md) |
 | Copiar y pegar archivos o enviarlos a una carpeta | [Guía Omarchy](docs/USER-GUIDE.es.md) / [Guía Windows](docs/WINDOWS.es.md), sección Archivos |
 | Resolver un problema de conexión | Sección de problemas de cada guía; [pedir ayuda](SUPPORT.es.md) |
-| Ver el último lanzamiento y las pruebas físicas | [Notas de 0.25.10](docs/RELEASE-0.25.10.md#seamlesscontrol-02510--límites-integrales-para-svg) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
+| Ver el último lanzamiento y las pruebas físicas | [Notas de 0.25.11](docs/RELEASE-0.25.11.md#seamlesscontrol-02511--seguridad-del-portapapeles-y-del-panel) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
 | Usar comandos o conocer permisos y límites | [Guía técnica](docs/TECHNICAL.es.md) |
 
 **Origen** es el equipo donde están el ratón y el teclado físicos que vas a usar. **Receptor** es el equipo que quieres controlar. Los papeles pueden cambiar para otra sesión; no necesitas emparejar de nuevo por invertirlos.
@@ -82,7 +82,7 @@ Las imágenes muestran interfaces con datos ficticios de documentación; la guí
 
 **Ambos flujos de archivos requieren una conexión de control activa.** Emparejar guarda la confianza; detener el control termina el intercambio. **Esperar un archivo** no activa la copia y pegado: es el envío manual, de una oferta cada vez. Abrir el puerto de control tampoco abre los de archivos.
 
-También puedes **soltar un archivo o carpeta local en la página Archivos del equipo emisor**. Inicia la misma oferta de archivo con aprobación que la copia. Arrastrar directamente a través del borde hasta el explorador del otro equipo no forma parte de este lanzamiento.
+En Windows también puedes **soltar un archivo o carpeta local en la página Archivos de la app emisora**. Inicia la misma oferta de archivo con aprobación que la copia. Arrastrar directamente a través del borde hasta el explorador del otro equipo no forma parte de este lanzamiento.
 
 En **Ajustes → Aprobación de archivos entrantes**, puedes preguntar por cada oferta (predeterminado), aceptar automáticamente desde equipos emparejados o aprobar por un tiempo. El modo temporal pregunta por el primer archivo de cada equipo y vuelve a **Preguntar siempre** al vencer o reiniciar. Las [guías ilustradas](docs/USER-GUIDE.es.md) explican el límite de tamaño, la selección del destino y qué hacer si no llega una oferta.
 

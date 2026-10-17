@@ -10,9 +10,18 @@ import unittest
 
 
 READER = Path(__file__).resolve().parents[1] / "packaging/read-ui-clipboard.py"
+PLUGIN = Path(__file__).resolve().parents[1] / "plugin"
 
 
 class ClipboardReaderTest(unittest.TestCase):
+    def test_omarchy_panel_does_not_materialize_foreign_drop_urls(self):
+        panel = (PLUGIN / "Panel.qml").read_text()
+        backend = (PLUGIN / "AgentBackend.qml").read_text()
+        self.assertNotIn("drop.urls", panel)
+        self.assertNotIn("prepareDroppedUrls", panel + backend)
+        self.assertNotIn("droppedFilesProcess", backend)
+        self.assertIn("drop.source.machineId", panel)
+
     def run_reader(self, producer):
         with tempfile.TemporaryDirectory() as directory:
             stub = Path(directory) / "wl-paste"

@@ -1806,34 +1806,14 @@ Panel {
           font.pixelSize: Style.font.caption
         }
 
-        Rectangle {
+        Text {
           Layout.fillWidth: true
-          implicitHeight: Style.space(72)
-          radius: 8
-          color: dropFilesArea.containsDrag ? Color.accent : Color.background
-          border.color: Color.accent
-          border.width: 1
-
-          Text {
-            anchors.centerIn: parent
-            width: parent.width - Style.space(24)
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-            text: root.t("Suelte aquí archivos o carpetas desde el explorador. Se enviarán solo durante una conexión y con la aprobación del receptor.")
-            textFormat: Text.PlainText
-            color: dropFilesArea.containsDrag ? Color.background : root.ink
-            font.family: root.face
-            font.pixelSize: Style.font.caption
-          }
-
-          DropArea {
-            id: dropFilesArea
-            anchors.fill: parent
-            onDropped: function(drop) {
-              if (root.backend) root.backend.prepareDroppedUrls(drop.urls)
-              drop.accepted = true
-            }
-          }
+          text: root.t("Copie archivos o carpetas en el explorador para ofrecerlos, o use Elegir más abajo para enviar un archivo. La recepción sigue requiriendo aprobación.")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: root.ink
+          font.family: root.face
+          font.pixelSize: Style.font.caption
         }
 
         Text {

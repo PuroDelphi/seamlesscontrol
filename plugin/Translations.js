@@ -4,6 +4,7 @@
 var english = {
   "Elija qué puede hacer cada identidad emparejada. Control y portapapeles cambian en la próxima conexión; archivos, en la siguiente oferta. Revocar quita la confianza de inmediato.": "Choose what each paired identity may do. Control and clipboard permissions take effect on the next connection; file permissions on the next offer. Revoke removes trust immediately.",
   "Portapapeles": "Clipboard",
+  "Copie archivos o carpetas en el explorador para ofrecerlos, o use Elegir más abajo para enviar un archivo. La recepción sigue requiriendo aprobación.": "Copy files or folders in the file manager to offer them, or use Choose below to send a file. The receiver still approves transfers.",
   "Suelte aquí archivos o carpetas desde el explorador. Se enviarán solo durante una conexión y con la aprobación del receptor.": "Drop files or folders here from the file manager. They are sent only during a connection and with the receiver's approval.",
   "Conecte con un equipo emparejado antes de arrastrar archivos.": "Connect to a paired computer before dropping files.",
   "Arrastre hasta 256 archivos o carpetas locales a la vez.": "Drop up to 256 local files or folders at a time.",
