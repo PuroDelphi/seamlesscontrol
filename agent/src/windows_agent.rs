@@ -1195,7 +1195,7 @@ mod tests {
         let occupied = Arc::new(AtomicBool::new(false));
         let server = thread::spawn(move || {
             let prompt = Mutex::new(());
-            let (pre_auth_done, _) = sync_channel(1);
+            let (pre_auth_done, _) = std::sync::mpsc::channel();
             let result = serve_connection(
                 stream,
                 ip,
