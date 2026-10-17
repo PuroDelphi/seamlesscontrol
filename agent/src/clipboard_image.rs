@@ -2,7 +2,14 @@
 
 use crate::clipboard::{MAX_IMAGE_BYTES, valid_png_header};
 use image::{ImageFormat, ImageReader, Limits};
-use std::io::{self, Cursor, Seek, SeekFrom, Write};
+use std::io::{self, Cursor, Read, Seek, SeekFrom, Write};
+#[cfg(all(not(test), target_os = "windows"))]
+use std::process::Child;
+#[cfg(not(test))]
+use std::process::{Command, Stdio};
+use std::time::Duration;
+#[cfg(not(test))]
+use std::time::Instant;
 
 // This covers SVG pixmaps kept live while resvg recursively renders isolated
 // groups. The final output already uses up to 32 million RGBA pixels.
@@ -14,6 +21,184 @@ const MAX_SVG_DEPTH: usize = 64;
 const MAX_SVG_TEXT_BYTES: usize = 16 * 1024;
 const MAX_SVG_GEOMETRY_BYTES: usize = 256 * 1024;
 const MAX_SVG_ATTRIBUTE_BYTES: usize = 512 * 1024;
+// Native SVG and raster parsers can allocate before their own output budgets
+// run. Keep all untrusted conversion outside the input-control process.
+#[cfg(not(test))]
+const DECODER_MEMORY_BYTES: u64 = 768 * 1024 * 1024;
+#[cfg(not(test))]
+const DECODER_WALL_TIME: Duration = Duration::from_secs(10);
+pub const DECODER_COMMAND: &str = "__clipboard-image-decode";
+pub const DECODER_PROBE_COMMAND: &str = "__clipboard-image-probe";
+
+/// Decode a foreign image in a separate, resource-limited agent process.
+/// A failed or stalled decoder simply leaves this clipboard update unsent.
+pub fn isolated_to_wire_png_for_mime(mime: &str, bytes: &[u8]) -> Option<Vec<u8>> {
+    if bytes.is_empty() || bytes.len() > MAX_IMAGE_BYTES || mime.len() > 128 {
+        return None;
+    }
+    // Unit-test executables are not the agent command dispatcher. Integration
+    // tests exercise the actual helper binary and its process limits.
+    #[cfg(test)]
+    return to_wire_png_for_mime(mime, bytes);
+    #[cfg(not(test))]
+    isolated_to_wire_png_for_mime_process(mime, bytes)
+}
+
+#[cfg(not(test))]
+fn isolated_to_wire_png_for_mime_process(mime: &str, bytes: &[u8]) -> Option<Vec<u8>> {
+    // PNG is already the wire representation; no native decoder runs here.
+    if mime.eq_ignore_ascii_case("image/png") {
+        return valid_png_header(bytes).then(|| bytes.to_vec());
+    }
+    let mut command = Command::new(std::env::current_exe().ok()?);
+    command
+        .arg(DECODER_COMMAND)
+        .arg(mime)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    #[cfg(target_os = "linux")]
+    limit_linux_decoder(&mut command);
+    let mut child = command.spawn().ok()?;
+    #[cfg(target_os = "windows")]
+    let _job = match limit_windows_decoder(&child) {
+        Some(job) => job,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+    };
+    let mut stdin = child.stdin.take()?;
+    let stdout = child.stdout.take()?;
+    let (status, written, output) = std::thread::scope(|scope| {
+        let writer = scope.spawn(move || stdin.write_all(bytes));
+        let reader = scope.spawn(move || {
+            let mut output = Vec::new();
+            stdout
+                .take((MAX_IMAGE_BYTES + 1) as u64)
+                .read_to_end(&mut output)
+                .map(|_| output)
+        });
+        let deadline = Instant::now() + DECODER_WALL_TIME;
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break Some(status),
+                Ok(None) if Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                _ => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    break None;
+                }
+            }
+        };
+        (status, writer.join(), reader.join())
+    });
+    let output = output.ok()?.ok()?;
+    if !status?.success() || written.ok()?.is_err() || !valid_png_header(&output) {
+        return None;
+    }
+    Some(output)
+}
+
+/// The private child command reads only bounded stdin and writes one PNG.
+pub fn decode_image_from_stdin(mime: &str) -> io::Result<()> {
+    image_from_stdin(mime, to_wire_png_for_mime)
+}
+
+/// End-to-end diagnostic path used to test the actual isolation boundary.
+pub fn probe_isolated_image_from_stdin(mime: &str) -> io::Result<()> {
+    image_from_stdin(mime, isolated_to_wire_png_for_mime)
+}
+
+fn image_from_stdin(mime: &str, convert: fn(&str, &[u8]) -> Option<Vec<u8>>) -> io::Result<()> {
+    if mime.len() > 128 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "invalid image MIME",
+        ));
+    }
+    let mut bytes = Vec::new();
+    io::stdin()
+        .take((MAX_IMAGE_BYTES + 1) as u64)
+        .read_to_end(&mut bytes)?;
+    if bytes.len() > MAX_IMAGE_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "image too large",
+        ));
+    }
+    #[cfg(debug_assertions)]
+    if std::env::var_os("SEAMLESSCONTROL_TEST_DECODER_STALL").is_some()
+        && std::env::args().any(|arg| arg == DECODER_COMMAND)
+    {
+        std::thread::sleep(Duration::from_secs(30));
+    }
+    let png = convert(mime, &bytes)
+        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "image rejected"))?;
+    io::stdout().write_all(&png)
+}
+
+#[cfg(all(not(test), target_os = "linux"))]
+fn limit_linux_decoder(command: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    // setrlimit is async-signal-safe in the forked child before exec.
+    unsafe {
+        command.pre_exec(|| {
+            let limit = libc::rlimit {
+                rlim_cur: DECODER_MEMORY_BYTES,
+                rlim_max: DECODER_MEMORY_BYTES,
+            };
+            if libc::setrlimit(libc::RLIMIT_AS, &limit) != 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+}
+
+#[cfg(all(not(test), target_os = "windows"))]
+struct DecoderJob(windows_sys::Win32::Foundation::HANDLE);
+
+#[cfg(all(not(test), target_os = "windows"))]
+impl Drop for DecoderJob {
+    fn drop(&mut self) {
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(self.0) };
+    }
+}
+
+#[cfg(all(not(test), target_os = "windows"))]
+fn limit_windows_decoder(child: &Child) -> Option<DecoderJob> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        JOB_OBJECT_LIMIT_PROCESS_MEMORY, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JobObjectExtendedLimitInformation, SetInformationJobObject,
+    };
+    let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+    if handle.is_null() {
+        return None;
+    }
+    let job = DecoderJob(handle);
+    let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+    limits.BasicLimitInformation.LimitFlags =
+        JOB_OBJECT_LIMIT_PROCESS_MEMORY | JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    limits.ProcessMemoryLimit = DECODER_MEMORY_BYTES as usize;
+    let configured = unsafe {
+        SetInformationJobObject(
+            handle,
+            JobObjectExtendedLimitInformation,
+            (&raw const limits).cast(),
+            std::mem::size_of_val(&limits) as u32,
+        )
+    };
+    if configured == 0 || unsafe { AssignProcessToJobObject(handle, child.as_raw_handle()) } == 0 {
+        return None;
+    }
+    Some(job)
+}
 
 struct LimitedCursor(Cursor<Vec<u8>>);
 
@@ -128,16 +313,19 @@ fn svg_source_within_parse_budget(bytes: &[u8]) -> bool {
         if elements > MAX_SVG_NODES || depth > MAX_SVG_DEPTH {
             return false;
         }
-        // usvg expands <use> references and path markers into separate owned
-        // geometry before our render-tree budget runs. Refuse these and the
-        // pixmap-producing features before handing the source to usvg.
+        // usvg expands <use>, markers, and inherited dash arrays into separate
+        // owned geometry before the render-tree budget. Refuse these, CSS
+        // (which could assign dash arrays), and pixmap-producing features.
         if matches!(
             node.tag_name().name(),
-            "use" | "marker" | "filter" | "mask" | "clipPath" | "pattern"
+            "use" | "marker" | "filter" | "mask" | "clipPath" | "pattern" | "style"
         ) {
             return false;
         }
         for attr in node.attributes() {
+            if matches!(attr.name(), "style" | "stroke-dasharray") {
+                return false;
+            }
             attribute_bytes = attribute_bytes.saturating_add(attr.value().len());
             if matches!(attr.name(), "d" | "points") {
                 geometry_bytes = geometry_bytes.saturating_add(attr.value().len());
@@ -462,6 +650,17 @@ mod tests {
         let use_svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><defs><path id="shape" d="M0 0h8v8z"/></defs><use href="#shape"/></svg>"##;
         let marker_svg = br##"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><defs><marker id="m"><path d="M0 0h1v1z"/></marker></defs><path d="M0 0h8" marker-end="url(#m)"/></svg>"##;
         for svg in [use_svg.as_slice(), marker_svg.as_slice()] {
+            assert!(!svg_source_within_parse_budget(svg));
+            assert!(to_wire_png_for_mime("image/svg+xml", svg).is_none());
+        }
+    }
+
+    #[test]
+    fn inherited_dash_arrays_and_css_are_rejected_before_usvg() {
+        let group = br#"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><g stroke-dasharray="1,2"><path d="M0 0h8"/></g></svg>"#;
+        let inline = br#"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><path style="stroke-dasharray: 1,2" d="M0 0h8"/></svg>"#;
+        let stylesheet = br#"<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><style>path { stroke-dasharray: 1,2 }</style><path d="M0 0h8"/></svg>"#;
+        for svg in [group.as_slice(), inline.as_slice(), stylesheet.as_slice()] {
             assert!(!svg_source_within_parse_budget(svg));
             assert!(to_wire_png_for_mime("image/svg+xml", svg).is_none());
         }

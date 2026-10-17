@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.12 isolated clipboard image decoders · 2026-10-16
+
+The reviewer found usvg cloning inherited dash arrays per path before the existing tree budget. Preflight now rejects dash arrays and CSS. The locked `image` crate documents non-strict allocation hints for native decoders, so non-PNG conversion on both platforms now runs in a separate 768 MiB memory-limited process with a ten-second wall deadline. An integration test launches the real agent and verifies small JPEG and SVG output, fast dash-array rejection and timeout recovery from a deliberately stalled worker. CI links are in the release. No new physical two-computer test was performed for this targeted security fix.
+
 ## 0.25.11 SVG references and Omarchy file-drop read · 2026-10-16
 
 The reviewer identified two paths ahead of existing budgets: usvg expansion of `<use>` and markers, and Qt’s synchronous materialization of `drop.urls` inside the shared shell. XML preflight now rejects references and markers before usvg and caps text, geometry and attribute data. The Omarchy file-drop target is removed; file-manager Copy and Paste and Choose remain available. A static regression test prevents reintroducing the QML `drop.urls` read. Windows app drops are unchanged. Rust, Clippy and CI results are linked from the release; no new physical two-computer test was performed for this targeted fix.

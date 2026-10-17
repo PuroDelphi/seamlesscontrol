@@ -5,7 +5,7 @@ use crate::clipboard::{
     valid_png_header,
 };
 use crate::clipboard_file::{file_uri, local_regular_file, parse_file_uris, parse_one_file_uri};
-use crate::clipboard_image::{format_for_mime, to_wire_png_for_mime};
+use crate::clipboard_image::{format_for_mime, isolated_to_wire_png_for_mime};
 use crate::file_bundle;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -52,7 +52,7 @@ pub fn emit_watched_event() -> io::Result<()> {
                     wl_paste_bounded(&["--no-newline", "--type", mime], MAX_IMAGE_BYTES)?
                 };
                 match bytes {
-                    Some(bytes) => to_wire_png_for_mime(mime, &bytes)
+                    Some(bytes) => isolated_to_wire_png_for_mime(mime, &bytes)
                         .map_or(ClipboardEvent::Ignore, ClipboardEvent::ImagePng),
                     _ => ClipboardEvent::Ignore,
                 }

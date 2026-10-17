@@ -4,6 +4,11 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## [0.25.12](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.12) — 2026-10-16
+
+- Reject SVG inherited dash arrays and CSS before usvg allocates retained path copies.
+- Decode non-PNG clipboard images in a memory-limited helper with a ten-second deadline on Omarchy and Windows, covering native raster decoders whose allocation hint is not strict. A failed conversion leaves input control running. See the [release notes](docs/RELEASE-0.25.12.md).
+
 ## [0.25.11](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.11) — 2026-10-16
 
 - Reject SVG `<use>` references and markers before usvg expands retained geometry; cap text, attributes and path data before graphical parsing.

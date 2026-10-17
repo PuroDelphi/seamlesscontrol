@@ -2421,6 +2421,16 @@ mod linux {
 
     pub async fn run() -> Result<(), Box<dyn Error>> {
         let mut args: Vec<String> = std::env::args().collect();
+        if args.len() == 3 && args[1] == seamlesscontrol_core::clipboard_image::DECODER_COMMAND {
+            return Ok(seamlesscontrol_core::clipboard_image::decode_image_from_stdin(&args[2])?);
+        }
+        if args.len() == 3
+            && args[1] == seamlesscontrol_core::clipboard_image::DECODER_PROBE_COMMAND
+        {
+            return Ok(
+                seamlesscontrol_core::clipboard_image::probe_isolated_image_from_stdin(&args[2])?,
+            );
+        }
         if args.len() == 2 && args[1] == "notify-file-offer" {
             return seamlesscontrol_core::notification::show_file_offer_from_stdin().await;
         }

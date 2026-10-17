@@ -4,6 +4,11 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## [0.25.12](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.12) — 2026-10-16
+
+- Rechaza trazos discontinuos heredados y CSS en SVG antes de que usvg reserve copias retenidas de la geometría.
+- Decodifica las imágenes no PNG del portapapeles en un auxiliar con límite de memoria y diez segundos de plazo en Omarchy y Windows; cubre los decodificadores ráster cuyo límite de reserva no es estricto. Un fallo no detiene el control. Consulta las [notas](docs/RELEASE-0.25.12.md#seamlesscontrol-02512--decodificación-de-imágenes-aislada).
+
 ## [0.25.11](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.11) — 2026-10-16
 
 - Rechaza referencias `<use>` y marcadores SVG antes de la expansión de geometría en usvg; acota también texto, atributos y datos de trazados antes de analizar el árbol gráfico.

@@ -832,6 +832,14 @@ fn usage() {
 
 pub fn run() -> Result<(), Box<dyn Error>> {
     let mut args: Vec<String> = std::env::args().collect();
+    if args.len() == 3 && args[1] == crate::clipboard_image::DECODER_COMMAND {
+        return Ok(crate::clipboard_image::decode_image_from_stdin(&args[2])?);
+    }
+    if args.len() == 3 && args[1] == crate::clipboard_image::DECODER_PROBE_COMMAND {
+        return Ok(crate::clipboard_image::probe_isolated_image_from_stdin(
+            &args[2],
+        )?);
+    }
     if args.len() == 3 && args[1] == "send-file-ui-stdin" {
         args[1] = "send-file".into();
         args.push(crate::ui_stdin::read_path()?);

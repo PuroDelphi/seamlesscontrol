@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## 0.25.12 · Decodificadores de imágenes aislados · 2026-10-16
+
+El revisor encontró que usvg clonaba trazos discontinuos heredados por cada trazado antes del presupuesto del árbol. El análisis previo ahora rechaza estos trazos y CSS. La biblioteca `image` fijada documenta límites de reserva no estrictos para decodificadores nativos, así que las conversiones no PNG de ambas plataformas pasan por otro proceso con 768 MiB de límite de memoria y diez segundos de plazo. Una prueba de integración ejecuta el agente real y verifica un JPEG y SVG pequeños, el rechazo rápido de trazos heredados y la recuperación ante un auxiliar bloqueado. Los enlaces de CI constan en el lanzamiento. No hubo una nueva prueba física entre equipos para esta corrección puntual.
+
 ## 0.25.11 · Referencias SVG y lectura de archivos soltados · 2026-10-16
 
 El revisor detectó dos rutas previas a los límites existentes: expansión de `<use>` y marcadores por usvg, y lectura síncrona de `drop.urls` por Qt en el shell compartido. El preanálisis XML rechaza las referencias y marcadores antes de usvg y limita texto, geometría y atributos. El panel Omarchy ya no acepta archivos soltados; Copiar y Pegar y Elegir siguen funcionando. Una prueba estática impide restaurar la lectura QML de `drop.urls`. El arrastre en la app Windows no cambia. Las pruebas de Rust, Clippy y CI se enlazan desde las notas del lanzamiento; no se realizó una nueva prueba física entre equipos para esta corrección concreta.

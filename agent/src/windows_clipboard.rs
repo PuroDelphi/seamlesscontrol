@@ -2,8 +2,7 @@
 
 use crate::clipboard::{ClipboardEvent, MAX_IMAGE_BYTES, MAX_TEXT_BYTES, valid_png_header};
 use crate::clipboard_file::local_regular_file;
-use crate::clipboard_image::{to_wire_png, to_wire_png_for_mime};
-use image::ImageFormat;
+use crate::clipboard_image::isolated_to_wire_png_for_mime;
 use std::io;
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::path::{Path, PathBuf};
@@ -456,7 +455,7 @@ fn read_raster_clipboard() -> io::Result<Option<Option<ClipboardEvent>>> {
         let Some(bytes) = read_global_data(id, MAX_IMAGE_BYTES)? else {
             return Ok(Some(None));
         };
-        if let Some(png) = to_wire_png_for_mime(mime, &bytes) {
+        if let Some(png) = isolated_to_wire_png_for_mime(mime, &bytes) {
             return Ok(Some(Some(ClipboardEvent::ImagePng(png))));
         }
     }
@@ -465,7 +464,7 @@ fn read_raster_clipboard() -> io::Result<Option<Option<ClipboardEvent>>> {
         let Some(bytes) = read_global_data(CF_TIFF, MAX_IMAGE_BYTES)? else {
             return Ok(Some(None));
         };
-        if let Some(png) = to_wire_png(ImageFormat::Tiff, &bytes) {
+        if let Some(png) = isolated_to_wire_png_for_mime("image/tiff", &bytes) {
             return Ok(Some(Some(ClipboardEvent::ImagePng(png))));
         }
     }
@@ -474,7 +473,9 @@ fn read_raster_clipboard() -> io::Result<Option<Option<ClipboardEvent>>> {
             continue;
         }
         offered = true;
-        let Some(dib) = read_global_data(format, MAX_IMAGE_BYTES * 8)? else {
+        // A 16-million-pixel 32-bit DIB needs at most 64 MiB of pixels;
+        // allow header/palette room without copying arbitrary 256 MiB offers.
+        let Some(dib) = read_global_data(format, 64 * 1024 * 1024 + 4096)? else {
             return Ok(Some(None));
         };
         if let Some(png) = dib_to_png(&dib) {
@@ -540,7 +541,7 @@ fn dib_to_png_via_bmp(dib: &[u8]) -> Option<Vec<u8>> {
     bmp.extend_from_slice(&[0; 4]);
     bmp.extend_from_slice(&u32::try_from(data_offset).ok()?.to_le_bytes());
     bmp.extend_from_slice(dib);
-    to_wire_png(ImageFormat::Bmp, &bmp)
+    isolated_to_wire_png_for_mime("image/bmp", &bmp)
 }
 
 fn dib_to_png_direct(dib: &[u8]) -> Option<Vec<u8>> {
@@ -572,7 +573,7 @@ fn dib_to_png_direct(dib: &[u8]) -> Option<Vec<u8>> {
     }
     let width = width as usize;
     let rows = height.unsigned_abs() as usize;
-    if width > 16384 || rows > 16384 || width.checked_mul(rows)? > 64_000_000 {
+    if width > 16384 || rows > 16384 || width.checked_mul(rows)? > 16_000_000 {
         return None;
     }
     if compression == 3
@@ -685,6 +686,7 @@ impl Default for WindowsClipboard {
 #[cfg(test)]
 mod image_tests {
     use super::*;
+    use image::ImageFormat;
 
     #[test]
     fn indexed_windows_bitmap_converts_to_png() {
