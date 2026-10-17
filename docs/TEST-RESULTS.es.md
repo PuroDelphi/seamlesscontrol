@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## 0.25.13 · Identidad autenticada del receptor · 2026-10-17
+
+El receptor de consola de Windows conserva la clave Noise autenticada desde el intercambio inicial hasta `CLAIM`, el inicio de la entrada y la vigilancia de permisos. La prueba deja una conexión cifrada antigua abierta, revoca su identidad, empareja otra clave en la misma IP y comprueba que se rechaza la conexión antigua. Omarchy comprueba también la clave y los permisos actuales antes y durante la recepción; una prueba Linux cubre la sustitución en la misma IP. Pasaron las pruebas locales del núcleo y del agente Linux. Los resultados de Windows y de los archivos del lanzamiento se enlazan desde la versión publicada. No se hizo una nueva prueba física entre dos equipos para esta corrección puntual.
+
 ## 0.25.12 · Decodificadores de imágenes aislados · 2026-10-16
 
 El revisor encontró que usvg clonaba trazos discontinuos heredados por cada trazado antes del presupuesto del árbol. El análisis previo ahora rechaza estos trazos y CSS. La biblioteca `image` fijada documenta límites de reserva no estrictos para decodificadores nativos, así que las conversiones no PNG de ambas plataformas pasan por otro proceso con 768 MiB de límite de memoria y diez segundos de plazo. Una prueba de integración ejecuta el agente real y verifica un JPEG y SVG pequeños, el rechazo rápido de trazos heredados y la recuperación ante un auxiliar bloqueado. Los enlaces de CI constan en el lanzamiento. No hubo una nueva prueba física entre equipos para esta corrección puntual.

@@ -64,6 +64,20 @@ mod linux {
     const LATENCY_SAMPLES: u64 = 20;
     const MAX_INBOUND_CONNECTIONS: usize = 8;
 
+    fn authenticated_control_allowed(
+        config: &std::path::Path,
+        ip: IpAddr,
+        key: &[u8; 32],
+        text: bool,
+    ) -> io::Result<bool> {
+        let peers = config.join("peers");
+        if is_revoked(&peers, key)? || load_peer_key(&peers, ip)? != Some(*key) {
+            return Ok(false);
+        }
+        let policy = PeerPolicy::load(config, key)?;
+        Ok(policy.control && policy.text == text)
+    }
+
     fn pre_auth_deadline(
         stream: &TcpStream,
         timeout: Duration,
@@ -1705,7 +1719,7 @@ mod linux {
             return Err("capture claim required before remote input".into());
         }
         let mut peer_policy = PeerPolicy::load(config, &peer.public_key)?;
-        if !peer_policy.permits(Capability::Control) {
+        if !authenticated_control_allowed(config, peer_ip, &peer.public_key, peer_policy.text)? {
             Frame {
                 kind: Kind::Control,
                 epoch: 0,
@@ -1725,6 +1739,9 @@ mod linux {
             .write_to(&mut channel)?;
             return Err("another peer already owns remote input".into());
         };
+        if !authenticated_control_allowed(config, peer_ip, &peer.public_key, peer_policy.text)? {
+            return Err("authenticated peer was revoked or its permissions changed".into());
+        }
         Frame {
             kind: Kind::Control,
             epoch: 0,
@@ -1738,6 +1755,9 @@ mod linux {
             .stream_mut()
             .set_read_timeout(Some(PAIRING_SOCKET_TIMEOUT))?;
         first = Frame::read_from(&mut channel)?;
+        if !authenticated_control_allowed(config, peer_ip, &peer.public_key, peer_policy.text)? {
+            return Err("authenticated peer was revoked before input began".into());
+        }
         let _active_session = ActiveSession::start(config, peer_ip, &peer.public_key)?;
         channel
             .stream_mut()
@@ -1827,6 +1847,9 @@ mod linux {
         let watcher_running = Arc::new(AtomicBool::new(true));
         let watcher_flag = Arc::clone(&watcher_running);
         let watcher_control = control.clone();
+        let watcher_config = config.to_path_buf();
+        let watcher_key = peer.public_key;
+        let watcher_text = peer_policy.text;
         let watcher = thread::spawn(move || {
             let mut sequence = 0_u64;
             let mut observed_epoch = None;
@@ -1838,6 +1861,17 @@ mod linux {
             let mut monitor_regions: Option<Vec<Rect>> = None;
             let mut last_geometry_refresh = Instant::now();
             while watcher_flag.load(Ordering::Relaxed) {
+                if !authenticated_control_allowed(
+                    &watcher_config,
+                    peer_ip,
+                    &watcher_key,
+                    watcher_text,
+                )
+                .unwrap_or(false)
+                {
+                    let _ = writer.stream_mut().shutdown(Shutdown::Both);
+                    break;
+                }
                 if watcher_control.disconnect_requested() {
                     let _ = writer.stream_mut().shutdown(Shutdown::Both);
                     break;
@@ -3064,6 +3098,29 @@ mod linux {
         use super::*;
         use std::io::Read;
         use std::net::Ipv4Addr;
+
+        #[test]
+        fn replaced_identity_cannot_keep_receiver_control() {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos();
+            let config = std::env::temp_dir().join(format!(
+                "seamlesscontrol-replaced-peer-{}-{unique}",
+                std::process::id()
+            ));
+            let peers = config.join("peers");
+            let ip: IpAddr = "127.0.0.1".parse().unwrap();
+            let old_key = [7; 32];
+            let new_key = [8; 32];
+            remember_peer_key(&peers, ip, &old_key).unwrap();
+            assert!(authenticated_control_allowed(&config, ip, &old_key, true).unwrap());
+            revoke_peer_key(&peers, ip).unwrap();
+            remember_peer_key(&peers, ip, &new_key).unwrap();
+            assert!(!authenticated_control_allowed(&config, ip, &old_key, true).unwrap());
+            assert!(authenticated_control_allowed(&config, ip, &new_key, true).unwrap());
+            let _ = std::fs::remove_dir_all(config);
+        }
 
         #[tokio::test]
         async fn incomplete_noise_body_releases_connection_slot() {

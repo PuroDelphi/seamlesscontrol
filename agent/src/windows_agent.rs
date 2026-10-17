@@ -168,7 +168,7 @@ fn secure_connection(
     prompt: &Mutex<()>,
     pair_request: bool,
     mut pre_auth_done: Option<Sender<()>>,
-) -> Result<SecureChannel<TcpStream>, Box<dyn Error>> {
+) -> Result<(SecureChannel<TcpStream>, [u8; 32]), Box<dyn Error>> {
     let peers = config.join("peers");
     let pinned = load_peer_key(&peers, ip)?;
     let known = if pinned.is_none() {
@@ -231,7 +231,7 @@ fn secure_connection(
         .set_write_timeout(Some(Duration::from_secs(120)))?;
     hello(&mut channel, role)?;
     pin_after_handshake(config, ip, &peer, previous_ip, reapproved_revoked)?;
-    Ok(channel)
+    Ok((channel, peer.public_key))
 }
 
 struct ReceiverLease(Arc<AtomicBool>);
@@ -279,6 +279,23 @@ fn active_peer_allowed(config: &Path, ip: IpAddr, key: &[u8; 32], text: bool) ->
     }
     let policy = PeerPolicy::load(config, key)?;
     Ok(policy.control && policy.text == text)
+}
+
+fn authenticated_control_policy(
+    config: &Path,
+    ip: IpAddr,
+    authenticated_key: &[u8; 32],
+) -> io::Result<PeerPolicy> {
+    let peers = config.join("peers");
+    if is_revoked(&peers, authenticated_key)?
+        || load_peer_key(&peers, ip)? != Some(*authenticated_key)
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "authenticated peer identity changed",
+        ));
+    }
+    PeerPolicy::load(config, authenticated_key)
 }
 
 struct ActivePeerWatch {
@@ -356,7 +373,7 @@ fn serve_connection(
     if !local_address(ip) {
         return Err("remote control is restricted to LAN peers".into());
     }
-    let mut channel = secure_connection(
+    let (mut channel, authenticated_key) = secure_connection(
         stream,
         Role::Responder,
         identity,
@@ -412,8 +429,7 @@ fn serve_connection(
     {
         return Err("input requires a capture claim".into());
     }
-    let pinned = load_peer_key(&config.join("peers"), ip)?.ok_or("peer was removed")?;
-    let mut policy = PeerPolicy::load(config, &pinned)?;
+    let mut policy = authenticated_control_policy(config, ip, &authenticated_key)?;
     if !policy.permits(Capability::Control) {
         Frame {
             kind: Kind::Control,
@@ -437,6 +453,9 @@ fn serve_connection(
     if !interactive_desktop()? {
         return Err("Windows desktop is locked; remote input was not enabled".into());
     }
+    if !active_peer_allowed(config, ip, &authenticated_key, policy.text)? {
+        return Err("authenticated peer was revoked or its permissions changed".into());
+    }
     Frame {
         kind: Kind::Control,
         epoch: 0,
@@ -445,21 +464,27 @@ fn serve_connection(
     }
     .write_to(&mut channel)?;
     policy.mark_connected()?;
-    policy.save(config, &pinned)?;
-    let watch = ActivePeerWatch::start(channel.stream_mut(), config, ip, pinned, policy.text)?;
+    policy.save(config, &authenticated_key)?;
+    let watch = ActivePeerWatch::start(
+        channel.stream_mut(),
+        config,
+        ip,
+        authenticated_key,
+        policy.text,
+    )?;
     channel
         .stream_mut()
         .set_read_timeout(Some(PAIRING_TIMEOUT))?;
     let first_input = Frame::read_from(&mut channel)?;
-    if !active_peer_allowed(config, ip, &pinned, policy.text)? {
+    if !active_peer_allowed(config, ip, &authenticated_key, policy.text)? {
         return Err("peer authorization changed before input began".into());
     }
-    let _active_session = ActiveSession::start(config, ip, &pinned)?;
+    let _active_session = ActiveSession::start(config, ip, &authenticated_key)?;
     channel
         .stream_mut()
         .set_read_timeout(Some(Duration::from_secs(5)))?;
     let (mut reader, writer) = channel.into_tcp_halves()?;
-    let injector = WindowsInjector::new(writer, identity.public, pinned, policy.text)?;
+    let injector = WindowsInjector::new(writer, identity.public, authenticated_key, policy.text)?;
     println!("Input session from {ip} is ready.");
     let result =
         run_receiver_with_first_until(&mut reader, injector, Some(first_input), || watch.denied());
@@ -543,7 +568,7 @@ fn serve(bind: SocketAddr, identity: Identity, config: PathBuf) -> Result<(), Bo
 fn pair(address: SocketAddr, identity: &Identity, config: &Path) -> Result<(), Box<dyn Error>> {
     let stream = TcpStream::connect_timeout(&address, Duration::from_secs(10))?;
     let prompt = Mutex::new(());
-    let mut channel = secure_connection(
+    let (mut channel, _) = secure_connection(
         stream,
         Role::Initiator,
         identity,
@@ -1148,6 +1173,68 @@ mod tests {
         policy.control = false;
         policy.save(&config, &key).unwrap();
         assert!(!active_peer_allowed(&config, ip, &key, false).unwrap());
+        let _ = std::fs::remove_dir_all(config);
+    }
+
+    #[test]
+    fn waiting_console_claim_cannot_inherit_replacement_identity() {
+        let config = test_config();
+        let peers = config.join("peers");
+        let ip: IpAddr = "127.0.0.1".parse().unwrap();
+        let receiver_identity = Identity::generate().unwrap();
+        let old_identity = Identity::generate().unwrap();
+        let new_identity = Identity::generate().unwrap();
+        let old_key = old_identity.public;
+        let new_key = new_identity.public;
+        let receiver_key = receiver_identity.public;
+        remember_peer_key(&peers, ip, &old_identity.public).unwrap();
+        let listener = TcpListener::bind((ip, 0)).unwrap();
+        let client = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+        let (stream, _) = listener.accept().unwrap();
+        let server_config = config.clone();
+        let server = thread::spawn(move || {
+            let prompt = Mutex::new(());
+            let (mut channel, authenticated_key) = secure_connection(
+                stream,
+                Role::Responder,
+                &receiver_identity,
+                &server_config,
+                ip,
+                &prompt,
+                false,
+                None,
+            )
+            .unwrap();
+            let claim = Frame::read_from(&mut channel).unwrap();
+            assert_eq!(claim.payload, b"CLAIM");
+            assert_eq!(authenticated_key, old_key);
+            assert_eq!(
+                load_peer_key(&server_config.join("peers"), ip).unwrap(),
+                Some(new_key)
+            );
+            assert!(authenticated_control_policy(&server_config, ip, &authenticated_key).is_err());
+            assert!(!active_peer_allowed(&server_config, ip, &authenticated_key, true).unwrap());
+        });
+        let (mut channel, _) = SecureChannel::connect(
+            client,
+            Role::Initiator,
+            &old_identity,
+            Some(&receiver_key),
+            |_| false,
+        )
+        .unwrap();
+        hello(&mut channel, Role::Initiator).unwrap();
+        revoke_peer_key(&peers, ip).unwrap();
+        remember_peer_key(&peers, ip, &new_identity.public).unwrap();
+        Frame {
+            kind: Kind::Control,
+            epoch: 0,
+            sequence: 0,
+            payload: b"CLAIM".to_vec(),
+        }
+        .write_to(&mut channel)
+        .unwrap();
+        server.join().unwrap();
         let _ = std::fs::remove_dir_all(config);
     }
 

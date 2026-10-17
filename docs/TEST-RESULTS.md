@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.13 authenticated receiver identity · 2026-10-17
+
+The Windows console receiver now carries the authenticated Noise key from handshake through `CLAIM`, input setup and the active authorization watch. Its regression test keeps an old encrypted channel open, revokes its identity, pairs a different key at the same IP and checks that the old channel is rejected. Omarchy also checks the live pin and permissions before starting input and throughout reception; a Linux test covers replacement at the same IP. Local Linux core and binary tests passed. Windows CI and release-asset results are linked from the release when published. No new physical two-computer test was performed for this targeted security fix.
+
 ## 0.25.12 isolated clipboard image decoders · 2026-10-16
 
 The reviewer found usvg cloning inherited dash arrays per path before the existing tree budget. Preflight now rejects dash arrays and CSS. The locked `image` crate documents non-strict allocation hints for native decoders, so non-PNG conversion on both platforms now runs in a separate 768 MiB memory-limited process with a ten-second wall deadline. An integration test launches the real agent and verifies small JPEG and SVG output, fast dash-array rejection and timeout recovery from a deliberately stalled worker. CI links are in the release. No new physical two-computer test was performed for this targeted security fix.
