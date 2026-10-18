@@ -20,6 +20,8 @@ const FILE_ACTION_MIMES: [&str; 3] = [
     "x-special/mate-copied-files",
     "x-special/nautilus-clipboard",
 ];
+const CLIPBOARD_READ_TIMEOUT: &str = "8s";
+const CLIPBOARD_HELPER_TIMEOUT: &str = "30s";
 
 pub fn emit_watched_event() -> io::Result<()> {
     let event = match std::env::var("CLIPBOARD_STATE").as_deref() {
@@ -107,7 +109,17 @@ fn clipboard_types() -> Vec<String> {
 }
 
 fn wl_paste_bounded(args: &[&str], limit: usize) -> io::Result<Option<Vec<u8>>> {
-    let mut child = Command::new("wl-paste")
+    command_output_bounded("wl-paste", args, limit, CLIPBOARD_READ_TIMEOUT)
+}
+
+fn command_output_bounded(
+    program: &str,
+    args: &[&str],
+    limit: usize,
+    timeout: &str,
+) -> io::Result<Option<Vec<u8>>> {
+    let mut child = Command::new("timeout")
+        .args(["--kill-after=1s", timeout, program])
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -391,6 +403,7 @@ impl ClipboardWatch {
         let executable = std::env::current_exe()?;
         let mut child = Command::new("wl-paste")
             .arg("--watch")
+            .args(["timeout", "--kill-after=1s", CLIPBOARD_HELPER_TIMEOUT])
             .arg(executable)
             .arg("clipboard-helper")
             .stdin(Stdio::null())
@@ -435,7 +448,18 @@ impl ClipboardWatch {
 
 #[cfg(all(test, unix))]
 mod tests {
-    use super::prepare_copied_paths;
+    use super::{command_output_bounded, prepare_copied_paths};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn stalled_clipboard_provider_does_not_block_following_events() {
+        let start = Instant::now();
+        let output = command_output_bounded("sleep", &["30"], 1024, "1s").unwrap();
+        assert!(output.is_none());
+        assert!(start.elapsed() < Duration::from_secs(5));
+        let output = command_output_bounded("printf", &["next copy"], 1024, "1s").unwrap();
+        assert_eq!(output.as_deref(), Some(b"next copy".as_slice()));
+    }
 
     #[test]
     fn copied_symlink_reports_rejection_instead_of_reusing_previous_selection() {
