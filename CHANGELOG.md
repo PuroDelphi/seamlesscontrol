@@ -4,6 +4,10 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
+## Unreleased (`alpha`)
+
+- Keep Omarchy clipboard observation responsive when a Wayland image, text or file selection stalls. Each external clipboard read has a byte and wall-clock limit, including when another process retains the output pipe; a timed-out selection is discarded without ending the control session.
+
 ## [0.25.13](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.13) — 2026-10-17
 
 - Keep the authenticated peer key attached to each Windows console receiver connection, so a revoked connection cannot inherit a replacement identity's control permissions at the same IP. Apply current pin and permission checks to Omarchy reception as well. See the [release notes](docs/RELEASE-0.25.13.md).

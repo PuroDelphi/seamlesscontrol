@@ -4,6 +4,10 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
+## Sin publicar (`alpha`)
+
+- Mantiene activo el observador del portapapeles Omarchy si se atasca una selección Wayland de imagen, texto o archivo. Cada lectura externa tiene límite de bytes y de tiempo, incluso si otro proceso conserva abierto el canal de salida; se descarta esa selección sin terminar la sesión de control.
+
 ## [0.25.13](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.13) — 2026-10-17
 
 - Conserva la clave autenticada en cada conexión del receptor de consola de Windows para que una conexión revocada no herede permisos de otra identidad en la misma IP. El receptor Omarchy comprueba también la clave y los permisos actuales. Consulta las [notas](docs/RELEASE-0.25.13.md#seamlesscontrol-02513--identidad-vinculada-a-la-conexión).

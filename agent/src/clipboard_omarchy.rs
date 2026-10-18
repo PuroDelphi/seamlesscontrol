@@ -8,6 +8,7 @@ use crate::clipboard_file::{file_uri, local_regular_file, parse_file_uris, parse
 use crate::clipboard_image::{format_for_mime, isolated_to_wire_png_for_mime};
 use crate::file_bundle;
 use std::io::{self, Read, Write};
+use std::os::fd::AsRawFd;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -20,7 +21,7 @@ const FILE_ACTION_MIMES: [&str; 3] = [
     "x-special/mate-copied-files",
     "x-special/nautilus-clipboard",
 ];
-const CLIPBOARD_READ_TIMEOUT: &str = "8s";
+const CLIPBOARD_READ_TIMEOUT: Duration = Duration::from_secs(8);
 const CLIPBOARD_HELPER_TIMEOUT: &str = "30s";
 
 pub fn emit_watched_event() -> io::Result<()> {
@@ -116,25 +117,72 @@ fn command_output_bounded(
     program: &str,
     args: &[&str],
     limit: usize,
-    timeout: &str,
+    timeout: Duration,
 ) -> io::Result<Option<Vec<u8>>> {
+    let deadline = Instant::now() + timeout;
     let mut child = Command::new("timeout")
-        .args(["--kill-after=1s", timeout, program])
+        .args([
+            "--kill-after=1s",
+            &format!("{}s", timeout.as_secs()),
+            program,
+        ])
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .spawn()?;
-    let mut output = Vec::new();
-    child
+    let mut stdout = child
         .stdout
         .take()
-        .ok_or_else(|| io::Error::other("wl-paste stdout missing"))?
-        .take((limit + 1) as u64)
-        .read_to_end(&mut output)?;
-    if output.len() > limit {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Ok(None);
+        .ok_or_else(|| io::Error::other("wl-paste stdout missing"))?;
+    let mut output = Vec::new();
+    let mut chunk = [0_u8; 16 * 1024];
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Ok(None);
+        }
+        let mut poll_fd = libc::pollfd {
+            fd: stdout.as_raw_fd(),
+            events: libc::POLLIN | libc::POLLHUP | libc::POLLERR,
+            revents: 0,
+        };
+        let wait_ms = remaining.as_millis().min(i32::MAX as u128) as i32;
+        // SAFETY: poll_fd points to one valid pollfd and stdout owns its fd.
+        let ready = unsafe { libc::poll(&mut poll_fd, 1, wait_ms) };
+        if ready == 0 {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Ok(None);
+        }
+        if ready < 0 {
+            let error = io::Error::last_os_error();
+            if error.kind() == io::ErrorKind::Interrupted {
+                continue;
+            }
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
+        }
+        let max_read = chunk.len().min(limit + 1 - output.len());
+        let size = match stdout.read(&mut chunk[..max_read]) {
+            Ok(size) => size,
+            Err(error) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error);
+            }
+        };
+        if size == 0 {
+            break;
+        }
+        output.extend_from_slice(&chunk[..size]);
+        if output.len() > limit {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Ok(None);
+        }
     }
     Ok(child.wait()?.success().then_some(output))
 }
@@ -454,11 +502,23 @@ mod tests {
     #[test]
     fn stalled_clipboard_provider_does_not_block_following_events() {
         let start = Instant::now();
-        let output = command_output_bounded("sleep", &["30"], 1024, "1s").unwrap();
+        let output =
+            command_output_bounded("sleep", &["30"], 1024, Duration::from_secs(1)).unwrap();
         assert!(output.is_none());
         assert!(start.elapsed() < Duration::from_secs(5));
-        let output = command_output_bounded("printf", &["next copy"], 1024, "1s").unwrap();
+        let output =
+            command_output_bounded("printf", &["next copy"], 1024, Duration::from_secs(1)).unwrap();
         assert_eq!(output.as_deref(), Some(b"next copy".as_slice()));
+    }
+
+    #[test]
+    fn inherited_clipboard_pipe_cannot_hold_reader_after_its_command_exits() {
+        let start = Instant::now();
+        let output =
+            command_output_bounded("sh", &["-c", "sleep 4 &"], 1024, Duration::from_secs(1))
+                .unwrap();
+        assert!(output.is_none());
+        assert!(start.elapsed() < Duration::from_secs(3));
     }
 
     #[test]
