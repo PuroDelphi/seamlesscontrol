@@ -4,9 +4,9 @@
 
 Este archivo resume los cambios publicados y los cambios aún sin release. Consulta los [resultados de pruebas](docs/TEST-RESULTS.es.md) para conocer las verificaciones y los casos que faltan.
 
-## Sin publicar (`alpha`)
+## [0.25.14](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.14) — 2026-10-18
 
-- Mantiene activo el observador del portapapeles Omarchy si se atasca una selección Wayland de imagen, texto o archivo. Cada lectura externa tiene límite de bytes y de tiempo, incluso si otro proceso conserva abierto el canal de salida; se descarta esa selección sin terminar la sesión de control.
+- Mantiene activo el observador del portapapeles Omarchy si se atasca una selección Wayland de imagen, texto o archivo. Cada lectura externa tiene límite de bytes y de tiempo, incluso si otro proceso conserva abierto el canal de salida; se descarta esa selección sin terminar la sesión de control. Consulta las [notas](docs/RELEASE-0.25.14.md#seamlesscontrol-02514--recuperación-del-portapapeles-de-omarchy).
 
 ## [0.25.13](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.13) — 2026-10-17
 

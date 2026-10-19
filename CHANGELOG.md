@@ -4,9 +4,9 @@
 
 This file summarizes published changes and changes not yet included in a release. Consult the [test results](docs/TEST-RESULTS.md) for verified behavior and remaining test scenarios.
 
-## Unreleased (`alpha`)
+## [0.25.14](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.14) — 2026-10-18
 
-- Keep Omarchy clipboard observation responsive when a Wayland image, text or file selection stalls. Each external clipboard read has a byte and wall-clock limit, including when another process retains the output pipe; a timed-out selection is discarded without ending the control session.
+- Keep Omarchy clipboard observation responsive when a Wayland image, text or file selection stalls. Each external clipboard read has a byte and wall-clock limit, including when another process retains the output pipe; a timed-out selection is discarded without ending the control session. See the [release notes](docs/RELEASE-0.25.14.md).
 
 ## [0.25.13](https://github.com/PuroDelphi/seamlesscontrol/releases/tag/v0.25.13) — 2026-10-17
 

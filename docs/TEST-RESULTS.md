@@ -2,6 +2,10 @@
 
 [User guide](../README.md) · [Technical guide](TECHNICAL.md) · [Detailed test log in Spanish](FEASIBILITY.md) · [Planned test cases in Spanish](TESTING.md)
 
+## 0.25.14 Omarchy clipboard recovery · 2026-10-18
+
+The Omarchy clipboard reader now enforces a byte cap and an absolute wall deadline for text, image and file selections, even when another process inherits the provider's output pipe. The watcher callback has its own deadline. Regression tests cover a stalled provider and an inherited output pipe; the local Linux test suite and Clippy passed. Linux validation and Windows x64 CI passed on `alpha` at `12d719d`. During diagnosis, text and image paste from this Omarchy to a second Omarchy worked after freeing a stuck clipboard observer. That physical check predates the final inherited-pipe test; no new two-computer test was run on the exact 0.25.14 build.
+
 ## 0.25.13 authenticated receiver identity · 2026-10-17
 
 The Windows console receiver now carries the authenticated Noise key from handshake through `CLAIM`, input setup and the active authorization watch. Its regression test keeps an old encrypted channel open, revokes its identity, pairs a different key at the same IP and checks that the old channel is rejected. Omarchy also checks the live pin and permissions before starting input and throughout reception; a Linux test covers replacement at the same IP. Local Linux core and binary tests passed. Windows CI and release-asset results are linked from the release when published. No new physical two-computer test was performed for this targeted security fix.

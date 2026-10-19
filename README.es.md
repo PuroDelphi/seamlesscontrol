@@ -2,7 +2,7 @@
 
 [![Validación](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml/badge.svg)](https://github.com/PuroDelphi/seamlesscontrol/actions/workflows/validate.yml) · [Descargar Windows x64](https://github.com/PuroDelphi/seamlesscontrol/releases/latest) · [English](README.md) · [MIT](LICENSE)
 
-[Identidad vinculada a la conexión 0.25.13](docs/RELEASE-0.25.13.md#seamlesscontrol-02513--identidad-vinculada-a-la-conexión) · [Novedades de la versión 0.25.2](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app)
+[Recuperación del portapapeles 0.25.14](docs/RELEASE-0.25.14.md#seamlesscontrol-02514--recuperación-del-portapapeles-de-omarchy) · [Novedades de la versión 0.25.2](docs/RELEASE-0.25.2.md#seamlesscontrol-0252--imágenes-en-el-portapapeles-y-archivos-arrastrados-a-la-app)
 
 **Nuevo en 0.25.2:** copia una imagen en una aplicación y pégala en otro equipo Omarchy o Windows conectado. SeamlessControl admite datos de imagen PNG, JPEG, GIF, WebP, TIFF, BMP, ICO, DDS, OpenEXR, HDR, PNM, QOI, TGA, Farbfeld y SVG vectorial sencillo en el portapapeles y los convierte a PNG para el otro equipo. En Windows también puedes soltar archivos y carpetas en la página **Archivos** del emisor para ofrecerlos con la aprobación habitual.
 
@@ -28,7 +28,7 @@ También puedes compartir texto durante la conexión y copiar **archivos y carpe
 | Instalar la app, recibir o controlar desde Windows | [Guía ilustrada Windows](docs/WINDOWS.es.md) |
 | Copiar y pegar archivos o enviarlos a una carpeta | [Guía Omarchy](docs/USER-GUIDE.es.md) / [Guía Windows](docs/WINDOWS.es.md), sección Archivos |
 | Resolver un problema de conexión | Sección de problemas de cada guía; [pedir ayuda](SUPPORT.es.md) |
-| Ver el último lanzamiento y las pruebas físicas | [Notas de 0.25.13](docs/RELEASE-0.25.13.md#seamlesscontrol-02513--identidad-vinculada-a-la-conexión) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
+| Ver el último lanzamiento y las pruebas físicas | [Notas de 0.25.14](docs/RELEASE-0.25.14.md#seamlesscontrol-02514--recuperación-del-portapapeles-de-omarchy) / [registro de pruebas](docs/TEST-RESULTS.es.md) |
 | Usar comandos o conocer permisos y límites | [Guía técnica](docs/TECHNICAL.es.md) |
 
 **Origen** es el equipo donde están el ratón y el teclado físicos que vas a usar. **Receptor** es el equipo que quieres controlar. Los papeles pueden cambiar para otra sesión; no necesitas emparejar de nuevo por invertirlos.

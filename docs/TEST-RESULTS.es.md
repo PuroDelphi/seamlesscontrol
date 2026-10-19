@@ -2,6 +2,10 @@
 
 [Guía de usuario](../README.es.md) · [Guía técnica](TECHNICAL.es.md) · [English](TEST-RESULTS.md) · [Registro detallado](FEASIBILITY.md) · [Casos pendientes](TESTING.md)
 
+## 0.25.14 · Recuperación del portapapeles Omarchy · 2026-10-18
+
+El lector del portapapeles Omarchy ahora limita bytes y tiempo total de las selecciones de texto, imagen y archivos, incluso si otro proceso hereda el canal de salida del proveedor. La llamada del observador tiene su propio plazo. Las pruebas de regresión cubren un proveedor bloqueado y un canal de salida heredado; pasaron las pruebas Linux locales y Clippy. La validación Linux y la CI Windows x64 pasaron en `alpha` en `12d719d`. Durante el diagnóstico funcionó el pegado de texto e imágenes desde este Omarchy a un segundo Omarchy tras liberar un observador bloqueado. Esa prueba física precede a la última prueba del canal heredado; la compilación exacta 0.25.14 no se ha probado de nuevo entre dos equipos.
+
 ## 0.25.13 · Identidad autenticada del receptor · 2026-10-17
 
 El receptor de consola de Windows conserva la clave Noise autenticada desde el intercambio inicial hasta `CLAIM`, el inicio de la entrada y la vigilancia de permisos. La prueba deja una conexión cifrada antigua abierta, revoca su identidad, empareja otra clave en la misma IP y comprueba que se rechaza la conexión antigua. Omarchy comprueba también la clave y los permisos actuales antes y durante la recepción; una prueba Linux cubre la sustitución en la misma IP. Pasaron las pruebas locales del núcleo y del agente Linux. Los resultados de Windows y de los archivos del lanzamiento se enlazan desde la versión publicada. No se hizo una nueva prueba física entre dos equipos para esta corrección puntual.
